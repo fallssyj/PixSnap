@@ -1,0 +1,22 @@
+﻿<!--  编码：UTF-8 BOM  -->
+<!--  应用程序入口，加载 HandyControl 深色主题和全局资源  -->
+<Application
+    x:Class="PixSnap.App"
+    xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+    xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+    xmlns:hc="https://handyorg.github.io/handycontrol">
+    <!--  注意：不设置 StartupUri，由 App.xaml.cs 手动控制窗口生命周期  -->
+    <Application.Resources>
+        <ResourceDictionary>
+            <ResourceDictionary.MergedDictionaries>
+                <!--  HandyControl 深色主题皮肤  -->
+                <hc:ThemeResources AccentColor="Red" RequestedTheme="Dark" />
+                <hc:Theme />
+                <!--  项目颜色定义  -->
+                <ResourceDictionary Source="/Styles/Colors.xaml" />
+                <!--  项目控件样式  -->
+                <ResourceDictionary Source="/Styles/Controls.xaml" />
+            </ResourceDictionary.MergedDictionaries>
+        </ResourceDictionary>
+    </Application.Resources>
+</Application>

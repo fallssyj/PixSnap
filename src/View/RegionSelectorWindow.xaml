@@ -1,0 +1,121 @@
+<!-- 编码：UTF-8 BOM -->
+<!-- 矩形区域选择器：全屏半透明覆盖层，用于框选截图区域 -->
+<Window x:Class="PixSnap.View.RegionSelectorWindow"
+        xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        Title="区域选择"
+        WindowStyle="None"
+        AllowsTransparency="True"
+        Background="Transparent"
+        ShowInTaskbar="False"
+        Topmost="True"
+        ResizeMode="NoResize"
+        Cursor="Cross">
+
+    <Window.Resources>
+        <ResourceDictionary>
+            <ResourceDictionary.MergedDictionaries>
+                <ResourceDictionary Source="/Styles/Colors.xaml"/>
+            </ResourceDictionary.MergedDictionaries>
+        </ResourceDictionary>
+    </Window.Resources>
+
+    <!-- Canvas 用于绘制遮罩和选区 -->
+    <Canvas x:Name="RootCanvas"
+            Background="Transparent"
+            MouseLeftButtonDown="RootCanvas_MouseLeftButtonDown"
+            MouseMove="RootCanvas_MouseMove"
+            MouseLeftButtonUp="RootCanvas_MouseLeftButtonUp">
+
+        <!-- 全屏截图预览背景（无交互，Stretch=Fill 确保物理像素图像适配逻辑尺寸） -->
+        <Image x:Name="PreviewImage"
+               IsHitTestVisible="False"
+               Stretch="Fill"
+               Canvas.Left="0"
+               Canvas.Top="0"/>
+
+        <!-- 四个暗色遮罩区域（上/下/左/右） -->
+        <Rectangle x:Name="MaskTop"    Fill="{StaticResource SelectionMaskBrush}" IsHitTestVisible="False"/>
+        <Rectangle x:Name="MaskBottom" Fill="{StaticResource SelectionMaskBrush}" IsHitTestVisible="False"/>
+        <Rectangle x:Name="MaskLeft"   Fill="{StaticResource SelectionMaskBrush}" IsHitTestVisible="False"/>
+        <Rectangle x:Name="MaskRight"  Fill="{StaticResource SelectionMaskBrush}" IsHitTestVisible="False"/>
+
+        <!-- 选区边框 -->
+        <Rectangle x:Name="SelectionBorder"
+                   Stroke="{StaticResource SelectionBorderBrush}"
+                   StrokeThickness="1.5"
+                   Fill="Transparent"
+                   IsHitTestVisible="False"/>
+
+        <!-- 角和边的调整手柄 -->
+        <!-- 四角 -->
+        <Rectangle x:Name="HandleTL" Width="8" Height="8" Fill="{StaticResource SelectionBorderBrush}" IsHitTestVisible="False"/>
+        <Rectangle x:Name="HandleTR" Width="8" Height="8" Fill="{StaticResource SelectionBorderBrush}" IsHitTestVisible="False"/>
+        <Rectangle x:Name="HandleBL" Width="8" Height="8" Fill="{StaticResource SelectionBorderBrush}" IsHitTestVisible="False"/>
+        <Rectangle x:Name="HandleBR" Width="8" Height="8" Fill="{StaticResource SelectionBorderBrush}" IsHitTestVisible="False"/>
+        <!-- 四边中点 -->
+        <Rectangle x:Name="HandleTC" Width="8" Height="8" Fill="{StaticResource SelectionBorderBrush}" IsHitTestVisible="False"/>
+        <Rectangle x:Name="HandleBC" Width="8" Height="8" Fill="{StaticResource SelectionBorderBrush}" IsHitTestVisible="False"/>
+        <Rectangle x:Name="HandleLC" Width="8" Height="8" Fill="{StaticResource SelectionBorderBrush}" IsHitTestVisible="False"/>
+        <Rectangle x:Name="HandleRC" Width="8" Height="8" Fill="{StaticResource SelectionBorderBrush}" IsHitTestVisible="False"/>
+
+        <!-- 尺寸提示标签 -->
+        <Border x:Name="SizeTip"
+                Background="#CC000000"
+                CornerRadius="4"
+                Padding="6,3"
+                IsHitTestVisible="False">
+            <TextBlock x:Name="SizeTipText"
+                       Foreground="White"
+                       FontSize="12"/>
+        </Border>
+
+        <!-- 操作提示 -->
+        <Border Canvas.Bottom="20" Canvas.Right="20"
+                Background="#AA000000"
+                CornerRadius="6"
+                Padding="10,6"
+                IsHitTestVisible="False">
+            <TextBlock Foreground="#CCFFFFFF" FontSize="12"
+                       Text="拖动选择区域  |  Enter/双击 确认  |  Esc 取消"/>
+        </Border>
+
+        <!-- 确认操作工具条（仅在有选区时显示）-->
+        <Border x:Name="ConfirmBar"
+                Background="#DD1E1E2E"
+                CornerRadius="8"
+                Padding="8,6"
+                Visibility="Collapsed"
+                IsHitTestVisible="True">
+            <StackPanel Orientation="Horizontal" Margin="2,0">
+                <!-- 确认按钮 -->
+                <Button x:Name="BtnConfirm"
+                        Width="32" Height="32"
+                        Background="Transparent"
+                        BorderThickness="0"
+                        Cursor="Hand"
+                        Click="BtnConfirm_Click"
+                        ToolTip="确认截图 (Enter)">
+                    <Path Width="16" Height="16"
+                          Stroke="#FF4CAF50"
+                          StrokeThickness="2.5"
+                          StrokeLineJoin="Round"
+                          Data="M2,8 L7,13 L14,4"/>
+                </Button>
+                <!-- 取消按钮 -->
+                <Button x:Name="BtnCancel"
+                        Width="32" Height="32"
+                        Background="Transparent"
+                        BorderThickness="0"
+                        Cursor="Hand"
+                        Click="BtnCancel_Click"
+                        ToolTip="取消 (Esc)">
+                    <Path Width="12" Height="12"
+                          Stroke="#FFF44336"
+                          StrokeThickness="2.5"
+                          Data="M0,0 L12,12 M12,0 L0,12"/>
+                </Button>
+            </StackPanel>
+        </Border>
+    </Canvas>
+</Window>
