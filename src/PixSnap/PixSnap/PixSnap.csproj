@@ -14,11 +14,23 @@
   </PropertyGroup>
 
   <ItemGroup>
-    <PackageReference Include="CommunityToolkit.Mvvm" Version="8.4.0" />
+    <None Remove="Assets\fonts\MiSans-Normal.ttf" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <PackageReference Include="CommunityToolkit.Mvvm" Version="8.4.1" />
   </ItemGroup>
 
   <ItemGroup>
     <ProjectReference Include="..\NativeScreenCapturer\NativeScreenCapturer.vcxproj" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <Resource Include="Assets\fonts\MiSans-Normal.ttf" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <Folder Include="Styles\Theme\" />
   </ItemGroup>
 
 </Project>

@@ -4,10 +4,13 @@
     xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml">
     <Application.Resources>
         <ResourceDictionary>
-            <Style TargetType="Window">
-                <Setter Property="FontFamily" Value="Segoe UI" />
-                <Setter Property="Background" Value="#FFF4F6FB" />
-            </Style>
+            <ResourceDictionary.MergedDictionaries>
+                <ResourceDictionary Source="Styles/fonts.xaml" />
+                <ResourceDictionary Source="Styles/Theme/CurrentTheme.xaml" />
+                <ResourceDictionary Source="Styles/TextBlock.xaml" />
+                <ResourceDictionary Source="Styles/Button.xaml" />
+
+            </ResourceDictionary.MergedDictionaries>
         </ResourceDictionary>
     </Application.Resources>
 </Application>

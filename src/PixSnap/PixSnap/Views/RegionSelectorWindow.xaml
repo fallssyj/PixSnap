@@ -11,7 +11,7 @@
     Topmost="True"
     WindowStyle="None">
     <Canvas x:Name="RootCanvas" Background="#01000000">
-        <!-- 这些命名元素由 code-behind 直接更新，用于高频覆盖层绘制，避免把 Canvas 坐标细节泄漏到 ViewModel。 -->
+        <!--  这些命名元素由 code-behind 直接更新，用于高频覆盖层绘制，避免把 Canvas 坐标细节泄漏到 ViewModel。  -->
         <Rectangle
             x:Name="Mask"
             Width="0"
