@@ -56,7 +56,6 @@
             Background="White"
             BorderBrush="#FFD9E2EC"
             BorderThickness="1"
-            CornerRadius="24"
             PreviewMouseWheel="PreviewHost_PreviewMouseWheel">
             <Grid
                 x:Name="PreviewViewport"
