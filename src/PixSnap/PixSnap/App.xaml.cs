@@ -1,4 +1,6 @@
 using CommunityToolkit.Mvvm.Messaging;
+using Hardcodet.Wpf.TaskbarNotification;
+using Microsoft.Win32;
 using PixSnap.Models;
 using PixSnap.Services;
 using PixSnap.ViewModels;
@@ -6,10 +8,11 @@ using PixSnap.Views;
 using System.Diagnostics;
 using System.Drawing;
 using System.IO;
+using System.Reflection;
+using System.Runtime.InteropServices;
 using System.Text;
 using System.Windows;
-using Forms = System.Windows.Forms;
-using MessageBox = System.Windows.MessageBox;
+using System.Windows.Controls.Primitives;
 
 namespace PixSnap;
 
@@ -17,7 +20,7 @@ public partial class App : System.Windows.Application, IRecipient<ScreenshotCapt
 {
     private MainWindow? _mainWindow;
     private IScreenCaptureService? _screenCaptureService;
-    private Forms.NotifyIcon? _trayIcon;
+    private TaskbarIcon? _taskbarIcon;
 
     protected override void OnStartup(StartupEventArgs e)
     {
@@ -29,7 +32,7 @@ public partial class App : System.Windows.Application, IRecipient<ScreenshotCapt
         }
         catch (Exception exception)
         {
-            MessageBox.Show(
+            MessageBoxWindow.Show(
                 BuildExceptionMessage(exception),
                 "PixSnap 启动失败",
                 MessageBoxButton.OK,
@@ -60,12 +63,8 @@ public partial class App : System.Windows.Application, IRecipient<ScreenshotCapt
             disposable.Dispose();
         }
 
-        if (_trayIcon is not null)
-        {
-            _trayIcon.Visible = false;
-            _trayIcon.Dispose();
-            _trayIcon = null;
-        }
+        _taskbarIcon?.Dispose();
+        _taskbarIcon = null;
 
         base.OnExit(e);
     }
@@ -117,14 +116,46 @@ public partial class App : System.Windows.Application, IRecipient<ScreenshotCapt
 
     private void InitializeTrayIcon()
     {
-        _trayIcon = new Forms.NotifyIcon
-        {
-            Text = "PixSnap",
-            Visible = true,
-            Icon = LoadTrayIcon()
-        };
+        _taskbarIcon = (TaskbarIcon)FindResource("TrayIcon");
+        _taskbarIcon.DataContext = new TrayViewModel(StartCaptureFromTray, ShowAbout);
+        _taskbarIcon.Icon = LoadTrayIcon();
+        _taskbarIcon.TrayMouseDoubleClick += (_, _) => StartCaptureFromTray();
+        _taskbarIcon.TrayContextMenuOpen += OnTrayContextMenuOpen;
+    }
 
-        _trayIcon.DoubleClick += (_, _) => StartCaptureFromTray();
+    // Win32 获取光标屏幕像素坐标
+    [StructLayout(LayoutKind.Sequential)]
+    private struct POINT { public int X; public int Y; }
+
+    [DllImport("user32.dll")]
+    private static extern bool GetCursorPos(out POINT pt);
+
+    [DllImport("user32.dll")]
+    private static extern uint GetDpiForSystem();
+
+    /// <summary>
+    /// 修复 Hardcodet 用 Win32 像素坐标设置偏移导致的弹出位置偏差。
+    /// PlacementMode.AbsolutePoint 接受 WPF DIP，需除以 DPI 缩放平转换。
+    /// </summary>
+    private void OnTrayContextMenuOpen(object sender, RoutedEventArgs e)
+    {
+        if (_taskbarIcon?.ContextMenu is not { } menu) return;
+
+        GetCursorPos(out var pt);
+        double dpi = GetDpiForSystem() / 96.0;
+
+        menu.Placement = PlacementMode.AbsolutePoint;
+        menu.HorizontalOffset = pt.X / dpi;
+        menu.VerticalOffset = pt.Y / dpi;
+    }
+
+    private void ShowAbout()
+    {
+        var window = new AboutWindow();
+        // _mainWindow 启动后始终隐藏，未曾显示时不能作为 Owner
+        if (_mainWindow?.IsVisible == true)
+            window.Owner = _mainWindow;
+        window.ShowDialog();
     }
 
     private void StartCaptureFromTray()

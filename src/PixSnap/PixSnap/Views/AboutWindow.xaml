@@ -1,0 +1,209 @@
+<Window
+    x:Class="PixSnap.Views.AboutWindow"
+    xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+    xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+    Title="关于 PixSnap"
+    Width="480"
+    AllowsTransparency="True"
+    Background="Transparent"
+    ResizeMode="NoResize"
+    ShowInTaskbar="False"
+    SizeToContent="Height"
+    WindowStartupLocation="CenterScreen"
+    WindowStyle="None">
+
+    <Border
+        Background="{DynamicResource AppBackgroundBrush}"
+        BorderBrush="{DynamicResource BorderBrush}"
+        BorderThickness="1"
+        CornerRadius="12"
+        Style="{StaticResource RoundedWindowBorderStyle}">
+        <Grid>
+            <Grid.RowDefinitions>
+                <RowDefinition Height="Auto" />
+                <RowDefinition Height="Auto" />
+            </Grid.RowDefinitions>
+
+            <!--  标题栏  -->
+            <Grid Grid.Row="0" MouseLeftButtonDown="OnTitleBarMouseDown">
+                <TextBlock
+                    Margin="18,0,0,0"
+                    VerticalAlignment="Center"
+                    FontFamily="{StaticResource MiSansRegular}"
+                    FontSize="13"
+                    Foreground="{DynamicResource TextSecondaryBrush}"
+                    Text="关于 PixSnap" />
+                <Button
+                    Width="44"
+                    Height="36"
+                    HorizontalAlignment="Right"
+                    VerticalAlignment="Top"
+                    Command="{Binding CloseCommand}"
+                    Content="{StaticResource close}"
+                    Style="{StaticResource CloseIconButton}" />
+            </Grid>
+
+            <!--  分隔线  -->
+            <Border
+                Grid.Row="0"
+                Height="1"
+                VerticalAlignment="Bottom"
+                Background="{DynamicResource BorderBrush}" />
+
+            <!--  主体内容  -->
+            <StackPanel Grid.Row="1" Margin="24,20,24,24">
+
+                <!--  应用名称 + 版本  -->
+                <Grid>
+                    <Grid.ColumnDefinitions>
+                        <ColumnDefinition Width="*" />
+                        <ColumnDefinition Width="Auto" />
+                    </Grid.ColumnDefinitions>
+
+                    <StackPanel Grid.Column="0" VerticalAlignment="Center">
+                        <TextBlock
+                            FontFamily="{StaticResource MiSansRegular}"
+                            FontSize="26"
+                            FontWeight="Bold"
+                            Foreground="{DynamicResource TextPrimaryBrush}"
+                            Text="PixSnap" />
+                        <TextBlock
+                            Margin="0,4,0,0"
+                            FontFamily="{StaticResource MiSansRegular}"
+                            FontSize="13"
+                            Foreground="{DynamicResource TextMutedBrush}"
+                            Text="轻量高质量截图工具" />
+                    </StackPanel>
+
+                    <!--  版本徽章  -->
+                    <Border
+                        Grid.Column="1"
+                        Padding="12,6"
+                        VerticalAlignment="Center"
+                        Background="{DynamicResource HeroBadgeBackgroundBrush}"
+                        CornerRadius="8">
+                        <TextBlock
+                            FontFamily="{StaticResource MiSansRegular}"
+                            FontSize="13"
+                            Foreground="{DynamicResource HeroBadgeForegroundBrush}"
+                            Text="{Binding Version}" />
+                    </Border>
+                </Grid>
+
+                <!--  截图模式说明标题  -->
+                <TextBlock
+                    Margin="0,20,0,10"
+                    FontFamily="{StaticResource MiSansRegular}"
+                    FontSize="13"
+                    FontWeight="SemiBold"
+                    Foreground="{DynamicResource TextSecondaryBrush}"
+                    Text="截图模式说明" />
+
+                <!--  功能卡片  -->
+                <Border
+                    Padding="14"
+                    Background="{DynamicResource SurfaceBrush}"
+                    BorderBrush="{DynamicResource BorderSubtleBrush}"
+                    BorderThickness="1"
+                    CornerRadius="14">
+                    <UniformGrid Columns="2" Rows="2">
+                        <!--  窗口  -->
+                        <Border
+                            Margin="0,0,6,6"
+                            Padding="12"
+                            Background="{DynamicResource FeatureWindowBackgroundBrush}"
+                            CornerRadius="10">
+                            <StackPanel>
+                                <TextBlock
+                                    FontFamily="{StaticResource MiSansRegular}"
+                                    FontWeight="SemiBold"
+                                    Foreground="{DynamicResource FeatureWindowForegroundBrush}"
+                                    Text="窗口" />
+                                <TextBlock
+                                    Margin="0,5,0,0"
+                                    FontFamily="{StaticResource MiSansRegular}"
+                                    FontSize="12"
+                                    Foreground="{DynamicResource FeatureWindowDescriptionBrush}"
+                                    Text="鼠标悬停到窗口上时显示边框，单击立即截图。"
+                                    TextWrapping="Wrap" />
+                            </StackPanel>
+                        </Border>
+                        <!--  矩形  -->
+                        <Border
+                            Margin="6,0,0,6"
+                            Padding="12"
+                            Background="{DynamicResource FeatureRegionBackgroundBrush}"
+                            CornerRadius="10">
+                            <StackPanel>
+                                <TextBlock
+                                    FontFamily="{StaticResource MiSansRegular}"
+                                    FontWeight="SemiBold"
+                                    Foreground="{DynamicResource FeatureRegionForegroundBrush}"
+                                    Text="矩形" />
+                                <TextBlock
+                                    Margin="0,5,0,0"
+                                    FontFamily="{StaticResource MiSansRegular}"
+                                    FontSize="12"
+                                    Foreground="{DynamicResource FeatureRegionDescriptionBrush}"
+                                    Text="按住鼠标左键拖动，松开后按所选区域截图。"
+                                    TextWrapping="Wrap" />
+                            </StackPanel>
+                        </Border>
+                        <!--  当前屏幕  -->
+                        <Border
+                            Margin="0,6,6,0"
+                            Padding="12"
+                            Background="{DynamicResource FeatureMonitorBackgroundBrush}"
+                            CornerRadius="10">
+                            <StackPanel>
+                                <TextBlock
+                                    FontFamily="{StaticResource MiSansRegular}"
+                                    FontWeight="SemiBold"
+                                    Foreground="{DynamicResource FeatureMonitorForegroundBrush}"
+                                    Text="当前屏幕" />
+                                <TextBlock
+                                    Margin="0,5,0,0"
+                                    FontFamily="{StaticResource MiSansRegular}"
+                                    FontSize="12"
+                                    Foreground="{DynamicResource FeatureMonitorDescriptionBrush}"
+                                    Text="按 Space 直接截取鼠标所在显示器。"
+                                    TextWrapping="Wrap" />
+                            </StackPanel>
+                        </Border>
+                        <!--  退出  -->
+                        <Border
+                            Margin="6,6,0,0"
+                            Padding="12"
+                            Background="{DynamicResource FeatureExitBackgroundBrush}"
+                            CornerRadius="10">
+                            <StackPanel>
+                                <TextBlock
+                                    FontFamily="{StaticResource MiSansRegular}"
+                                    FontWeight="SemiBold"
+                                    Foreground="{DynamicResource FeatureExitForegroundBrush}"
+                                    Text="退出" />
+                                <TextBlock
+                                    Margin="0,5,0,0"
+                                    FontFamily="{StaticResource MiSansRegular}"
+                                    FontSize="12"
+                                    Foreground="{DynamicResource FeatureExitDescriptionBrush}"
+                                    Text="Esc 或鼠标右键都可以取消本次截图。"
+                                    TextWrapping="Wrap" />
+                            </StackPanel>
+                        </Border>
+                    </UniformGrid>
+                </Border>
+
+                <!--  版权信息  -->
+                <TextBlock
+                    Margin="0,16,0,0"
+                    HorizontalAlignment="Center"
+                    FontFamily="{StaticResource MiSansRegular}"
+                    FontSize="12"
+                    Foreground="{DynamicResource TextMutedBrush}"
+                    Text="Copyright © 2026 PixSnap Contributors" />
+
+            </StackPanel>
+        </Grid>
+    </Border>
+</Window>

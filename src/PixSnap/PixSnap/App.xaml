@@ -1,7 +1,8 @@
 <Application
     x:Class="PixSnap.App"
     xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
-    xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml">
+    xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+    xmlns:tb="http://www.hardcodet.net/taskbar">
     <Application.Resources>
         <ResourceDictionary>
             <ResourceDictionary.MergedDictionaries>
@@ -16,11 +17,33 @@
                 <ResourceDictionary Source="Styles/TextBox.xaml" />
                 <ResourceDictionary Source="Styles/ComboBox.xaml" />
                 <ResourceDictionary Source="Styles/Slider.xaml" />
+                <ResourceDictionary Source="Styles/ScrollViewer.xaml" />
+                <ResourceDictionary Source="Styles/Menu.xaml" />
             </ResourceDictionary.MergedDictionaries>
 
             <Style BasedOn="{StaticResource {x:Type Window}}" TargetType="Window">
                 <Setter Property="FontFamily" Value="{StaticResource MiSansRegular}" />
             </Style>
+
+            <!--  托盘图标：Icon 和 DataContext 由 App.xaml.cs 在启动时注入  -->
+            <tb:TaskbarIcon x:Key="TrayIcon" ToolTipText="PixSnap">
+                <tb:TaskbarIcon.ContextMenu>
+                    <ContextMenu>
+                        <MenuItem Command="{Binding CaptureCommand}" Header="截图" />
+                        <Separator />
+                        <MenuItem
+                            Header="开机启动"
+                            IsCheckable="True"
+                            IsChecked="{Binding IsStartupEnabled, Mode=TwoWay}" />
+                        <Separator />
+                        <MenuItem Command="{Binding ShowAboutCommand}" Header="关于 PixSnap" />
+                        <MenuItem
+                            Command="{Binding ExitCommand}"
+                            Foreground="{DynamicResource TextSecondaryBrush}"
+                            Header="退出" />
+                    </ContextMenu>
+                </tb:TaskbarIcon.ContextMenu>
+            </tb:TaskbarIcon>
         </ResourceDictionary>
     </Application.Resources>
 </Application>

@@ -9,7 +9,6 @@ using System.Text;
 using System.Threading.Tasks;
 using System.Windows;
 using Application = System.Windows.Application;
-using MessageBox = System.Windows.MessageBox;
 
 namespace PixSnap.ViewModels;
 
@@ -95,7 +94,7 @@ public partial class MainViewModel : ObservableObject
 
     private static void ShowError(string message)
     {
-        MessageBox.Show(
+        MessageBoxWindow.Show(
             message,
             "PixSnap 错误",
             MessageBoxButton.OK,
