@@ -8,6 +8,8 @@ using System;
 using System.Text;
 using System.Threading.Tasks;
 using System.Windows;
+using Application = System.Windows.Application;
+using MessageBox = System.Windows.MessageBox;
 
 namespace PixSnap.ViewModels;
 
@@ -31,6 +33,8 @@ public partial class MainViewModel : ObservableObject
             return;
         }
 
+        var shouldRestoreMainWindow = Application.Current.MainWindow?.IsVisible == true;
+
         try
         {
             IsCapturing = true;
@@ -39,7 +43,6 @@ public partial class MainViewModel : ObservableObject
             await Task.Delay(120);
 
             var selector = new RegionSelectorWindow(_screenCaptureService);
-            selector.Owner = Application.Current.MainWindow;
 
             if (selector.ShowDialog() == true && selector.Selection is { } selection)
             {
@@ -53,8 +56,12 @@ public partial class MainViewModel : ObservableObject
         }
         finally
         {
-            Application.Current.MainWindow?.Show();
-            Application.Current.MainWindow?.Activate();
+            if (shouldRestoreMainWindow)
+            {
+                Application.Current.MainWindow?.Show();
+                Application.Current.MainWindow?.Activate();
+            }
+
             IsCapturing = false;
         }
     }

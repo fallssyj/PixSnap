@@ -16,36 +16,35 @@
             x:Name="Mask"
             Width="0"
             Height="0"
-            Fill="#7F08111F" />
+            Fill="{DynamicResource OverlayMaskBrush}" />
         <Rectangle
             x:Name="WindowHighlightRect"
-            Fill="#14F97316"
-            Stroke="#FFF97316"
+            Fill="{DynamicResource OverlayWindowHighlightFillBrush}"
+            Stroke="{DynamicResource OverlayWindowHighlightStrokeBrush}"
             StrokeThickness="3"
             Visibility="Collapsed" />
         <Rectangle
             x:Name="SelectionRect"
-            Fill="#2238BDF8"
-            Stroke="#FF38BDF8"
+            Fill="{DynamicResource OverlaySelectionFillBrush}"
+            Stroke="{DynamicResource OverlaySelectionStrokeBrush}"
             StrokeThickness="2"
             Visibility="Collapsed" />
 
         <Border
             x:Name="InfoBubble"
             Padding="12,10"
-            Background="#E6111827"
+            Background="{DynamicResource OverlayInfoBubbleBackgroundBrush}"
             CornerRadius="14">
             <StackPanel>
                 <TextBlock
                     FontSize="13"
-                    FontWeight="SemiBold"
-                    Foreground="White"
+                    Foreground="{DynamicResource TextPrimaryBrush}"
                     Text="{Binding SelectionText}" />
                 <TextBlock
                     MaxWidth="420"
                     Margin="0,6,0,0"
                     FontSize="12"
-                    Foreground="#FFD8E3F0"
+                    Foreground="{DynamicResource TextSecondaryBrush}"
                     Text="{Binding InstructionText}"
                     TextWrapping="Wrap" />
             </StackPanel>
@@ -55,9 +54,9 @@
             Canvas.Right="24"
             Canvas.Bottom="24"
             Padding="14,10"
-            Background="#DDEFF6FF"
+            Background="{DynamicResource OverlayFooterBackgroundBrush}"
             CornerRadius="16">
-            <TextBlock Foreground="#FF0F172A" Text="左键单击高亮窗口截图，左键拖动截矩形，Space 截当前显示器，Esc / 右键退出" />
+            <TextBlock Foreground="{DynamicResource OverlayFooterForegroundBrush}" Text="左键单击高亮窗口截图，左键拖动截矩形，Space 截当前显示器，Esc / 右键退出" />
         </Border>
     </Canvas>
 </Window>

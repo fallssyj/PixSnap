@@ -6,11 +6,21 @@
         <ResourceDictionary>
             <ResourceDictionary.MergedDictionaries>
                 <ResourceDictionary Source="Styles/fonts.xaml" />
+                <ResourceDictionary Source="Styles/icons.xaml" />
+                <ResourceDictionary Source="Styles/Theme/DarkTheme.xaml" />
                 <ResourceDictionary Source="Styles/Theme/CurrentTheme.xaml" />
+                <ResourceDictionary Source="Styles/Controls.xaml" />
                 <ResourceDictionary Source="Styles/TextBlock.xaml" />
                 <ResourceDictionary Source="Styles/Button.xaml" />
-
+                <ResourceDictionary Source="Styles/ToolTip.xaml" />
+                <ResourceDictionary Source="Styles/TextBox.xaml" />
+                <ResourceDictionary Source="Styles/ComboBox.xaml" />
+                <ResourceDictionary Source="Styles/Slider.xaml" />
             </ResourceDictionary.MergedDictionaries>
+
+            <Style BasedOn="{StaticResource {x:Type Window}}" TargetType="Window">
+                <Setter Property="FontFamily" Value="{StaticResource MiSansRegular}" />
+            </Style>
         </ResourceDictionary>
     </Application.Resources>
 </Application>

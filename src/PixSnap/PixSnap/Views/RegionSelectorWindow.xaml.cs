@@ -90,7 +90,7 @@ public partial class RegionSelectorWindow : Window
         CaptureMouse();
     }
 
-    private void OnMouseMove(object sender, MouseEventArgs e)
+    private void OnMouseMove(object sender, System.Windows.Input.MouseEventArgs e)
     {
         _currentPoint = e.GetPosition(this);
 
@@ -162,7 +162,7 @@ public partial class RegionSelectorWindow : Window
         DialogResult = false;
     }
 
-    private void OnKeyDown(object sender, KeyEventArgs e)
+    private void OnKeyDown(object sender, System.Windows.Input.KeyEventArgs e)
     {
         if (e.Key == Key.Escape)
         {

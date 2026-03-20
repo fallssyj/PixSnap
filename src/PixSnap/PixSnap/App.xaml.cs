@@ -3,16 +3,21 @@ using PixSnap.Models;
 using PixSnap.Services;
 using PixSnap.ViewModels;
 using PixSnap.Views;
-using System;
+using System.Diagnostics;
+using System.Drawing;
+using System.IO;
 using System.Text;
 using System.Windows;
+using Forms = System.Windows.Forms;
+using MessageBox = System.Windows.MessageBox;
 
 namespace PixSnap;
 
-public partial class App : Application, IRecipient<ScreenshotCapturedMessage>
+public partial class App : System.Windows.Application, IRecipient<ScreenshotCapturedMessage>
 {
     private MainWindow? _mainWindow;
     private IScreenCaptureService? _screenCaptureService;
+    private Forms.NotifyIcon? _trayIcon;
 
     protected override void OnStartup(StartupEventArgs e)
     {
@@ -41,7 +46,9 @@ public partial class App : Application, IRecipient<ScreenshotCapturedMessage>
         };
 
         MainWindow = _mainWindow;
-        _mainWindow.Show();
+        _mainWindow.Hide();
+
+        InitializeTrayIcon();
     }
 
     protected override void OnExit(ExitEventArgs e)
@@ -51,6 +58,13 @@ public partial class App : Application, IRecipient<ScreenshotCapturedMessage>
         if (_screenCaptureService is IDisposable disposable)
         {
             disposable.Dispose();
+        }
+
+        if (_trayIcon is not null)
+        {
+            _trayIcon.Visible = false;
+            _trayIcon.Dispose();
+            _trayIcon = null;
         }
 
         base.OnExit(e);
@@ -64,8 +78,7 @@ public partial class App : Application, IRecipient<ScreenshotCapturedMessage>
         var previewWindow = new ScreenshotPreviewWindow
         {
             DataContext = previewViewModel,
-            Owner = _mainWindow,
-            Topmost = true
+            Topmost = false
         };
 
         previewWindow.Show();
@@ -100,5 +113,54 @@ public partial class App : Application, IRecipient<ScreenshotCapturedMessage>
         }
 
         return builder.ToString().TrimEnd();
+    }
+
+    private void InitializeTrayIcon()
+    {
+        _trayIcon = new Forms.NotifyIcon
+        {
+            Text = "PixSnap",
+            Visible = true,
+            Icon = LoadTrayIcon()
+        };
+
+        _trayIcon.DoubleClick += (_, _) => StartCaptureFromTray();
+    }
+
+    private void StartCaptureFromTray()
+    {
+        if (_mainWindow?.DataContext is not MainViewModel viewModel)
+        {
+            return;
+        }
+
+        if (viewModel.StartCaptureCommand.CanExecute(null))
+        {
+            viewModel.StartCaptureCommand.Execute(null);
+        }
+    }
+
+    private Icon? LoadTrayIcon()
+    {
+        try
+        {
+            var iconPath = Path.Combine(AppContext.BaseDirectory, "Assets", "icons", "app.ico");
+            if (File.Exists(iconPath))
+            {
+                return new Icon(iconPath);
+            }
+
+            var processIconPath = Environment.ProcessPath ?? Process.GetCurrentProcess().MainModule?.FileName;
+            if (!string.IsNullOrWhiteSpace(processIconPath) && File.Exists(processIconPath))
+            {
+                return Icon.ExtractAssociatedIcon(processIconPath);
+            }
+
+            return SystemIcons.Application;
+        }
+        catch
+        {
+            return SystemIcons.Application;
+        }
     }
 }

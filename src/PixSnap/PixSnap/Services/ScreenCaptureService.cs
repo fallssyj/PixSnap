@@ -7,6 +7,7 @@ using System.Threading.Tasks;
 using System.Windows;
 using System.Windows.Threading;
 using System.Windows.Media.Imaging;
+using Application = System.Windows.Application;
 
 using PixWindowInfo = PixSnap.Models.WindowInfo;
 

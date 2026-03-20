@@ -5,10 +5,12 @@
     Title="截图预览"
     Width="1040"
     Height="760"
-    MinWidth="720"
+    MinWidth="1000"
     MinHeight="520"
-    PreviewKeyDown="Window_PreviewKeyDown"
-    WindowStartupLocation="CenterOwner">
+    AllowsTransparency="True"
+    Background="Transparent"
+    WindowStartupLocation="CenterScreen"
+    WindowStyle="None">
     <Window.InputBindings>
         <KeyBinding
             Key="S"
@@ -16,127 +18,360 @@
             Modifiers="Ctrl" />
     </Window.InputBindings>
 
-    <Window.Resources>
-        <DrawingBrush
-            x:Key="TransparencyCheckerBrush"
-            Stretch="None"
-            TileMode="Tile"
-            Viewbox="0,0,16,16"
-            ViewboxUnits="Absolute"
-            Viewport="0,0,16,16"
-            ViewportUnits="Absolute">
-            <DrawingBrush.Drawing>
-                <DrawingGroup>
-                    <GeometryDrawing Brush="#FFE7EDF5">
-                        <GeometryDrawing.Geometry>
-                            <RectangleGeometry Rect="0,0,16,16" />
-                        </GeometryDrawing.Geometry>
-                    </GeometryDrawing>
-                    <GeometryDrawing Brush="#FFD8E1EC">
-                        <GeometryDrawing.Geometry>
-                            <GeometryGroup>
-                                <RectangleGeometry Rect="0,0,8,8" />
-                                <RectangleGeometry Rect="8,8,8,8" />
-                            </GeometryGroup>
-                        </GeometryDrawing.Geometry>
-                    </GeometryDrawing>
-                </DrawingGroup>
-            </DrawingBrush.Drawing>
-        </DrawingBrush>
-    </Window.Resources>
 
-    <DockPanel Background="#FFF3F6FA" LastChildFill="True">
-        <ToolBarTray Background="#FFF3F6FA" DockPanel.Dock="Top">
-            <ToolBar>
-                <Button Command="{Binding SaveToFileCommand}">保存</Button>
-                <Button Command="{Binding CopyToClipboardCommand}">复制</Button>
-                <Separator />
-                <Button Command="{Binding TogglePreviewScaleCommand}">切换缩放</Button>
-                <Separator />
-                <Button Command="{Binding RecaptureCommand}" CommandParameter="{Binding RelativeSource={RelativeSource AncestorType=Window}}">重新截图</Button>
-                <Button Command="{Binding CloseCommand}" CommandParameter="{Binding RelativeSource={RelativeSource AncestorType=Window}}">关闭</Button>
-            </ToolBar>
-        </ToolBarTray>
-
-        <StatusBar DockPanel.Dock="Bottom">
-            <StatusBarItem Content="{Binding CaptureMode, StringFormat=模式: {0}}" />
-            <Separator />
-            <StatusBarItem Content="{Binding CaptureTime, StringFormat=时间: {0}}" />
-            <Separator />
-            <StatusBarItem Content="{Binding ImageSize, StringFormat=分辨率: {0}}" />
-            <Separator />
-            <StatusBarItem Content="{Binding ZoomDisplayText}" />
-        </StatusBar>
-
+    <Border
+        x:Name="RootBorder"
+        Background="{DynamicResource AppBackgroundBrush}"
+        CornerRadius="10"
+        MouseLeftButtonDown="OnWindowDragMove"
+        Style="{StaticResource RoundedWindowBorderStyle}">
         <Grid>
-            <Border
-                Margin="20"
-                Background="White"
-                BorderBrush="#FFD9E2EC"
-                BorderThickness="1"
-                PreviewMouseWheel="PreviewHost_PreviewMouseWheel">
-                <Grid
-                    x:Name="PreviewViewport"
-                    Background="{StaticResource TransparencyCheckerBrush}"
-                    SizeChanged="PreviewViewport_SizeChanged">
-                    <Grid.Style>
-                        <Style TargetType="Grid">
-                            <Setter Property="ClipToBounds" Value="True" />
-                        </Style>
-                    </Grid.Style>
+            <Grid>
+                <Grid.RowDefinitions>
+                    <RowDefinition Height="Auto" />
+                    <RowDefinition Height="*" />
+                    <RowDefinition Height="Auto" />
+                </Grid.RowDefinitions>
+                <!--  顶部控制  -->
+                <Grid Grid.Row="0">
+                    <StackPanel HorizontalAlignment="Right" Orientation="Horizontal">
+                        <Button
+                            Margin="0,0,0,0"
+                            Command="{Binding MinimizeCommand}"
+                            CommandParameter="{Binding RelativeSource={RelativeSource AncestorType=Window}}"
+                            Content="{StaticResource minimize}"
+                            Style="{StaticResource IconButton}"
+                            ToolTip="最小化" />
+                        <Button Command="{Binding MaximizeCommand}" CommandParameter="{Binding RelativeSource={RelativeSource AncestorType=Window}}">
+                            <Button.Style>
+                                <Style BasedOn="{StaticResource IconButton}" TargetType="Button">
+                                    <Setter Property="Content" Value="{StaticResource maximize}" />
+                                    <Setter Property="ToolTip" Value="最大化" />
+                                    <Style.Triggers>
+                                        <DataTrigger Binding="{Binding IsMaximized}" Value="True">
+                                            <Setter Property="Content" Value="{StaticResource restore}" />
+                                            <Setter Property="ToolTip" Value="还原" />
 
-                    <Grid>
-                        <Grid.Style>
-                            <Style TargetType="Grid">
-                                <Setter Property="Visibility" Value="Visible" />
-                                <Style.Triggers>
-                                    <DataTrigger Binding="{Binding IsActualSize}" Value="True">
-                                        <Setter Property="Visibility" Value="Collapsed" />
-                                    </DataTrigger>
-                                </Style.Triggers>
-                            </Style>
-                        </Grid.Style>
-
-                        <Image
-                            HorizontalAlignment="Center"
-                            VerticalAlignment="Center"
-                            Source="{Binding ScreenshotImage}"
-                            Stretch="Uniform"
-                            StretchDirection="DownOnly" />
-                    </Grid>
-
-                    <ScrollViewer
-                        x:Name="ActualSizeScrollViewer"
-                        HorizontalScrollBarVisibility="Auto"
-                        MouseLeave="ActualSizeScrollViewer_MouseLeave"
-                        PreviewMouseLeftButtonDown="ActualSizeScrollViewer_PreviewMouseLeftButtonDown"
-                        PreviewMouseLeftButtonUp="ActualSizeScrollViewer_PreviewMouseLeftButtonUp"
-                        PreviewMouseMove="ActualSizeScrollViewer_PreviewMouseMove"
-                        VerticalScrollBarVisibility="Auto">
-                        <ScrollViewer.Style>
-                            <Style TargetType="ScrollViewer">
-                                <Setter Property="Visibility" Value="Collapsed" />
-                                <Style.Triggers>
-                                    <DataTrigger Binding="{Binding IsActualSize}" Value="True">
-                                        <Setter Property="Visibility" Value="Visible" />
-                                    </DataTrigger>
-                                </Style.Triggers>
-                            </Style>
-                        </ScrollViewer.Style>
-
-                        <Image
-                            x:Name="ActualSizeImage"
-                            HorizontalAlignment="Center"
-                            VerticalAlignment="Center"
-                            Source="{Binding ScreenshotImage}"
-                            Stretch="None">
-                            <Image.LayoutTransform>
-                                <ScaleTransform ScaleX="{Binding ZoomFactor}" ScaleY="{Binding ZoomFactor}" />
-                            </Image.LayoutTransform>
-                        </Image>
-                    </ScrollViewer>
+                                        </DataTrigger>
+                                    </Style.Triggers>
+                                </Style>
+                            </Button.Style>
+                        </Button>
+                        <Button
+                            Command="{Binding CloseCommand}"
+                            CommandParameter="{Binding RelativeSource={RelativeSource AncestorType=Window}}"
+                            Content="{StaticResource close}"
+                            Style="{StaticResource CloseIconButton}"
+                            ToolTip="关闭" />
+                    </StackPanel>
                 </Grid>
-            </Border>
+                <!--  预览区域  -->
+                <Grid
+                    Grid.Row="1"
+                    Margin="20"
+                    Background="{StaticResource TransparencyCheckerBrush}">
+                    <Border PreviewMouseWheel="PreviewHost_PreviewMouseWheel">
+                        <Grid
+                            x:Name="PreviewViewport"
+                            ClipToBounds="True"
+                            SizeChanged="PreviewViewport_SizeChanged">
+                            <Grid x:Name="FitPreviewHost">
+
+                                <Image
+                                    HorizontalAlignment="Center"
+                                    VerticalAlignment="Center"
+                                    Source="{Binding ScreenshotImage}"
+                                    Stretch="Uniform"
+                                    StretchDirection="DownOnly" />
+                            </Grid>
+
+                            <ScrollViewer
+                                x:Name="ActualSizeScrollViewer"
+                                HorizontalScrollBarVisibility="Hidden"
+                                MouseLeave="ActualSizeScrollViewer_MouseLeave"
+                                PreviewMouseLeftButtonDown="ActualSizeScrollViewer_PreviewMouseLeftButtonDown"
+                                PreviewMouseLeftButtonUp="ActualSizeScrollViewer_PreviewMouseLeftButtonUp"
+                                PreviewMouseMove="ActualSizeScrollViewer_PreviewMouseMove"
+                                VerticalScrollBarVisibility="Hidden"
+                                Visibility="Collapsed">
+                                <Image
+                                    x:Name="ActualSizeImage"
+                                    HorizontalAlignment="Center"
+                                    VerticalAlignment="Center"
+                                    Source="{Binding ScreenshotImage}"
+                                    Stretch="None">
+                                    <Image.LayoutTransform>
+                                        <ScaleTransform ScaleX="{Binding ZoomFactor}" ScaleY="{Binding ZoomFactor}" />
+                                    </Image.LayoutTransform>
+                                </Image>
+                            </ScrollViewer>
+                        </Grid>
+                    </Border>
+                </Grid>
+                <!--  控制区域  -->
+                <Border
+                    Grid.Row="2"
+                    Padding="10"
+                    Background="{DynamicResource AppGradientStartBrush}">
+                    <!--  CornerRadius="0,0,10,10">  -->
+                    <Grid>
+                        <StackPanel Orientation="Horizontal">
+                            <Path
+                                Width="15"
+                                Height="15"
+                                Margin="10,0"
+                                Data="{StaticResource BoxList}"
+                                Fill="{DynamicResource TextMutedBrush}"
+                                Stretch="Uniform" />
+                            <TextBlock
+                                VerticalAlignment="Center"
+                                Foreground="{DynamicResource TextMutedBrush}"
+                                Text="{Binding CaptureMode}" />
+                            <Path
+                                Width="15"
+                                Height="15"
+                                Margin="10,0"
+                                Data="{StaticResource Crop}"
+                                Fill="{DynamicResource TextMutedBrush}"
+                                Stretch="Uniform" />
+                            <TextBlock
+                                VerticalAlignment="Center"
+                                Foreground="{DynamicResource TextMutedBrush}"
+                                Text="{Binding ImageSize}" />
+                            <Path
+                                Width="15"
+                                Height="15"
+                                Margin="10,0"
+                                Data="{StaticResource ImageOn}"
+                                Fill="{DynamicResource TextMutedBrush}"
+                                Stretch="Uniform" />
+                            <TextBlock
+                                VerticalAlignment="Center"
+                                Foreground="{DynamicResource TextMutedBrush}"
+                                Text="{Binding FileSize}" />
+                        </StackPanel>
+
+                        <StackPanel
+                            HorizontalAlignment="Right"
+                            VerticalAlignment="Center"
+                            Orientation="Horizontal">
+                            <Button
+                                Margin="2,0"
+                                Command="{Binding TogglePreviewScaleCommand}"
+                                Style="{StaticResource PreviewZoomIconButtonStyle}"
+                                ToolTip="{Binding PreviewScaleModeText}">
+                                <Path
+                                    Width="18"
+                                    Height="18"
+                                    Fill="{DynamicResource TextPrimaryBrush}"
+                                    Stretch="Uniform">
+                                    <Path.Style>
+                                        <Style TargetType="Path">
+                                            <Setter Property="Data" Value="{StaticResource FitWindow}" />
+
+                                            <Style.Triggers>
+                                                <DataTrigger Binding="{Binding IsActualSize}" Value="True">
+                                                    <Setter Property="Data" Value="{StaticResource OriginalSize}" />
+                                                </DataTrigger>
+                                            </Style.Triggers>
+                                        </Style>
+                                    </Path.Style>
+                                </Path>
+                            </Button>
+                            <ComboBox
+                                Margin="2,0"
+                                SelectedValue="{Binding ZoomSliderValue, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}"
+                                SelectedValuePath="Tag"
+                                Text="{Binding ZoomCompactText, Mode=OneWay}">
+                                <ComboBoxItem Content="100%" Tag="100" />
+                                <ComboBoxItem Content="200%" Tag="200" />
+                                <ComboBoxItem Content="300%" Tag="300" />
+                                <ComboBoxItem Content="400%" Tag="400" />
+                                <ComboBoxItem Content="500%" Tag="500" />
+                                <ComboBoxItem Content="600%" Tag="600" />
+                                <ComboBoxItem Content="700%" Tag="700" />
+                                <ComboBoxItem Content="800%" Tag="800" />
+                            </ComboBox>
+
+                            <Button
+                                Margin="2,0"
+                                Command="{Binding ZoomOutCommand}"
+                                Style="{StaticResource PreviewZoomIconButtonStyle}"
+                                ToolTip="缩小">
+                                <Path
+                                    Width="18"
+                                    Height="18"
+                                    Data="{StaticResource ZoomOut}"
+                                    Fill="{DynamicResource TextPrimaryBrush}"
+                                    Stretch="Uniform" />
+                            </Button>
+
+                            <Slider
+                                Margin="2,0"
+                                IsSnapToTickEnabled="False"
+                                LargeChange="25"
+                                Maximum="800"
+                                Minimum="10"
+                                SmallChange="5"
+                                Style="{StaticResource PreviewZoomSliderStyle}"
+                                TickFrequency="25"
+                                Value="{Binding ZoomSliderValue, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}" />
+
+                            <Button
+                                Margin="2,0"
+                                Command="{Binding ZoomInCommand}"
+                                Style="{StaticResource PreviewZoomIconButtonStyle}"
+                                ToolTip="放大">
+                                <Path
+                                    Width="18"
+                                    Height="18"
+                                    Data="{StaticResource ZoomIn}"
+                                    Fill="{DynamicResource TextPrimaryBrush}"
+                                    Stretch="Uniform" />
+                            </Button>
+                        </StackPanel>
+
+                    </Grid>
+                </Border>
+
+
+
+                <!--<Border
+                    Margin="0,20,20,20"
+                    Padding="22"
+                    Background="{DynamicResource PreviewSidebarBackgroundBrush}"
+                    CornerRadius="24"
+                    Visibility="Hidden">
+                    <StackPanel>
+                        <TextBlock
+                            FontSize="26"
+                            FontWeight="Bold"
+                            Foreground="{DynamicResource TextPrimaryBrush}"
+                            Text="截图预览" />
+                        <TextBlock
+                            Margin="0,10,0,0"
+                            Foreground="{DynamicResource TextSecondaryBrush}"
+                            Text="查看、保存、复制当前截图。" />
+
+                        <Border
+                            Margin="0,24,0,0"
+                            Padding="16"
+                            Background="{DynamicResource PreviewCardBackgroundBrush}"
+                            CornerRadius="18">
+                            <StackPanel>
+                                <TextBlock Foreground="{DynamicResource PreviewCardLabelBrush}" Text="截图模式" />
+                                <TextBlock
+                                    Margin="0,6,0,0"
+                                    FontSize="16"
+                                    FontWeight="SemiBold"
+                                    Foreground="{DynamicResource TextPrimaryBrush}"
+                                    Text="{Binding CaptureMode}" />
+                                <TextBlock
+                                    Margin="0,16,0,0"
+                                    Foreground="{DynamicResource PreviewCardLabelBrush}"
+                                    Text="截图时间" />
+                                <TextBlock
+                                    Margin="0,6,0,0"
+                                    FontSize="16"
+                                    FontWeight="SemiBold"
+                                    Foreground="{DynamicResource TextPrimaryBrush}"
+                                    Text="{Binding CaptureTime}" />
+                                <TextBlock
+                                    Margin="0,16,0,0"
+                                    Foreground="{DynamicResource PreviewCardLabelBrush}"
+                                    Text="分辨率" />
+                                <TextBlock
+                                    Margin="0,6,0,0"
+                                    FontSize="16"
+                                    FontWeight="SemiBold"
+                                    Foreground="{DynamicResource TextPrimaryBrush}"
+                                    Text="{Binding ImageSize}" />
+                                <TextBlock
+                                    Margin="0,16,0,0"
+                                    Foreground="{DynamicResource PreviewCardLabelBrush}"
+                                    Text="文件大小" />
+                                <TextBlock
+                                    Margin="0,6,0,0"
+                                    FontSize="16"
+                                    FontWeight="SemiBold"
+                                    Foreground="{DynamicResource TextPrimaryBrush}"
+                                    Text="{Binding FileSize}" />
+                                <TextBlock
+                                    Margin="0,16,0,0"
+                                    Foreground="{DynamicResource PreviewCardLabelBrush}"
+                                    Text="当前缩放" />
+                                <TextBlock
+                                    Margin="0,6,0,0"
+                                    FontSize="16"
+                                    FontWeight="SemiBold"
+                                    Foreground="{DynamicResource TextPrimaryBrush}"
+                                    Text="{Binding ZoomDisplayText}" />
+                            </StackPanel>
+                        </Border>
+
+                        <Button
+                            Height="44"
+                            Margin="0,24,0,0"
+                            Background="{DynamicResource PreviewGhostButtonBackgroundBrush}"
+                            BorderBrush="{DynamicResource PreviewGhostButtonBorderBrush}"
+                            Command="{Binding TogglePreviewScaleCommand}"
+                            Foreground="{DynamicResource PreviewGhostButtonForegroundBrush}">
+                            <TextBlock Text="{Binding PreviewScaleModeText}" />
+                        </Button>
+
+                        <Button
+                            Height="44"
+                            Margin="0,12,0,0"
+                            Background="{DynamicResource PreviewSaveButtonBrush}"
+                            BorderThickness="0"
+                            Command="{Binding SaveToFileCommand}"
+                            Foreground="{DynamicResource TextPrimaryBrush}">
+                            <TextBlock Text="保存到文件" />
+                        </Button>
+
+                        <Button
+                            Height="44"
+                            Margin="0,12,0,0"
+                            Background="{DynamicResource PreviewCopyButtonBrush}"
+                            BorderThickness="0"
+                            Command="{Binding CopyToClipboardCommand}"
+                            Foreground="{DynamicResource TextPrimaryBrush}">
+                            <TextBlock Text="复制到剪贴板" />
+                        </Button>
+
+                        <Button
+                            Height="44"
+                            Margin="0,12,0,0"
+                            Background="{DynamicResource PreviewGhostButtonBackgroundBrush}"
+                            BorderBrush="{DynamicResource PreviewGhostButtonBorderBrush}"
+                            Command="{Binding RecaptureCommand}"
+                            CommandParameter="{Binding RelativeSource={RelativeSource AncestorType=Window}}"
+                            Foreground="{DynamicResource PreviewGhostButtonForegroundBrush}">
+                            <TextBlock Text="重新截图" />
+                        </Button>
+
+                        <Button
+                            Height="44"
+                            Margin="0,12,0,0"
+                            Background="Transparent"
+                            BorderBrush="{DynamicResource PreviewGhostButtonBorderBrush}"
+                            Command="{Binding CloseCommand}"
+                            CommandParameter="{Binding RelativeSource={RelativeSource AncestorType=Window}}"
+                            Foreground="{DynamicResource PreviewCloseButtonForegroundBrush}">
+                            <TextBlock Text="关闭" />
+                        </Button>
+                    </StackPanel>
+                </Border>-->
+            </Grid>
+            <Border
+                x:Name="OverlayBorder"
+                Panel.ZIndex="999"
+                BorderBrush="{StaticResource AppGradientEndBrush}"
+                BorderThickness="0.5"
+                CornerRadius="10"
+                IsHitTestVisible="False" />
         </Grid>
-    </DockPanel>
+
+
+    </Border>
 </Window>
