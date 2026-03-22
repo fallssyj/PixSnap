@@ -4,9 +4,7 @@ using CommunityToolkit.Mvvm.Messaging;
 using PixSnap.Models;
 using PixSnap.Services;
 using PixSnap.Views;
-using System;
 using System.Text;
-using System.Threading.Tasks;
 using System.Windows;
 using Application = System.Windows.Application;
 

@@ -1,6 +1,5 @@
 using CommunityToolkit.Mvvm.Messaging;
 using Hardcodet.Wpf.TaskbarNotification;
-using Microsoft.Win32;
 using PixSnap.Models;
 using PixSnap.Services;
 using PixSnap.ViewModels;
@@ -8,23 +7,46 @@ using PixSnap.Views;
 using System.Diagnostics;
 using System.Drawing;
 using System.IO;
-using System.Reflection;
 using System.Runtime.InteropServices;
 using System.Text;
+using System.Threading;
+using System.Threading.Tasks;
 using System.Windows;
 using System.Windows.Controls.Primitives;
+using System.Windows.Input;
+using System.Windows.Threading;
 
 namespace PixSnap;
 
 public partial class App : System.Windows.Application, IRecipient<ScreenshotCapturedMessage>
 {
+    // 全局互斥体，防止同一用户会话下多次启动
+    private static readonly Mutex _instanceMutex = new(initiallyOwned: true, name: "Local\\PixSnap_SingleInstance");
+
     private MainWindow? _mainWindow;
     private IScreenCaptureService? _screenCaptureService;
     private TaskbarIcon? _taskbarIcon;
+    private GlobalHotkeyService? _hotkeyService;
 
     protected override void OnStartup(StartupEventArgs e)
     {
         base.OnStartup(e);
+
+        DispatcherUnhandledException += OnDispatcherUnhandledException;
+        AppDomain.CurrentDomain.UnhandledException += OnCurrentDomainUnhandledException;
+        TaskScheduler.UnobservedTaskException += OnUnobservedTaskException;
+
+        // 尝试获取互斥体所有权；获取失败说明已有实例在运行
+        if (!_instanceMutex.WaitOne(TimeSpan.Zero, exitContext: false))
+        {
+            MessageBoxWindow.Show(
+                "PixSnap 已在运行中，请查看系统托盘。",
+                "PixSnap",
+                MessageBoxButton.OK,
+                MessageBoxImage.Information);
+            Shutdown(0);
+            return;
+        }
 
         try
         {
@@ -52,10 +74,15 @@ public partial class App : System.Windows.Application, IRecipient<ScreenshotCapt
         _mainWindow.Hide();
 
         InitializeTrayIcon();
+        InitializeHotkey();
     }
 
     protected override void OnExit(ExitEventArgs e)
     {
+        DispatcherUnhandledException -= OnDispatcherUnhandledException;
+        AppDomain.CurrentDomain.UnhandledException -= OnCurrentDomainUnhandledException;
+        TaskScheduler.UnobservedTaskException -= OnUnobservedTaskException;
+
         WeakReferenceMessenger.Default.UnregisterAll(this);
 
         if (_screenCaptureService is IDisposable disposable)
@@ -66,22 +93,72 @@ public partial class App : System.Windows.Application, IRecipient<ScreenshotCapt
         _taskbarIcon?.Dispose();
         _taskbarIcon = null;
 
+        _hotkeyService?.Dispose();
+        _hotkeyService = null;
+
+        // 释放互斥体，允许下一个实例启动
+        _instanceMutex.ReleaseMutex();
+        _instanceMutex.Dispose();
+
         base.OnExit(e);
     }
 
     public void Receive(ScreenshotCapturedMessage message)
     {
-        var previewViewModel = new ScreenshotPreviewViewModel();
-        previewViewModel.Receive(message);
-
-        var previewWindow = new ScreenshotPreviewWindow
+        try
         {
-            DataContext = previewViewModel,
-            Topmost = false
-        };
+            var previewViewModel = new ScreenshotPreviewViewModel();
+            previewViewModel.Receive(message);
 
-        previewWindow.Show();
-        previewWindow.Activate();
+            var previewWindow = new ScreenshotPreviewWindow
+            {
+                DataContext = previewViewModel,
+                Topmost = false
+            };
+
+            previewWindow.Show();
+            previewWindow.Activate();
+        }
+        catch (Exception exception)
+        {
+            MessageBoxWindow.Show(
+                BuildExceptionMessage(exception),
+                "预览窗口打开失败",
+                MessageBoxButton.OK,
+                MessageBoxImage.Error);
+        }
+    }
+
+    private void OnDispatcherUnhandledException(object sender, DispatcherUnhandledExceptionEventArgs e)
+    {
+        MessageBoxWindow.Show(
+            BuildExceptionMessage(e.Exception),
+            "应用异常",
+            MessageBoxButton.OK,
+            MessageBoxImage.Error);
+        e.Handled = true;
+    }
+
+    private void OnCurrentDomainUnhandledException(object? sender, UnhandledExceptionEventArgs e)
+    {
+        if (e.ExceptionObject is Exception exception)
+        {
+            MessageBoxWindow.Show(
+                BuildExceptionMessage(exception),
+                "应用异常",
+                MessageBoxButton.OK,
+                MessageBoxImage.Error);
+        }
+    }
+
+    private void OnUnobservedTaskException(object? sender, UnobservedTaskExceptionEventArgs e)
+    {
+        MessageBoxWindow.Show(
+            BuildExceptionMessage(e.Exception),
+            "后台任务异常",
+            MessageBoxButton.OK,
+            MessageBoxImage.Error);
+        e.SetObserved();
     }
 
     private static string BuildExceptionMessage(Exception exception)
@@ -117,10 +194,75 @@ public partial class App : System.Windows.Application, IRecipient<ScreenshotCapt
     private void InitializeTrayIcon()
     {
         _taskbarIcon = (TaskbarIcon)FindResource("TrayIcon");
-        _taskbarIcon.DataContext = new TrayViewModel(StartCaptureFromTray, ShowAbout);
+        _taskbarIcon.DataContext = new TrayViewModel(StartCaptureFromTray, ShowSettings, ShowAbout);
         _taskbarIcon.Icon = LoadTrayIcon();
-        _taskbarIcon.TrayMouseDoubleClick += (_, _) => StartCaptureFromTray();
+        _taskbarIcon.TrayMouseDoubleClick += OnTrayMouseDoubleClick;
         _taskbarIcon.TrayContextMenuOpen += OnTrayContextMenuOpen;
+    }
+
+    private void OnTrayMouseDoubleClick(object sender, RoutedEventArgs e)
+    {
+        e.Handled = true;
+        Dispatcher.BeginInvoke(ShowScreenshotPreviewFromTray, DispatcherPriority.Background);
+    }
+
+    private void ShowScreenshotPreviewFromTray()
+    {
+        foreach (Window window in Windows)
+        {
+            if (window is ScreenshotPreviewWindow previewWindow)
+            {
+                if (!previewWindow.IsVisible)
+                    previewWindow.Show();
+
+                if (previewWindow.WindowState == WindowState.Minimized)
+                    previewWindow.WindowState = WindowState.Normal;
+
+                previewWindow.Activate();
+                return;
+            }
+        }
+
+        var previewViewModel = new ScreenshotPreviewViewModel();
+        var newPreviewWindow = new ScreenshotPreviewWindow
+        {
+            DataContext = previewViewModel,
+            Topmost = false
+        };
+
+        newPreviewWindow.Show();
+        newPreviewWindow.Activate();
+    }
+
+    private void InitializeHotkey()
+    {
+        _hotkeyService = new GlobalHotkeyService();
+        var (modifiers, key) = SettingsService.ReadHotkey();
+        if (key != Key.None)
+            _hotkeyService.Register(modifiers, key, StartCaptureFromTray);
+    }
+
+    private void ShowSettings()
+    {
+        // 若设置窗口已开启则激活并返回，避免重复打开
+        foreach (Window w in Windows)
+        {
+            if (w is SettingsWindow existing)
+            {
+                existing.Activate();
+                return;
+            }
+        }
+
+        var win = new SettingsWindow();
+        win.ViewModel.HotkeyChanged += (modifiers, key) =>
+        {
+            // 用户保存设置后重新注册快捷键
+            _hotkeyService?.Unregister();
+            if (key != Key.None)
+                _hotkeyService?.Register(modifiers, key, StartCaptureFromTray);
+        };
+        win.ShowDialog();
     }
 
     // Win32 获取光标屏幕像素坐标

@@ -33,6 +33,7 @@ public partial class RegionSelectorWindow : Window
     private ScreenInfo? _hoveredScreen;
     private Point _mouseDownPoint;
     private Point _currentPoint;
+    private bool _hintsAtBottom;
 
     public RegionSelectorWindow(IScreenCaptureService screenCaptureService)
     {
@@ -72,10 +73,15 @@ public partial class RegionSelectorWindow : Window
         // Mask 和提示气泡属于纯视图层元素，初始化时直接按当前覆盖窗口尺寸定位。
         Mask.Width = Width;
         Mask.Height = Height;
-        Canvas.SetLeft(InfoBubble, InfoBubbleMargin);
-        Canvas.SetTop(InfoBubble, InfoBubbleMargin);
+        UpdateHintPanelPositions(null);
+
+        // Activate() 在 WPF 内部调用 SetForegroundWindow，确保窗口获得 Win32 键盘焦点。
+        // ShowDialog() 默认的 ShowWindow(SW_SHOW) 在进程无前台权限时（如从托盘触发）
+        // 只能显示窗口，不能激活它，导致首次截图键盘事件完全无法接收。
+        Activate();
         Focus();
-        UpdateHover(GetMousePosition());
+        GetCursorPos(out var cursorPos);
+        UpdateHover(new Point(cursorPos.X, cursorPos.Y));
     }
 
     private void OnMouseLeftButtonDown(object sender, MouseButtonEventArgs e)
@@ -110,7 +116,7 @@ public partial class RegionSelectorWindow : Window
             }
         }
 
-        UpdateHover(ToScreenPoint(_currentPoint));
+        UpdateHover(LocalPointToScreenPoint(_currentPoint));
     }
 
     private void OnMouseLeftButtonUp(object sender, MouseButtonEventArgs e)
@@ -143,7 +149,7 @@ public partial class RegionSelectorWindow : Window
             return;
         }
 
-        UpdateHover(ToScreenPoint(_currentPoint));
+        UpdateHover(LocalPointToScreenPoint(_currentPoint));
 
         if (_hoveredWindow is not null)
         {
@@ -193,9 +199,8 @@ public partial class RegionSelectorWindow : Window
         SelectionRect.Width = rect.Width;
         SelectionRect.Height = rect.Height;
 
-        // 进入拖拽后保持提示气泡固定，避免小选区被提示覆盖。
-        Canvas.SetLeft(InfoBubble, InfoBubbleMargin);
-        Canvas.SetTop(InfoBubble, InfoBubbleMargin);
+        // 拖拽中自动避让选区边缘，避免遮挡精确对齐。
+        UpdateHintPanelPositions(rect);
     }
 
     private void UpdateHover(Point screenPoint)
@@ -216,6 +221,15 @@ public partial class RegionSelectorWindow : Window
             WindowHighlightRect.Height = localRect.Height;
             Canvas.SetLeft(InfoBubble, Math.Max(InfoBubbleMargin, localRect.X));
             Canvas.SetTop(InfoBubble, Math.Max(InfoBubbleMargin, localRect.Y - 58));
+
+            if (FooterHint is not null)
+            {
+                var canvasWidth = RootCanvas.ActualWidth > 0 ? RootCanvas.ActualWidth : Width;
+                var canvasHeight = RootCanvas.ActualHeight > 0 ? RootCanvas.ActualHeight : Height;
+                var footerSize = MeasureElement(FooterHint);
+                Canvas.SetLeft(FooterHint, Math.Max(InfoBubbleMargin, canvasWidth - footerSize.Width - InfoBubbleMargin));
+                Canvas.SetTop(FooterHint, Math.Max(InfoBubbleMargin, canvasHeight - footerSize.Height - InfoBubbleMargin));
+            }
         }
         else
         {
@@ -224,6 +238,15 @@ public partial class RegionSelectorWindow : Window
             var localPoint = ScreenPointToLocalPoint(screenPoint);
             Canvas.SetLeft(InfoBubble, Math.Max(InfoBubbleMargin, localPoint.X + 18));
             Canvas.SetTop(InfoBubble, Math.Max(InfoBubbleMargin, localPoint.Y + 18));
+
+            if (FooterHint is not null)
+            {
+                var canvasWidth = RootCanvas.ActualWidth > 0 ? RootCanvas.ActualWidth : Width;
+                var canvasHeight = RootCanvas.ActualHeight > 0 ? RootCanvas.ActualHeight : Height;
+                var footerSize = MeasureElement(FooterHint);
+                Canvas.SetLeft(FooterHint, Math.Max(InfoBubbleMargin, canvasWidth - footerSize.Width - InfoBubbleMargin));
+                Canvas.SetTop(FooterHint, Math.Max(InfoBubbleMargin, canvasHeight - footerSize.Height - InfoBubbleMargin));
+            }
         }
 
         _viewModel.UpdateHover(_hoveredWindow, _hoveredScreen);
@@ -258,17 +281,6 @@ public partial class RegionSelectorWindow : Window
         }
 
         return null;
-    }
-
-    private Point GetMousePosition()
-    {
-        var screenPoint = GetCursorPosition();
-        return new Point(screenPoint.X, screenPoint.Y);
-    }
-
-    private Point ToScreenPoint(Point localPoint)
-    {
-        return LocalPointToScreenPoint(localPoint);
     }
 
     private Rect ScreenRectToLocalRect(Rect screenRect)
@@ -317,6 +329,60 @@ public partial class RegionSelectorWindow : Window
             Math.Min(start.Y, end.Y),
             Math.Abs(end.X - start.X),
             Math.Abs(end.Y - start.Y));
+    }
+
+    private void UpdateHintPanelPositions(Rect? occupiedRect)
+    {
+        if (InfoBubble is null || FooterHint is null)
+            return;
+
+        var canvasWidth = RootCanvas.ActualWidth > 0 ? RootCanvas.ActualWidth : Width;
+        var canvasHeight = RootCanvas.ActualHeight > 0 ? RootCanvas.ActualHeight : Height;
+
+        var infoSize = MeasureElement(InfoBubble);
+        var footerSize = MeasureElement(FooterHint);
+
+        double infoX = InfoBubbleMargin;
+        double footerX = Math.Max(InfoBubbleMargin, canvasWidth - footerSize.Width - InfoBubbleMargin);
+
+        double infoTopY = InfoBubbleMargin;
+        double infoBottomY = Math.Max(InfoBubbleMargin, canvasHeight - infoSize.Height - InfoBubbleMargin);
+        double footerTopY = InfoBubbleMargin;
+        double footerBottomY = Math.Max(InfoBubbleMargin, canvasHeight - footerSize.Height - InfoBubbleMargin);
+
+        if (occupiedRect is { } rect && rect.Width > 0 && rect.Height > 0)
+        {
+            // 用“当前拖拽位置”做触发判定，而不是选区 Top，避免起点在上方时永远不翻转。
+            double triggerY = Math.Clamp(_currentPoint.Y, 0, canvasHeight);
+            double upperThreshold = canvasHeight * 0.45;
+            double lowerThreshold = canvasHeight * 0.55;
+
+            if (triggerY <= upperThreshold)
+                _hintsAtBottom = true;
+            else if (triggerY >= lowerThreshold)
+                _hintsAtBottom = false;
+        }
+        else
+        {
+            _hintsAtBottom = false;
+        }
+
+        bool moveToBottom = _hintsAtBottom;
+
+        Canvas.SetLeft(InfoBubble, infoX);
+        Canvas.SetTop(InfoBubble, moveToBottom ? infoBottomY : infoTopY);
+
+        Canvas.SetLeft(FooterHint, footerX);
+        Canvas.SetTop(FooterHint, moveToBottom ? footerBottomY : footerTopY);
+    }
+
+    private static Size MeasureElement(FrameworkElement element)
+    {
+        element.Measure(new Size(double.PositiveInfinity, double.PositiveInfinity));
+        var measured = element.DesiredSize;
+        var width = measured.Width > 0 ? measured.Width : element.ActualWidth;
+        var height = measured.Height > 0 ? measured.Height : element.ActualHeight;
+        return new Size(width, height);
     }
 
     private static bool TryGetWindowRect(IntPtr hwnd, out Rect rect)

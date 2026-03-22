@@ -17,13 +17,12 @@
                 <ResourceDictionary Source="Styles/TextBox.xaml" />
                 <ResourceDictionary Source="Styles/ComboBox.xaml" />
                 <ResourceDictionary Source="Styles/Slider.xaml" />
+                <ResourceDictionary Source="Styles/ProgressBar.xaml" />
                 <ResourceDictionary Source="Styles/ScrollViewer.xaml" />
                 <ResourceDictionary Source="Styles/Menu.xaml" />
+                <ResourceDictionary Source="Styles/EditPanel.xaml" />
             </ResourceDictionary.MergedDictionaries>
 
-            <Style BasedOn="{StaticResource {x:Type Window}}" TargetType="Window">
-                <Setter Property="FontFamily" Value="{StaticResource MiSansRegular}" />
-            </Style>
 
             <!--  托盘图标：Icon 和 DataContext 由 App.xaml.cs 在启动时注入  -->
             <tb:TaskbarIcon x:Key="TrayIcon" ToolTipText="PixSnap">
@@ -31,12 +30,9 @@
                     <ContextMenu>
                         <MenuItem Command="{Binding CaptureCommand}" Header="截图" />
                         <Separator />
-                        <MenuItem
-                            Header="开机启动"
-                            IsCheckable="True"
-                            IsChecked="{Binding IsStartupEnabled, Mode=TwoWay}" />
-                        <Separator />
+                        <MenuItem Command="{Binding ShowSettingsCommand}" Header="设置" />
                         <MenuItem Command="{Binding ShowAboutCommand}" Header="关于 PixSnap" />
+                        <Separator />
                         <MenuItem
                             Command="{Binding ExitCommand}"
                             Foreground="{DynamicResource TextSecondaryBrush}"

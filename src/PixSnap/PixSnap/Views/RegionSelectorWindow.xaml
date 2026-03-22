@@ -34,7 +34,8 @@
             x:Name="InfoBubble"
             Padding="12,10"
             Background="{DynamicResource OverlayInfoBubbleBackgroundBrush}"
-            CornerRadius="14">
+            CornerRadius="14"
+            IsHitTestVisible="False">
             <StackPanel>
                 <TextBlock
                     FontSize="13"
@@ -51,12 +52,16 @@
         </Border>
 
         <Border
-            Canvas.Right="24"
-            Canvas.Bottom="24"
+            x:Name="FooterHint"
             Padding="14,10"
             Background="{DynamicResource OverlayFooterBackgroundBrush}"
-            CornerRadius="16">
-            <TextBlock Foreground="{DynamicResource OverlayFooterForegroundBrush}" Text="左键单击高亮窗口截图，左键拖动截矩形，Space 截当前显示器，Esc / 右键退出" />
+            CornerRadius="16"
+            IsHitTestVisible="False">
+            <TextBlock
+                MaxWidth="520"
+                Foreground="{DynamicResource OverlayFooterForegroundBrush}"
+                Text="左键单击高亮窗口截图，左键拖动截矩形，Space 截当前显示器，Esc / 右键退出"
+                TextWrapping="Wrap" />
         </Border>
     </Canvas>
 </Window>

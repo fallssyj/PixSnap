@@ -110,13 +110,22 @@ public partial class MessageBoxViewModel : ObservableObject
         }
 
         IconData = Geometry.Parse(pathData);
+        IconData.Freeze();
+        // 冻结画刷以节省内存并防止意外修改（创建后不再变更）
+        SolidColorBrush MakeBrush(MediaColor color)
+        {
+            var b = new SolidColorBrush(color);
+            b.Freeze();
+            return b;
+        }
+
         IconBrush = icon switch
         {
             MessageBoxImage.Error or MessageBoxImage.Stop or MessageBoxImage.Hand =>
-                new SolidColorBrush(MediaColor.FromRgb(0xCF, 0x6E, 0x6E)),
+                MakeBrush(MediaColor.FromRgb(0xCF, 0x6E, 0x6E)),
             MessageBoxImage.Warning or MessageBoxImage.Exclamation =>
-                new SolidColorBrush(MediaColor.FromRgb(0xC8, 0xA5, 0x60)),
-            _ => new SolidColorBrush(MediaColor.FromRgb(0xA0, 0xA0, 0xA0))
+                MakeBrush(MediaColor.FromRgb(0xC8, 0xA5, 0x60)),
+            _ => MakeBrush(MediaColor.FromRgb(0xA0, 0xA0, 0xA0))
         };
         IconVisible = true;
     }

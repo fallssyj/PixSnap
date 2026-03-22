@@ -34,7 +34,197 @@
                 </Grid.RowDefinitions>
                 <!--  顶部控制  -->
                 <Grid Grid.Row="0">
-                    <StackPanel HorizontalAlignment="Right" Orientation="Horizontal">
+                    <StackPanel
+                        Margin="0,4,0,0"
+                        HorizontalAlignment="Left"
+                        Orientation="Horizontal">
+                        <Button
+                            Width="70"
+                            Height="30"
+                            Margin="10,0,0,0"
+                            Command="{Binding OpenFileCommand}">
+                            <StackPanel Orientation="Horizontal">
+                                <Path
+                                    Width="12"
+                                    Height="12"
+                                    Data="{StaticResource ImageOn}"
+                                    Fill="#000"
+                                    Stretch="Uniform" />
+                                <TextBlock
+                                    Margin="6,0,0,0"
+                                    VerticalAlignment="Center"
+                                    FontSize="10"
+                                    Foreground="#000"
+                                    Text="打开" />
+                            </StackPanel>
+                            <Button.Style>
+                                <Style TargetType="Button">
+                                    <Setter Property="BorderThickness" Value="0" />
+                                    <Setter Property="Background" Value="Transparent" />
+                                    <Setter Property="Cursor" Value="Hand" />
+                                    <Setter Property="Template">
+                                        <Setter.Value>
+                                            <ControlTemplate TargetType="Button">
+                                                <Border
+                                                    x:Name="ButtonRoot"
+                                                    Background="#4cc2ff"
+                                                    CornerRadius="5"
+                                                    SnapsToDevicePixels="True">
+                                                    <ContentPresenter
+                                                        HorizontalAlignment="Center"
+                                                        VerticalAlignment="Center"
+                                                        RecognizesAccessKey="True" />
+                                                </Border>
+                                                <ControlTemplate.Triggers>
+                                                    <Trigger Property="IsMouseOver" Value="True">
+                                                        <Setter TargetName="ButtonRoot" Property="Opacity" Value="0.96" />
+                                                    </Trigger>
+                                                    <Trigger Property="IsPressed" Value="True">
+                                                        <Setter TargetName="ButtonRoot" Property="Opacity" Value="0.88" />
+                                                    </Trigger>
+                                                </ControlTemplate.Triggers>
+                                            </ControlTemplate>
+                                        </Setter.Value>
+                                    </Setter>
+                                </Style>
+                            </Button.Style>
+                        </Button>
+                        <Button
+                            Margin="20,0,2,0"
+                            Command="{Binding SaveToFileCommand}"
+                            Style="{StaticResource PreviewZoomIconButtonStyle}"
+                            ToolTip="保存">
+                            <Path
+                                Width="12"
+                                Height="12"
+                                Data="{StaticResource FloppyDisk}"
+                                Fill="{DynamicResource TextPrimaryBrush}"
+                                Stretch="Uniform" />
+                        </Button>
+                        <Button
+                            Margin="2,0"
+                            Command="{Binding UndoCommand}"
+                            Style="{StaticResource PreviewZoomIconButtonStyle}"
+                            ToolTip="撤销">
+                            <Path
+                                Width="12"
+                                Height="12"
+                                Data="{StaticResource Undo}"
+                                Fill="{DynamicResource TextPrimaryBrush}"
+                                Stretch="Uniform" />
+                        </Button>
+                        <Button
+                            Margin="2,0"
+                            Command="{Binding RedoCommand}"
+                            Style="{StaticResource PreviewZoomIconButtonStyle}"
+                            ToolTip="重做">
+                            <Path
+                                Width="12"
+                                Height="12"
+                                Data="{StaticResource Redo}"
+                                Fill="{DynamicResource TextPrimaryBrush}"
+                                Stretch="Uniform" />
+                        </Button>
+                        <Button
+                            Margin="2,0"
+                            Command="{Binding RotateImageCommand}"
+                            Style="{StaticResource PreviewZoomIconButtonStyle}"
+                            ToolTip="旋转">
+                            <Path
+                                Width="12"
+                                Height="12"
+                                Data="{StaticResource Rotate}"
+                                Fill="{DynamicResource TextPrimaryBrush}"
+                                Stretch="Uniform" />
+                        </Button>
+                        <Button
+                            Margin="2,0"
+                            Command="{Binding CopyToClipboardCommand}"
+                            Style="{StaticResource PreviewZoomIconButtonStyle}"
+                            ToolTip="复制到剪切板">
+                            <Path
+                                Width="12"
+                                Height="12"
+                                Data="{StaticResource RegularCopy}"
+                                Fill="{DynamicResource TextPrimaryBrush}"
+                                Stretch="Uniform" />
+                        </Button>
+                        <Button
+                            Margin="2,0"
+                            Command="{Binding ToggleCropCommand}"
+                            Style="{StaticResource PreviewZoomIconButtonStyle}"
+                            ToolTip="裁剪">
+                            <Path
+                                Width="12"
+                                Height="12"
+                                Data="{StaticResource Crop}"
+                                Fill="{DynamicResource TextPrimaryBrush}"
+                                Stretch="Uniform" />
+                        </Button>
+
+                        <Button
+                            Margin="2,0"
+                            Command="{Binding ToggleRoundCornerCommand}"
+                            Style="{StaticResource PreviewZoomIconButtonStyle}"
+                            ToolTip="圆角">
+                            <Path
+                                Width="12"
+                                Height="12"
+                                Data="{StaticResource RoundedSquare}"
+                                Fill="{DynamicResource TextPrimaryBrush}"
+                                Stretch="Uniform" />
+                        </Button>
+                        <Button
+                            Margin="2,0"
+                            Command="{Binding ToggleEraserCommand}"
+                            Style="{StaticResource PreviewZoomIconButtonStyle}"
+                            ToolTip="AI擦除">
+                            <Path
+                                Width="12"
+                                Height="12"
+                                Data="{StaticResource Eraser}"
+                                Fill="{DynamicResource TextPrimaryBrush}"
+                                Stretch="Uniform" />
+                        </Button>
+                        <Button
+                            x:Name="AiModuleButton"
+                            Margin="2,0"
+                            Click="AiModuleButton_Click"
+                            Style="{StaticResource PreviewZoomIconButtonStyle}"
+                            ToolTip="AI模块">
+                            <Path
+                                Width="12"
+                                Height="12"
+                                Data="{StaticResource AiSparkle}"
+                                Fill="{DynamicResource TextPrimaryBrush}"
+                                Stretch="Uniform" />
+                        </Button>
+
+                        <Button
+                            Margin="2,0"
+                            Command="{Binding RecaptureCommand}"
+                            Style="{StaticResource PreviewZoomIconButtonStyle}"
+                            ToolTip="重新截图">
+                            <Path
+                                Width="12"
+                                Height="12"
+                                Data="{StaticResource Recapture}"
+                                Fill="{DynamicResource TextPrimaryBrush}"
+                                Stretch="Uniform" />
+                        </Button>
+
+                    </StackPanel>
+                    <TextBlock
+                        MaxWidth="420"
+                        HorizontalAlignment="Center"
+                        VerticalAlignment="Center"
+                        Foreground="{DynamicResource TextPrimaryBrush}"
+                        Text="{Binding CaptureTitleDisplay}"
+                        TextAlignment="Center" />
+                    <StackPanel
+                        HorizontalAlignment="Right"
+                        VerticalAlignment="Top"
+                        Orientation="Horizontal">
                         <Button
                             Margin="0,0,0,0"
                             Command="{Binding MinimizeCommand}"
@@ -51,7 +241,6 @@
                                         <DataTrigger Binding="{Binding IsMaximized}" Value="True">
                                             <Setter Property="Content" Value="{StaticResource restore}" />
                                             <Setter Property="ToolTip" Value="还原" />
-
                                         </DataTrigger>
                                     </Style.Triggers>
                                 </Style>
@@ -65,20 +254,23 @@
                             ToolTip="关闭" />
                     </StackPanel>
                 </Grid>
+
                 <!--  预览区域  -->
                 <Grid
                     Grid.Row="1"
-                    Margin="20"
+                    Margin="0,20,0,0"
                     Background="{StaticResource TransparencyCheckerBrush}">
                     <Border PreviewMouseWheel="PreviewHost_PreviewMouseWheel">
                         <Grid
                             x:Name="PreviewViewport"
                             ClipToBounds="True"
+                            MouseRightButtonUp="PreviewViewport_MouseRightButtonUp"
                             SizeChanged="PreviewViewport_SizeChanged">
                             <Grid x:Name="FitPreviewHost">
 
                                 <Image
                                     HorizontalAlignment="Center"
+                                    RenderOptions.BitmapScalingMode="LowQuality"
                                     VerticalAlignment="Center"
                                     Source="{Binding ScreenshotImage}"
                                     Stretch="Uniform"
@@ -94,19 +286,443 @@
                                 PreviewMouseMove="ActualSizeScrollViewer_PreviewMouseMove"
                                 VerticalScrollBarVisibility="Hidden"
                                 Visibility="Collapsed">
-                                <Image
-                                    x:Name="ActualSizeImage"
-                                    HorizontalAlignment="Center"
-                                    VerticalAlignment="Center"
-                                    Source="{Binding ScreenshotImage}"
-                                    Stretch="None">
-                                    <Image.LayoutTransform>
-                                        <ScaleTransform ScaleX="{Binding ZoomFactor}" ScaleY="{Binding ZoomFactor}" />
-                                    </Image.LayoutTransform>
-                                </Image>
+                                <!--  Padding 在图片四周创建可滑动的空白区，实现拖动到边缘后还能继续拖动  -->
+                                <Border Padding="200">
+                                    <Image
+                                        x:Name="ActualSizeImage"
+                                        HorizontalAlignment="Center"
+                                        RenderOptions.BitmapScalingMode="LowQuality"
+                                        VerticalAlignment="Center"
+                                        Source="{Binding ScreenshotImage}"
+                                        Stretch="None">
+                                        <Image.LayoutTransform>
+                                            <ScaleTransform ScaleX="{Binding ZoomFactor}" ScaleY="{Binding ZoomFactor}" />
+                                        </Image.LayoutTransform>
+                                    </Image>
+                                </Border>
                             </ScrollViewer>
+
+                            <!--  裁剪框覆盖层：只在裁剪模式下显示  -->
+                            <Canvas
+                                x:Name="CropOverlayCanvas"
+                                IsHitTestVisible="True"
+                                Visibility="Collapsed">
+                                <!--  暴露区区域遗留正常渲染，覆盖层在裁剪框外显示半透明黑色  -->
+                                <Rectangle x:Name="CropMaskTop" Fill="#66000000" />
+                                <Rectangle x:Name="CropMaskBottom" Fill="#66000000" />
+                                <Rectangle x:Name="CropMaskLeft" Fill="#66000000" />
+                                <Rectangle x:Name="CropMaskRight" Fill="#66000000" />
+                                <!--  裁剪矩形边框：用户可拖动具朄4个边缘拖把  -->
+                                <Rectangle
+                                    x:Name="CropRect"
+                                    Cursor="SizeAll"
+                                    Fill="Transparent"
+                                    IsHitTestVisible="True"
+                                    MouseLeftButtonDown="CropRect_MouseLeftButtonDown"
+                                    MouseLeftButtonUp="CropRect_MouseLeftButtonUp"
+                                    MouseMove="CropRect_MouseMove"
+                                    Stroke="#4cc2ff"
+                                    StrokeDashArray="4,3"
+                                    StrokeThickness="1.5" />
+                                <!--  8 个拖把干外圆点  -->
+                                <Ellipse
+                                    x:Name="HandleTL"
+                                    Width="10"
+                                    Height="10"
+                                    Cursor="SizeNWSE"
+                                    Fill="White"
+                                    MouseLeftButtonDown="Handle_MouseLeftButtonDown"
+                                    MouseLeftButtonUp="Handle_MouseLeftButtonUp"
+                                    MouseMove="Handle_MouseMove"
+                                    StrokeThickness="0"
+                                    Tag="TL" />
+                                <Ellipse
+                                    x:Name="HandleTR"
+                                    Width="10"
+                                    Height="10"
+                                    Cursor="SizeNESW"
+                                    Fill="White"
+                                    MouseLeftButtonDown="Handle_MouseLeftButtonDown"
+                                    MouseLeftButtonUp="Handle_MouseLeftButtonUp"
+                                    MouseMove="Handle_MouseMove"
+                                    StrokeThickness="0"
+                                    Tag="TR" />
+                                <Ellipse
+                                    x:Name="HandleBL"
+                                    Width="10"
+                                    Height="10"
+                                    Cursor="SizeNESW"
+                                    Fill="White"
+                                    MouseLeftButtonDown="Handle_MouseLeftButtonDown"
+                                    MouseLeftButtonUp="Handle_MouseLeftButtonUp"
+                                    MouseMove="Handle_MouseMove"
+                                    StrokeThickness="0"
+                                    Tag="BL" />
+                                <Ellipse
+                                    x:Name="HandleBR"
+                                    Width="10"
+                                    Height="10"
+                                    Cursor="SizeNWSE"
+                                    Fill="White"
+                                    MouseLeftButtonDown="Handle_MouseLeftButtonDown"
+                                    MouseLeftButtonUp="Handle_MouseLeftButtonUp"
+                                    MouseMove="Handle_MouseMove"
+                                    StrokeThickness="0"
+                                    Tag="BR" />
+                                <Ellipse
+                                    x:Name="HandleTC"
+                                    Width="10"
+                                    Height="10"
+                                    Cursor="SizeNS"
+                                    Fill="White"
+                                    MouseLeftButtonDown="Handle_MouseLeftButtonDown"
+                                    MouseLeftButtonUp="Handle_MouseLeftButtonUp"
+                                    MouseMove="Handle_MouseMove"
+                                    StrokeThickness="0"
+                                    Tag="TC" />
+                                <Ellipse
+                                    x:Name="HandleBC"
+                                    Width="10"
+                                    Height="10"
+                                    Cursor="SizeNS"
+                                    Fill="White"
+                                    MouseLeftButtonDown="Handle_MouseLeftButtonDown"
+                                    MouseLeftButtonUp="Handle_MouseLeftButtonUp"
+                                    MouseMove="Handle_MouseMove"
+                                    StrokeThickness="0"
+                                    Tag="BC" />
+                                <Ellipse
+                                    x:Name="HandleML"
+                                    Width="10"
+                                    Height="10"
+                                    Cursor="SizeWE"
+                                    Fill="White"
+                                    MouseLeftButtonDown="Handle_MouseLeftButtonDown"
+                                    MouseLeftButtonUp="Handle_MouseLeftButtonUp"
+                                    MouseMove="Handle_MouseMove"
+                                    StrokeThickness="0"
+                                    Tag="ML" />
+                                <Ellipse
+                                    x:Name="HandleMR"
+                                    Width="10"
+                                    Height="10"
+                                    Cursor="SizeWE"
+                                    Fill="White"
+                                    MouseLeftButtonDown="Handle_MouseLeftButtonDown"
+                                    MouseLeftButtonUp="Handle_MouseLeftButtonUp"
+                                    MouseMove="Handle_MouseMove"
+                                    StrokeThickness="0"
+                                    Tag="MR" />
+                            </Canvas>
+
+                            <!--  AI 擦除涂抹覆盖层：Cursor=None 配合代码后置圆形光标指示器  -->
+                            <Canvas
+                                x:Name="EraserCanvas"
+                                Background="Transparent"
+                                Cursor="None"
+                                IsHitTestVisible="False"
+                                MouseEnter="EraserCanvas_MouseEnter"
+                                MouseLeave="EraserCanvas_MouseLeave"
+                                MouseLeftButtonDown="EraserCanvas_MouseLeftButtonDown"
+                                MouseLeftButtonUp="EraserCanvas_MouseLeftButtonUp"
+                                MouseMove="EraserCanvas_MouseMove">
+                                <!--  跟随鼠标的画刷轮廓（由代码后置动态定位和缩放）  -->
+                                <Ellipse
+                                    x:Name="EraserCursorIndicator"
+                                    Fill="#224cc2ff"
+                                    IsHitTestVisible="False"
+                                    Stroke="#4cc2ff"
+                                    StrokeThickness="2"
+                                    Visibility="Collapsed" />
+                            </Canvas>
                         </Grid>
                     </Border>
+
+                    <!--  裁剪信息拖动面板  -->
+                    <Border
+                        x:Name="CropPanel"
+                        HorizontalAlignment="Right"
+                        VerticalAlignment="Top"
+                        MouseLeftButtonDown="EditPanel_MouseLeftButtonDown"
+                        MouseLeftButtonUp="EditPanel_MouseLeftButtonUp"
+                        MouseMove="EditPanel_MouseMove"
+                        RenderTransformOrigin="0.5,0.5"
+                        Style="{StaticResource FloatingPanelStyle}"
+                        Visibility="Collapsed">
+                        <Border.RenderTransform>
+                            <TranslateTransform x:Name="CropPanelTranslate" />
+                        </Border.RenderTransform>
+                        <Border.Margin>
+                            <Thickness Right="20" Top="20" />
+                        </Border.Margin>
+                        <StackPanel MinWidth="220">
+                            <TextBlock Style="{StaticResource PanelTitleStyle}" Text="裁剪" />
+                            <Grid>
+                                <Grid.ColumnDefinitions>
+                                    <ColumnDefinition Width="*" />
+                                    <ColumnDefinition Width="8" />
+                                    <ColumnDefinition Width="*" />
+                                </Grid.ColumnDefinitions>
+                                <Grid.RowDefinitions>
+                                    <RowDefinition Height="Auto" />
+                                    <RowDefinition Height="6" />
+                                    <RowDefinition Height="Auto" />
+                                </Grid.RowDefinitions>
+                                <!--  X  -->
+                                <StackPanel
+                                    Grid.Row="0"
+                                    Grid.Column="0"
+                                    Orientation="Horizontal"
+                                    ToolTip="裁剪起始 X">
+                                    <TextBlock Style="{StaticResource FieldLabelStyle}" Text="X轴" />
+                                    <TextBox
+                                        Margin="5,0,0,0"
+                                        Style="{StaticResource FieldInputStyle}"
+                                        Text="{Binding CropPanel.CropX, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}" />
+                                </StackPanel>
+                                <!--  Y  -->
+                                <StackPanel
+                                    Grid.Row="0"
+                                    Grid.Column="2"
+                                    Orientation="Horizontal"
+                                    ToolTip="裁剪起始 Y">
+                                    <TextBlock Style="{StaticResource FieldLabelStyle}" Text="Y轴" />
+                                    <TextBox
+                                        Margin="5,0,0,0"
+                                        Style="{StaticResource FieldInputStyle}"
+                                        Text="{Binding CropPanel.CropY, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}" />
+                                </StackPanel>
+                                <!--  W  -->
+                                <StackPanel
+                                    Grid.Row="2"
+                                    Grid.Column="0"
+                                    Orientation="Horizontal"
+                                    ToolTip="裁剪宽度">
+                                    <TextBlock Style="{StaticResource FieldLabelStyle}" Text="宽度" />
+                                    <TextBox
+                                        Margin="5,0,0,0"
+                                        Style="{StaticResource FieldInputStyle}"
+                                        Text="{Binding CropPanel.CropWidth, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}" />
+                                </StackPanel>
+                                <!--  H  -->
+                                <StackPanel
+                                    Grid.Row="2"
+                                    Grid.Column="2"
+                                    Orientation="Horizontal"
+                                    ToolTip="裁剪高度">
+                                    <TextBlock Style="{StaticResource FieldLabelStyle}" Text="高度" />
+                                    <TextBox
+                                        Margin="5,0,0,0"
+                                        Style="{StaticResource FieldInputStyle}"
+                                        Text="{Binding CropPanel.CropHeight, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}" />
+                                </StackPanel>
+                            </Grid>
+                            <StackPanel
+                                Margin="0,12,0,0"
+                                HorizontalAlignment="Right"
+                                Orientation="Horizontal">
+                                <Button
+                                    Margin="0,0,6,0"
+                                    Command="{Binding CropPanel.CancelCommand}"
+                                    Content="取消"
+                                    Style="{StaticResource PanelCancelButtonStyle}"
+                                    ToolTip="取消裁剪" />
+                                <Button
+                                    Padding="10,2"
+                                    Command="{Binding CropPanel.ApplyCommand}"
+                                    CommandParameter="{Binding ScreenshotImage}"
+                                    Content="应用"
+                                    Style="{StaticResource PanelApplyButtonStyle}"
+                                    ToolTip="应用裁剪" />
+                            </StackPanel>
+                        </StackPanel>
+                    </Border>
+
+                    <!--  圆角信息拖动面板  -->
+                    <Border
+                        x:Name="RoundCornerPanel"
+                        HorizontalAlignment="Right"
+                        VerticalAlignment="Top"
+                        MouseLeftButtonDown="EditPanel_MouseLeftButtonDown"
+                        MouseLeftButtonUp="EditPanel_MouseLeftButtonUp"
+                        MouseMove="EditPanel_MouseMove"
+                        Style="{StaticResource FloatingPanelStyle}"
+                        Visibility="Collapsed">
+                        <Border.Margin>
+                            <Thickness Right="20" Top="20" />
+                        </Border.Margin>
+                        <Border.RenderTransform>
+                            <TranslateTransform x:Name="RoundCornerPanelTranslate" />
+                        </Border.RenderTransform>
+                        <StackPanel MinWidth="200">
+                            <TextBlock Style="{StaticResource PanelTitleStyle}" Text="圆角" />
+                            <StackPanel Orientation="Horizontal">
+                                <TextBlock Style="{StaticResource FieldLabelStyle}" Text="圆角半径(像素)" />
+                                <TextBox
+                                    Margin="5,0,0,0"
+                                    Style="{StaticResource FieldInputStyle}"
+                                    Text="{Binding RoundCornerPanel.CornerRadius, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}" />
+
+                            </StackPanel>
+                            <StackPanel
+                                Margin="0,12,0,0"
+                                HorizontalAlignment="Right"
+                                Orientation="Horizontal">
+                                <Button
+                                    Margin="0,0,6,0"
+                                    Command="{Binding RoundCornerPanel.CancelCommand}"
+                                    Content="取消"
+                                    Style="{StaticResource PanelCancelButtonStyle}"
+                                    ToolTip="取消圆角" />
+                                <Button
+                                    Command="{Binding RoundCornerPanel.ApplyCommand}"
+                                    CommandParameter="{Binding ScreenshotImage}"
+                                    Content="应用"
+                                    Style="{StaticResource PanelApplyButtonStyle}"
+                                    ToolTip="应用圆角" />
+                            </StackPanel>
+                        </StackPanel>
+                    </Border>
+
+                    <!--  AI 擦除画刷大小浮动面板  -->
+                    <Border
+                        x:Name="EraserFloatingPanel"
+                        HorizontalAlignment="Right"
+                        VerticalAlignment="Top"
+                        MouseLeftButtonDown="EditPanel_MouseLeftButtonDown"
+                        MouseLeftButtonUp="EditPanel_MouseLeftButtonUp"
+                        MouseMove="EditPanel_MouseMove"
+                        Style="{StaticResource FloatingPanelStyle}"
+                        Visibility="Collapsed">
+                        <Border.Margin>
+                            <Thickness Right="20" Top="20" />
+                        </Border.Margin>
+                        <Border.RenderTransform>
+                            <TranslateTransform x:Name="EraserFloatingPanelTranslate" />
+                        </Border.RenderTransform>
+                        <StackPanel MinWidth="200">
+                            <TextBlock Style="{StaticResource PanelTitleStyle}" Text="AI 擦除" />
+                            <!--  画刷大小输入  -->
+                            <StackPanel Orientation="Horizontal">
+                                <TextBlock Style="{StaticResource FieldLabelStyle}" Text="画刷大小" />
+                                <TextBox
+                                    Margin="6,0,0,0"
+                                    Style="{StaticResource FieldInputStyle}"
+                                    Text="{Binding EraserPanel.BrushSize, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}" />
+                                <TextBlock
+                                    Margin="4,0,0,0"
+                                    Style="{StaticResource FieldLabelStyle}"
+                                    Text="px" />
+                            </StackPanel>
+                            <Slider
+                                Margin="0,8,0,0"
+                                IsSnapToTickEnabled="True"
+                                LargeChange="10"
+                                Maximum="200"
+                                Minimum="5"
+                                SmallChange="1"
+                                TickFrequency="5"
+                                Value="{Binding EraserPanel.BrushSize, Mode=TwoWay}" />
+
+                            <StackPanel Margin="0,10,0,0" Orientation="Horizontal">
+                                <TextBlock Style="{StaticResource FieldLabelStyle}" Text="边缘羽化" />
+                                <TextBlock
+                                    Margin="6,0,0,0"
+                                    Style="{StaticResource FieldLabelStyle}"
+                                    Text="{Binding EraserPanel.EdgeFeatherStrengthText}" />
+                            </StackPanel>
+                            <Slider
+                                Margin="0,6,0,0"
+                                IsSnapToTickEnabled="True"
+                                LargeChange="10"
+                                Maximum="100"
+                                Minimum="0"
+                                SmallChange="1"
+                                TickFrequency="5"
+                                Value="{Binding EraserPanel.EdgeFeatherStrength, Mode=TwoWay}" />
+
+                            <!--  操作按钮  -->
+                            <StackPanel
+                                Margin="0,12,0,0"
+                                HorizontalAlignment="Right"
+                                Orientation="Horizontal">
+                                <Button
+                                    Margin="0,0,6,0"
+                                    Command="{Binding EraserPanel.ClearStrokesCommand}"
+                                    Content="清除"
+                                    Style="{StaticResource PanelCancelButtonStyle}"
+                                    ToolTip="清除当前涂抹" />
+                                <Button
+                                    Command="{Binding EraserPanel.CancelInpaintCommand}"
+                                    Content="取消"
+                                    Style="{StaticResource PanelCancelButtonStyle}"
+                                    ToolTip="取消 AI 处理" />
+                            </StackPanel>
+                        </StackPanel>
+                    </Border>
+
+                    <Popup
+                        x:Name="AiModulePopup"
+                        AllowsTransparency="True"
+                        Placement="Bottom"
+                        PopupAnimation="Fade"
+                        StaysOpen="False">
+                        <Border
+                            MinWidth="180"
+                            Padding="8"
+                            Background="#E61A1A1A"
+                            BorderBrush="#333"
+                            BorderThickness="1"
+                            CornerRadius="8">
+                            <StackPanel>
+                                <Button
+                                    Margin="0,0,0,6"
+                                    Click="AiPopupMenuItem_Click"
+                                    Command="{Binding RemoveBackgroundCommand}"
+                                    Content="去除背景 rmbg"
+                                    Style="{StaticResource PanelCancelButtonStyle}" />
+                                <Button
+                                    Click="AiPopupMenuItem_Click"
+                                    Command="{Binding SuperResolutionCommand}"
+                                    Content="超分辨率"
+                                    Style="{StaticResource PanelCancelButtonStyle}" />
+                            </StackPanel>
+                        </Border>
+                    </Popup>
+
+                    <!--  AI 处理进度面板（预览区底部居中，推理时显示）  -->
+                    <Border
+                        Margin="0,0,0,20"
+                        Padding="16,10"
+                        HorizontalAlignment="Center"
+                        VerticalAlignment="Bottom"
+                        CornerRadius="12">
+                        <Border.Style>
+                            <Style TargetType="Border">
+                                <Setter Property="Background" Value="#CC1A1A1A" />
+                                <Setter Property="Visibility" Value="Collapsed" />
+                                <Style.Triggers>
+                                    <DataTrigger Binding="{Binding IsAnyAiProcessing}" Value="True">
+                                        <Setter Property="Visibility" Value="Visible" />
+                                    </DataTrigger>
+                                </Style.Triggers>
+                            </Style>
+                        </Border.Style>
+                        <StackPanel MinWidth="260" Orientation="Vertical">
+                            <TextBlock
+                                Margin="0,0,0,8"
+                                HorizontalAlignment="Center"
+                                FontSize="12"
+                                Foreground="White"
+                                Text="{Binding ActiveAiProgressText}" />
+                            <ProgressBar
+                                Height="6"
+                                Maximum="1"
+                                Minimum="0"
+                                Value="{Binding ActiveAiProgress, Mode=OneWay}" />
+                        </StackPanel>
+                    </Border>
+
                 </Grid>
                 <!--  控制区域  -->
                 <Border
@@ -161,8 +777,8 @@
                                 Style="{StaticResource PreviewZoomIconButtonStyle}"
                                 ToolTip="{Binding PreviewScaleModeText}">
                                 <Path
-                                    Width="18"
-                                    Height="18"
+                                    Width="15"
+                                    Height="15"
                                     Fill="{DynamicResource TextPrimaryBrush}"
                                     Stretch="Uniform">
                                     <Path.Style>
@@ -199,8 +815,8 @@
                                 Style="{StaticResource PreviewZoomIconButtonStyle}"
                                 ToolTip="缩小">
                                 <Path
-                                    Width="18"
-                                    Height="18"
+                                    Width="15"
+                                    Height="15"
                                     Data="{StaticResource ZoomOut}"
                                     Fill="{DynamicResource TextPrimaryBrush}"
                                     Stretch="Uniform" />
@@ -213,7 +829,6 @@
                                 Maximum="800"
                                 Minimum="10"
                                 SmallChange="5"
-                                Style="{StaticResource PreviewZoomSliderStyle}"
                                 TickFrequency="25"
                                 Value="{Binding ZoomSliderValue, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}" />
 
@@ -223,8 +838,8 @@
                                 Style="{StaticResource PreviewZoomIconButtonStyle}"
                                 ToolTip="放大">
                                 <Path
-                                    Width="18"
-                                    Height="18"
+                                    Width="15"
+                                    Height="15"
                                     Data="{StaticResource ZoomIn}"
                                     Fill="{DynamicResource TextPrimaryBrush}"
                                     Stretch="Uniform" />
@@ -233,135 +848,6 @@
 
                     </Grid>
                 </Border>
-
-
-
-                <!--<Border
-                    Margin="0,20,20,20"
-                    Padding="22"
-                    Background="{DynamicResource PreviewSidebarBackgroundBrush}"
-                    CornerRadius="24"
-                    Visibility="Hidden">
-                    <StackPanel>
-                        <TextBlock
-                            FontSize="26"
-                            FontWeight="Bold"
-                            Foreground="{DynamicResource TextPrimaryBrush}"
-                            Text="截图预览" />
-                        <TextBlock
-                            Margin="0,10,0,0"
-                            Foreground="{DynamicResource TextSecondaryBrush}"
-                            Text="查看、保存、复制当前截图。" />
-
-                        <Border
-                            Margin="0,24,0,0"
-                            Padding="16"
-                            Background="{DynamicResource PreviewCardBackgroundBrush}"
-                            CornerRadius="18">
-                            <StackPanel>
-                                <TextBlock Foreground="{DynamicResource PreviewCardLabelBrush}" Text="截图模式" />
-                                <TextBlock
-                                    Margin="0,6,0,0"
-                                    FontSize="16"
-                                    FontWeight="SemiBold"
-                                    Foreground="{DynamicResource TextPrimaryBrush}"
-                                    Text="{Binding CaptureMode}" />
-                                <TextBlock
-                                    Margin="0,16,0,0"
-                                    Foreground="{DynamicResource PreviewCardLabelBrush}"
-                                    Text="截图时间" />
-                                <TextBlock
-                                    Margin="0,6,0,0"
-                                    FontSize="16"
-                                    FontWeight="SemiBold"
-                                    Foreground="{DynamicResource TextPrimaryBrush}"
-                                    Text="{Binding CaptureTime}" />
-                                <TextBlock
-                                    Margin="0,16,0,0"
-                                    Foreground="{DynamicResource PreviewCardLabelBrush}"
-                                    Text="分辨率" />
-                                <TextBlock
-                                    Margin="0,6,0,0"
-                                    FontSize="16"
-                                    FontWeight="SemiBold"
-                                    Foreground="{DynamicResource TextPrimaryBrush}"
-                                    Text="{Binding ImageSize}" />
-                                <TextBlock
-                                    Margin="0,16,0,0"
-                                    Foreground="{DynamicResource PreviewCardLabelBrush}"
-                                    Text="文件大小" />
-                                <TextBlock
-                                    Margin="0,6,0,0"
-                                    FontSize="16"
-                                    FontWeight="SemiBold"
-                                    Foreground="{DynamicResource TextPrimaryBrush}"
-                                    Text="{Binding FileSize}" />
-                                <TextBlock
-                                    Margin="0,16,0,0"
-                                    Foreground="{DynamicResource PreviewCardLabelBrush}"
-                                    Text="当前缩放" />
-                                <TextBlock
-                                    Margin="0,6,0,0"
-                                    FontSize="16"
-                                    FontWeight="SemiBold"
-                                    Foreground="{DynamicResource TextPrimaryBrush}"
-                                    Text="{Binding ZoomDisplayText}" />
-                            </StackPanel>
-                        </Border>
-
-                        <Button
-                            Height="44"
-                            Margin="0,24,0,0"
-                            Background="{DynamicResource PreviewGhostButtonBackgroundBrush}"
-                            BorderBrush="{DynamicResource PreviewGhostButtonBorderBrush}"
-                            Command="{Binding TogglePreviewScaleCommand}"
-                            Foreground="{DynamicResource PreviewGhostButtonForegroundBrush}">
-                            <TextBlock Text="{Binding PreviewScaleModeText}" />
-                        </Button>
-
-                        <Button
-                            Height="44"
-                            Margin="0,12,0,0"
-                            Background="{DynamicResource PreviewSaveButtonBrush}"
-                            BorderThickness="0"
-                            Command="{Binding SaveToFileCommand}"
-                            Foreground="{DynamicResource TextPrimaryBrush}">
-                            <TextBlock Text="保存到文件" />
-                        </Button>
-
-                        <Button
-                            Height="44"
-                            Margin="0,12,0,0"
-                            Background="{DynamicResource PreviewCopyButtonBrush}"
-                            BorderThickness="0"
-                            Command="{Binding CopyToClipboardCommand}"
-                            Foreground="{DynamicResource TextPrimaryBrush}">
-                            <TextBlock Text="复制到剪贴板" />
-                        </Button>
-
-                        <Button
-                            Height="44"
-                            Margin="0,12,0,0"
-                            Background="{DynamicResource PreviewGhostButtonBackgroundBrush}"
-                            BorderBrush="{DynamicResource PreviewGhostButtonBorderBrush}"
-                            Command="{Binding RecaptureCommand}"
-                            CommandParameter="{Binding RelativeSource={RelativeSource AncestorType=Window}}"
-                            Foreground="{DynamicResource PreviewGhostButtonForegroundBrush}">
-                            <TextBlock Text="重新截图" />
-                        </Button>
-
-                        <Button
-                            Height="44"
-                            Margin="0,12,0,0"
-                            Background="Transparent"
-                            BorderBrush="{DynamicResource PreviewGhostButtonBorderBrush}"
-                            Command="{Binding CloseCommand}"
-                            CommandParameter="{Binding RelativeSource={RelativeSource AncestorType=Window}}"
-                            Foreground="{DynamicResource PreviewCloseButtonForegroundBrush}">
-                            <TextBlock Text="关闭" />
-                        </Button>
-                    </StackPanel>
-                </Border>-->
             </Grid>
             <Border
                 x:Name="OverlayBorder"

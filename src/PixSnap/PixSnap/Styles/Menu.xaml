@@ -5,17 +5,28 @@
         <Setter Property="OverridesDefaultStyle" Value="True" />
         <Setter Property="FontFamily" Value="{StaticResource MiSansRegular}" />
         <Setter Property="FontSize" Value="13" />
-        <Setter Property="FontFamily" Value="{StaticResource MiSansRegular}" />
-        <Setter Property="HasDropShadow" Value="True" />
+        <Setter Property="HasDropShadow" Value="False" />
+        <Setter Property="Popup.AllowsTransparency" Value="True" />
         <Setter Property="Template">
             <Setter.Value>
                 <ControlTemplate TargetType="{x:Type ContextMenu}">
+                    <!--  Margin 为阴影留出空间，不会被 Popup 裁剪  -->
                     <Border
-                        Padding="0,4"
+                        Margin="8"
+                        Padding="4"
                         Background="{DynamicResource AppGradientStartBrush}"
                         BorderBrush="{DynamicResource AppGradientEndBrush}"
                         BorderThickness="1"
+                        CornerRadius="8"
                         SnapsToDevicePixels="True">
+                        <Border.Effect>
+                            <DropShadowEffect
+                                BlurRadius="16"
+                                Direction="270"
+                                Opacity="0.45"
+                                ShadowDepth="4"
+                                Color="Black" />
+                        </Border.Effect>
                         <StackPanel IsItemsHost="True" KeyboardNavigation.DirectionalNavigation="Cycle" />
                     </Border>
                 </ControlTemplate>
