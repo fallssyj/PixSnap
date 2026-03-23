@@ -594,12 +594,6 @@ public partial class ScreenshotPreviewWindow : Window
             vm.ExitEditMode();
     }
 
-    private void EraserCancelButton_Click(object sender, RoutedEventArgs e)
-    {
-        if (DataContext is ScreenshotPreviewViewModel vm)
-            vm.ExitEditMode();
-    }
-
     private void OnRoundCornerApplied(System.Windows.Media.Imaging.BitmapSource newImage)
     {
         if (DataContext is not ScreenshotPreviewViewModel vm) return;
@@ -1000,22 +994,6 @@ public partial class ScreenshotPreviewWindow : Window
             DragMove();
     }
 
-    private void AiModuleButton_Click(object sender, RoutedEventArgs e)
-    {
-        if (AiModulePopup.IsOpen)
-        {
-            AiModulePopup.IsOpen = false;
-            return;
-        }
-
-        AiModulePopup.PlacementTarget = AiModuleButton;
-        AiModulePopup.Placement = PlacementMode.Bottom;
-        AiModulePopup.HorizontalOffset = 0;
-        AiModulePopup.VerticalOffset = 6;
-        AiModulePopup.IsOpen = true;
-        e.Handled = true;
-    }
-
     private void PreviewViewport_MouseRightButtonUp(object sender, MouseButtonEventArgs e)
     {
         var pos = e.GetPosition(PreviewViewport);
@@ -1026,16 +1004,14 @@ public partial class ScreenshotPreviewWindow : Window
         double x = Math.Clamp(pos.X, 0, Math.Max(0, PreviewViewport.ActualWidth - popupWidthEstimate));
         double y = Math.Clamp(pos.Y, 0, Math.Max(0, PreviewViewport.ActualHeight - popupHeightEstimate));
 
+        // 将弹出位置切换为相对于预览区域的点击坐标
         AiModulePopup.PlacementTarget = PreviewViewport;
         AiModulePopup.Placement = PlacementMode.Relative;
         AiModulePopup.HorizontalOffset = x;
         AiModulePopup.VerticalOffset = y;
+
+        // 直接设置 IsOpen，TwoWay 绑定将自动同步至 ViewModel.IsAiPopupOpen
         AiModulePopup.IsOpen = true;
         e.Handled = true;
-    }
-
-    private void AiPopupMenuItem_Click(object sender, RoutedEventArgs e)
-    {
-        AiModulePopup.IsOpen = false;
     }
 }

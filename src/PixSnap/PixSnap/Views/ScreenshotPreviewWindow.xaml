@@ -197,7 +197,7 @@
                         <Button
                             x:Name="AiModuleButton"
                             Margin="2,0"
-                            Click="AiModuleButton_Click"
+                            Command="{Binding ToggleAiPopupCommand}"
                             Style="{StaticResource PreviewZoomIconButtonStyle}"
                             ToolTip="AI模块">
                             <Path
@@ -692,11 +692,10 @@
                                     Style="{StaticResource PanelCancelButtonStyle}"
                                     ToolTip="清除当前涂抹" />
                                 <Button
-                                    Click="EraserCancelButton_Click"
-                                    Command="{Binding EraserPanel.CancelInpaintCommand}"
+                                    Command="{Binding ExitEraserModeCommand}"
                                     Content="取消"
                                     Style="{StaticResource PanelCancelButtonStyle}"
-                                    ToolTip="取消 AI 处理" />
+                                    ToolTip="取消 AI 处理并退出擦除模式" />
                             </StackPanel>
                         </StackPanel>
                     </Border>
@@ -704,9 +703,12 @@
                     <Popup
                         x:Name="AiModulePopup"
                         AllowsTransparency="True"
+                        IsOpen="{Binding IsAiPopupOpen, Mode=TwoWay}"
                         Placement="Bottom"
+                        PlacementTarget="{Binding ElementName=AiModuleButton}"
                         PopupAnimation="Fade"
-                        StaysOpen="False">
+                        StaysOpen="False"
+                        VerticalOffset="6">
                         <Border
                             MinWidth="180"
                             Padding="8"
@@ -717,12 +719,10 @@
                             <StackPanel>
                                 <Button
                                     Margin="0,0,0,6"
-                                    Click="AiPopupMenuItem_Click"
                                     Command="{Binding RemoveBackgroundCommand}"
                                     Content="去除背景"
                                     Style="{StaticResource PanelCancelButtonStyle}" />
                                 <Button
-                                    Click="AiPopupMenuItem_Click"
                                     Command="{Binding SuperResolutionCommand}"
                                     Content="超分四倍"
                                     Style="{StaticResource PanelCancelButtonStyle}" />
@@ -879,7 +879,7 @@
                             Text="{Binding ActiveAiProgressText}" />
                         <ProgressBar
                             Height="6"
-                            IsIndeterminate="{Binding CropPanel.IsCropProcessing, Mode=OneWay}"
+                            IsIndeterminate="{Binding IsAnyIndeterminateProcessing, Mode=OneWay}"
                             Maximum="1"
                             Minimum="0"
                             Value="{Binding ActiveAiProgress, Mode=OneWay}" />

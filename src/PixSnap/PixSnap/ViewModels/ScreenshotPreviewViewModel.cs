@@ -60,6 +60,10 @@ public partial class ScreenshotPreviewViewModel : ObservableRecipient, IRecipien
     [ObservableProperty]
     private bool _isMaximized;
 
+    /// <summary>AI 功能弹出菜单是否展开。双向绑定到 Popup.IsOpen。</summary>
+    [ObservableProperty]
+    private bool _isAiPopupOpen;
+
     [ObservableProperty]
     [NotifyPropertyChangedFor(nameof(IsAnyAiProcessing))]
     [NotifyPropertyChangedFor(nameof(ActiveAiProgressText))]
@@ -124,15 +128,21 @@ public partial class ScreenshotPreviewViewModel : ObservableRecipient, IRecipien
     public string ZoomDisplayText => $"缩放 {(IsActualSize ? ZoomFactor : FitZoomFactor):P0}";
     public string ZoomCompactText => $"{(IsActualSize ? ZoomFactor : FitZoomFactor):P0}";
     public string CaptureTitleDisplay => MiddleEllipsis(CaptureTime, 24);
-    public bool IsAnyAiProcessing => EraserPanel.IsProcessing || IsAiModuleProcessing || IsFileOperationProcessing || CropPanel.IsCropProcessing;
+    public bool IsAnyAiProcessing => EraserPanel.IsProcessing || IsAiModuleProcessing || IsFileOperationProcessing || CropPanel.IsCropProcessing || RoundCornerPanel.IsProcessing;
+
+    /// <summary>当前处理属于不定进度类型（裁剪或圆角），进度条应显示不确定动画。</summary>
+    public bool IsAnyIndeterminateProcessing => CropPanel.IsCropProcessing || RoundCornerPanel.IsProcessing;
+
     public string ActiveAiProgressText
         => CropPanel.IsCropProcessing
             ? "正在裁剪..."
-            : EraserPanel.IsProcessing
-                ? EraserPanel.ProgressText
-                : IsAiModuleProcessing
-                    ? AiModuleProgressText
-                    : FileOperationProgressText;
+            : RoundCornerPanel.IsProcessing
+                ? "正在处理圆角..."
+                : EraserPanel.IsProcessing
+                    ? EraserPanel.ProgressText
+                    : IsAiModuleProcessing
+                        ? AiModuleProgressText
+                        : FileOperationProgressText;
     public double ActiveAiProgress
         => EraserPanel.IsProcessing
             ? EraserPanel.Progress
@@ -152,6 +162,7 @@ public partial class ScreenshotPreviewViewModel : ObservableRecipient, IRecipien
         EraserPanel.InpaintApplied += OnEraserApplied;
         EraserPanel.PropertyChanged += OnEraserPanelPropertyChanged;
         CropPanel.PropertyChanged += OnCropPanelPropertyChanged;
+        RoundCornerPanel.PropertyChanged += OnRoundCornerPanelPropertyChanged;
     }
 
     private void OnEraserPanelPropertyChanged(object? sender, PropertyChangedEventArgs e)
@@ -171,6 +182,18 @@ public partial class ScreenshotPreviewViewModel : ObservableRecipient, IRecipien
         if (e.PropertyName is nameof(CropViewModel.IsCropProcessing))
         {
             OnPropertyChanged(nameof(IsAnyAiProcessing));
+            OnPropertyChanged(nameof(IsAnyIndeterminateProcessing));
+            OnPropertyChanged(nameof(ActiveAiProgressText));
+            OnPropertyChanged(nameof(ActiveAiProgress));
+        }
+    }
+
+    private void OnRoundCornerPanelPropertyChanged(object? sender, PropertyChangedEventArgs e)
+    {
+        if (e.PropertyName is nameof(RoundCornerViewModel.IsProcessing))
+        {
+            OnPropertyChanged(nameof(IsAnyAiProcessing));
+            OnPropertyChanged(nameof(IsAnyIndeterminateProcessing));
             OnPropertyChanged(nameof(ActiveAiProgressText));
             OnPropertyChanged(nameof(ActiveAiProgress));
         }
@@ -369,14 +392,64 @@ public partial class ScreenshotPreviewViewModel : ObservableRecipient, IRecipien
     }
 
     [RelayCommand]
-    private void RotateImage()
+    private async Task RotateImage()
     {
         if (ScreenshotImage is null) return;
 
-        // 顺时针旋转 90°，WriteableBitmap 使 Freeze 后的位图可写
-        var rotated = new TransformedBitmap(ScreenshotImage, new RotateTransform(90));
-        var image = new WriteableBitmap(rotated);
-        ApplyEditedImage(image, switchToFit: false);
+        IsAiModuleProcessing = true;
+        AiModuleProgressText = "正在旋转图片...";
+        AiModuleProgress = 0;
+        try
+        {
+            var source = ScreenshotImage;
+            if (!source.IsFrozen) source.Freeze();
+
+            // UI 线程：格式转换 + 像素拷贝（纯内存操作，不影响渲染）
+            var pbgra = new FormatConvertedBitmap(source, PixelFormats.Pbgra32, null, 0);
+            int srcW = pbgra.PixelWidth, srcH = pbgra.PixelHeight;
+            int srcStride = srcW * 4;
+            var srcPixels = new byte[srcStride * srcH];
+            pbgra.CopyPixels(srcPixels, srcStride, 0);
+
+            // 后台线程：像素级旋转，对 4K/8K 大图不阻塞 UI
+            var (dstPixels, dstW, dstH) = await Task.Run(() => Rotate90Clockwise(srcPixels, srcW, srcH));
+
+            // UI 线程：创建新 WriteableBitmap 并提交
+            int dstStride = dstW * 4;
+            var rotated = new WriteableBitmap(dstW, dstH, 96, 96, PixelFormats.Pbgra32, null);
+            rotated.WritePixels(new System.Windows.Int32Rect(0, 0, dstW, dstH), dstPixels, dstStride, 0);
+            rotated.Freeze();
+
+            AiModuleProgress = 1;
+            await ApplyEditedImageAsync(rotated, switchToFit: false);
+        }
+        finally
+        {
+            IsAiModuleProcessing = false;
+            AiModuleProgressText = string.Empty;
+        }
+    }
+
+    /// <summary>顺时针旋转 90°，返回新像素数组及新宽高。在后台线程安全执行。</summary>
+    private static (byte[] pixels, int width, int height) Rotate90Clockwise(byte[] src, int srcW, int srcH)
+    {
+        // 顺时针 90°：目标 (x, y) = (srcH-1-srcY, srcX)，目标宽=srcH、高=srcW
+        int dstW = srcH, dstH = srcW;
+        int srcStride = srcW * 4, dstStride = dstW * 4;
+        var dst = new byte[dstStride * dstH];
+        for (int sy = 0; sy < srcH; sy++)
+        {
+            for (int sx = 0; sx < srcW; sx++)
+            {
+                int srcOffset = sy * srcStride + sx * 4;
+                int dstOffset = sx * dstStride + (srcH - 1 - sy) * 4;
+                dst[dstOffset]     = src[srcOffset];
+                dst[dstOffset + 1] = src[srcOffset + 1];
+                dst[dstOffset + 2] = src[srcOffset + 2];
+                dst[dstOffset + 3] = src[srcOffset + 3];
+            }
+        }
+        return (dst, dstW, dstH);
     }
 
     [RelayCommand]
@@ -418,11 +491,26 @@ public partial class ScreenshotPreviewViewModel : ObservableRecipient, IRecipien
         }
     }
 
+    /// <summary>取消 AI 擦除的推理（如正在运行）并退出擦除编辑模式。</summary>
+    [RelayCommand]
+    private void ExitEraserMode()
+    {
+        EraserPanel.CancelInpaintCommand.Execute(null);
+        ExitEditMode();
+    }
+
+    /// <summary>切换 AI 功能弹出菜单的显示状态。</summary>
+    [RelayCommand]
+    private void ToggleAiPopup() => IsAiPopupOpen = !IsAiPopupOpen;
+
+    /// <summary>执行背景去除 AI 功能。</summary>
     [RelayCommand]
     private async Task RemoveBackground()
     {
         if (ScreenshotImage is null || IsAnyAiProcessing) return;
 
+        // 关闭弹出菜单（处理期间遞层将阻断操作）
+        IsAiPopupOpen = false;
         IsAiModuleProcessing = true;
         AiModuleProgress = 0;
         AiModuleProgressText = "正在准备去除背景...";
@@ -456,6 +544,8 @@ public partial class ScreenshotPreviewViewModel : ObservableRecipient, IRecipien
     {
         if (ScreenshotImage is null || IsAnyAiProcessing) return;
 
+        // 关闭弹出菜单（处理期间遞层将阻断操作）
+        IsAiPopupOpen = false;
         IsAiModuleProcessing = true;
         AiModuleProgress = 0;
         AiModuleProgressText = "正在准备超分辨率...";
