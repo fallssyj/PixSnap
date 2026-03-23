@@ -97,7 +97,7 @@ public static class InpaintService
 
             // — 第四步：ONNX 推理 —
             BitmapSource result;
-            using (var session = OnnxSessionFactory.CreateSession(ModelPath, out var providerName))
+            var session = OnnxSessionFactory.GetOrCreateSession(ModelPath, out var providerName);
             {
                 token.ThrowIfCancellationRequested();
                 progress.Report((0.40, $"当前推理设备：{providerName}"));
@@ -119,8 +119,21 @@ public static class InpaintService
                 progress.Report((0.50, "AI 处理中，请稍候..."));
                 token.ThrowIfCancellationRequested();
 
-                using var outputs     = session.Run(inputs);
-                var outputTensor      = outputs.First().AsTensor<float>();
+                IDisposableReadOnlyCollection<DisposableNamedOnnxValue> outputs;
+                try
+                {
+                    outputs = session.Run(inputs);
+                }
+                catch (OnnxRuntimeException) when (providerName.StartsWith("DirectML", StringComparison.OrdinalIgnoreCase))
+                {
+                    // DML 推理时崩溃（如不支持的算子），回退到 CPU 重试
+                    progress.Report((0.50, "DirectML 推理失败，已回退至 CPU..."));
+                    using var cpuSession = OnnxSessionFactory.CreateCpuSession(ModelPath);
+                    outputs = cpuSession.Run(inputs);
+                }
+                using (outputs)
+                {
+                var outputTensor = outputs.First().AsTensor<float>();
 
                 progress.Report((0.90, "正在生成结果图像..."));
                 token.ThrowIfCancellationRequested();
@@ -142,6 +155,7 @@ public static class InpaintService
 
                 result = SKBitmapToBitmapSource(finalBitmap);
                 result.Freeze();
+                }
             }
 
             progress.Report((1.0, "完成"));

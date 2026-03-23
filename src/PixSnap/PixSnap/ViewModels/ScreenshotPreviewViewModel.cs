@@ -14,6 +14,9 @@ using Clipboard = System.Windows.Clipboard;
 
 namespace PixSnap.ViewModels;
 
+/// <summary>截图预览窗口的编辑模式，各模式互斥，同一时刻只有一种可激活。</summary>
+public enum EditMode { None, Crop, RoundCorner, Eraser }
+
 public partial class ScreenshotPreviewViewModel : ObservableRecipient, IRecipient<ScreenshotCapturedMessage>
 {
     public const double MinZoomFactor = 0.1;
@@ -93,19 +96,25 @@ public partial class ScreenshotPreviewViewModel : ObservableRecipient, IRecipien
 
     // ── 裁剪 / 圆角子 ViewModel ─────────────────────────────────────────────
 
+    // ── 编辑模式（互斥单活）──────────────────────────────────────────
     [ObservableProperty]
-    [NotifyPropertyChangedFor(nameof(IsEditPanelVisible))]
-    private bool _isCropMode;
+    private EditMode _activeEditMode;
 
-    [ObservableProperty]
-    [NotifyPropertyChangedFor(nameof(IsEditPanelVisible))]
-    private bool _isRoundCornerMode;
+    partial void OnActiveEditModeChanged(EditMode oldValue, EditMode newValue)
+    {
+        OnPropertyChanged(nameof(IsCropMode));
+        OnPropertyChanged(nameof(IsRoundCornerMode));
+        OnPropertyChanged(nameof(IsEraserMode));
+        OnPropertyChanged(nameof(IsEditPanelVisible));
+    }
 
-    [ObservableProperty]
-    [NotifyPropertyChangedFor(nameof(IsEditPanelVisible))]
-    private bool _isEraserMode;
+    public bool IsCropMode        => ActiveEditMode == EditMode.Crop;
+    public bool IsRoundCornerMode => ActiveEditMode == EditMode.RoundCorner;
+    public bool IsEraserMode      => ActiveEditMode == EditMode.Eraser;
+    public bool IsEditPanelVisible => ActiveEditMode != EditMode.None;
 
-    public bool IsEditPanelVisible => IsCropMode || IsRoundCornerMode || IsEraserMode;
+    /// <summary>退出当前编辑模式，回到浏览状态。</summary>
+    public void ExitEditMode() => ActiveEditMode = EditMode.None;
 
     public CropViewModel CropPanel { get; } = new();
     public RoundCornerViewModel RoundCornerPanel { get; } = new();
@@ -115,13 +124,15 @@ public partial class ScreenshotPreviewViewModel : ObservableRecipient, IRecipien
     public string ZoomDisplayText => $"缩放 {(IsActualSize ? ZoomFactor : FitZoomFactor):P0}";
     public string ZoomCompactText => $"{(IsActualSize ? ZoomFactor : FitZoomFactor):P0}";
     public string CaptureTitleDisplay => MiddleEllipsis(CaptureTime, 24);
-    public bool IsAnyAiProcessing => EraserPanel.IsProcessing || IsAiModuleProcessing || IsFileOperationProcessing;
+    public bool IsAnyAiProcessing => EraserPanel.IsProcessing || IsAiModuleProcessing || IsFileOperationProcessing || CropPanel.IsCropProcessing;
     public string ActiveAiProgressText
-        => EraserPanel.IsProcessing
-            ? EraserPanel.ProgressText
-            : IsAiModuleProcessing
-                ? AiModuleProgressText
-                : FileOperationProgressText;
+        => CropPanel.IsCropProcessing
+            ? "正在裁剪..."
+            : EraserPanel.IsProcessing
+                ? EraserPanel.ProgressText
+                : IsAiModuleProcessing
+                    ? AiModuleProgressText
+                    : FileOperationProgressText;
     public double ActiveAiProgress
         => EraserPanel.IsProcessing
             ? EraserPanel.Progress
@@ -136,9 +147,11 @@ public partial class ScreenshotPreviewViewModel : ObservableRecipient, IRecipien
 
     public ScreenshotPreviewViewModel()
     {
-        IsActive = true;
+        // 不向全局 Messenger 注册：每个预览窗口只对应一次截图，
+        // 由 App 直接调用 Receive() 初始化，无需监听后续广播。
         EraserPanel.InpaintApplied += OnEraserApplied;
         EraserPanel.PropertyChanged += OnEraserPanelPropertyChanged;
+        CropPanel.PropertyChanged += OnCropPanelPropertyChanged;
     }
 
     private void OnEraserPanelPropertyChanged(object? sender, PropertyChangedEventArgs e)
@@ -146,6 +159,16 @@ public partial class ScreenshotPreviewViewModel : ObservableRecipient, IRecipien
         if (e.PropertyName is nameof(EraserViewModel.IsProcessing)
             or nameof(EraserViewModel.Progress)
             or nameof(EraserViewModel.ProgressText))
+        {
+            OnPropertyChanged(nameof(IsAnyAiProcessing));
+            OnPropertyChanged(nameof(ActiveAiProgressText));
+            OnPropertyChanged(nameof(ActiveAiProgress));
+        }
+    }
+
+    private void OnCropPanelPropertyChanged(object? sender, PropertyChangedEventArgs e)
+    {
+        if (e.PropertyName is nameof(CropViewModel.IsCropProcessing))
         {
             OnPropertyChanged(nameof(IsAnyAiProcessing));
             OnPropertyChanged(nameof(ActiveAiProgressText));
@@ -360,14 +383,14 @@ public partial class ScreenshotPreviewViewModel : ObservableRecipient, IRecipien
     private void ToggleCrop()
     {
         if (ScreenshotImage is null) return;
-        // 互斥：进入裁剪时关闭圆角模式
-        IsRoundCornerMode = false;
-        // 进入裁剪前切换到适应模式，确保裁剪框可覆盖完整图片
         SwitchToFitMode();
-        IsCropMode = !IsCropMode;
-        if (IsCropMode)
+        if (ActiveEditMode == EditMode.Crop)
         {
-            // 默认选取整张图片
+            ActiveEditMode = EditMode.None;
+        }
+        else
+        {
+            ActiveEditMode = EditMode.Crop;
             CropPanel.Initialize(ScreenshotImage.PixelWidth, ScreenshotImage.PixelHeight);
         }
     }
@@ -376,20 +399,23 @@ public partial class ScreenshotPreviewViewModel : ObservableRecipient, IRecipien
     private void ToggleRoundCorner()
     {
         if (ScreenshotImage is null) return;
-        IsRoundCornerMode = !IsRoundCornerMode;
+        ActiveEditMode = ActiveEditMode == EditMode.RoundCorner ? EditMode.None : EditMode.RoundCorner;
     }
 
     [RelayCommand]
     private void ToggleEraser()
     {
         if (ScreenshotImage is null) return;
-        // 互斥：进入擦除时关闭其他编辑模式
-        IsCropMode = false;
-        IsRoundCornerMode = false;
-        SwitchToFitMode();
-        IsEraserMode = !IsEraserMode;
-        if (!IsEraserMode)
+        if (ActiveEditMode == EditMode.Eraser)
+        {
+            ActiveEditMode = EditMode.None;
             EraserPanel.ClearStrokesCommand.Execute(null);
+        }
+        else
+        {
+            SwitchToFitMode();
+            ActiveEditMode = EditMode.Eraser;
+        }
     }
 
     [RelayCommand]
@@ -548,7 +574,7 @@ public partial class ScreenshotPreviewViewModel : ObservableRecipient, IRecipien
         EraserPanel.InpaintApplied -= OnEraserApplied;
         EraserPanel.PropertyChanged -= OnEraserPanelPropertyChanged;
 
-        // 设为 false 触发 OnDeactivated → Messenger.UnregisterAll，断开强引用
+        // 确保从 Messenger 注销（兼容未来可能重新激活的场景）
         IsActive = false;
 
         // 显式置空，解除对大尺寸 BitmapSource 的引用，让 GC 及时回收

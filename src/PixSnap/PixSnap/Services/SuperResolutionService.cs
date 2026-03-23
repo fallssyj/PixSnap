@@ -17,7 +17,11 @@ public static class SuperResolutionService
     private static readonly string ModelPath =
         Path.Combine(AppContext.BaseDirectory, "onnx", "realesrgan-x4plus.onnx");
 
-    private const int TileSize = 256;
+    private const int TileSize   = 256;
+    // 分块重叠区寽：每块向四周多取 TilePad 个真实邻居像素，
+    // 推理后只写回中心有效区域，从而消除分块接缝。
+    private const int TilePad    = 16;
+    private const int TileStride = TileSize - TilePad * 2;   // 224
     private const int ScaleFactor = 4;
 
     public static async Task<BitmapSource?> RunAsync(
@@ -35,7 +39,7 @@ public static class SuperResolutionService
             int srcH = srcBitmap.Height;
 
             progress?.Report((0.20, "正在初始化推理引擎..."));
-            using var session = OnnxSessionFactory.CreateSession(ModelPath, out var providerName);
+            var session = OnnxSessionFactory.GetOrCreateSession(ModelPath, out var providerName);
             progress?.Report((0.28, $"当前推理设备：{providerName}"));
             var inputName = session.InputMetadata.Keys.First();
 
@@ -61,30 +65,73 @@ public static class SuperResolutionService
     {
         var result = new SKBitmap(new SKImageInfo(srcW * ScaleFactor, srcH * ScaleFactor, SKColorType.Bgra8888, SKAlphaType.Unpremul));
 
-        int tilesX = (int)Math.Ceiling((double)srcW / TileSize);
-        int tilesY = (int)Math.Ceiling((double)srcH / TileSize);
+        int tilesX = (int)Math.Ceiling((double)srcW / TileStride);
+        int tilesY = (int)Math.Ceiling((double)srcH / TileStride);
         int totalTiles = tilesX * tilesY;
         int tileIndex = 0;
 
-        for (int y = 0; y < srcH; y += TileSize)
+        for (int ty = 0; ty < tilesY; ty++)
         {
-            for (int x = 0; x < srcW; x += TileSize)
+            for (int tx = 0; tx < tilesX; tx++)
             {
                 tileIndex++;
                 double phase = 0.35 + 0.45 * tileIndex / totalTiles;
                 progress?.Report((phase, $"正在分块超分 ({tileIndex}/{totalTiles})..."));
 
-                int validW = Math.Min(TileSize, srcW - x);
-                int validH = Math.Min(TileSize, srcH - y);
-                var inputTensor = ExtractTileToTensor(source, x, y, validW, validH, TileSize, TileSize);
+                // 末块反向对齐：最后一个 tile 从 (src - TileStride) 处开始，
+                // 确保其拥有完整的右/下邻居像素上下文，避免边缘质量下降。
+                int srcX   = (srcW > TileStride) ? Math.Min(tx * TileStride, srcW - TileStride) : 0;
+                int srcY   = (srcH > TileStride) ? Math.Min(ty * TileStride, srcH - TileStride) : 0;
+                int validW = Math.Min(TileStride, srcW - srcX);
+                int validH = Math.Min(TileStride, srcH - srcY);
 
-                using var outputs = session.Run(new List<NamedOnnxValue>
+                // 向四周扩展 TilePad 像素的重叠层（边界处才将被零填充）
+                int padLeft   = Math.Min(srcX,                       TilePad);
+                int padTop    = Math.Min(srcY,                       TilePad);
+                int padRight  = Math.Min(srcW - srcX - validW,       TilePad);
+                int padBottom = Math.Min(srcH - srcY - validH,       TilePad);
+
+                // 实际从源图抽取的区域（包含重叠层）
+                int extractX = srcX   - padLeft;
+                int extractY = srcY   - padTop;
+                int extractW = padLeft + validW + padRight;
+                int extractH = padTop  + validH + padBottom;
+
+                var inputTensor = ExtractTileToTensor(source, extractX, extractY, extractW, extractH, TileSize, TileSize);
+
+                IDisposableReadOnlyCollection<DisposableNamedOnnxValue> outputs;
+                try
                 {
-                    NamedOnnxValue.CreateFromTensor(inputName, inputTensor)
-                });
+                    outputs = session.Run(new List<NamedOnnxValue>
+                    {
+                        NamedOnnxValue.CreateFromTensor(inputName, inputTensor)
+                    });
+                }
+                catch (OnnxRuntimeException)
+                {
+                    using var cpuSession = OnnxSessionFactory.CreateCpuSession(ModelPath);
+                    outputs = cpuSession.Run(new List<NamedOnnxValue>
+                    {
+                        NamedOnnxValue.CreateFromTensor(inputName, inputTensor)
+                    });
+                }
 
-                var outputTensor = outputs.First().AsTensor<float>();
-                WriteTensorToBitmap(outputTensor, result, x * ScaleFactor, y * ScaleFactor, validW, validH, srcW * ScaleFactor, srcH * ScaleFactor);
+                using (outputs)
+                {
+                    var outputTensor = outputs.First().AsTensor<float>();
+
+                    // 推理输出中跳过重叠层，只写回有效中心区域
+                    WriteTensorToBitmap(
+                        outputTensor, result,
+                        destX:         srcX   * ScaleFactor,
+                        destY:         srcY   * ScaleFactor,
+                        tensorOffsetX: padLeft * ScaleFactor,
+                        tensorOffsetY: padTop  * ScaleFactor,
+                        copyW:         validW  * ScaleFactor,
+                        copyH:         validH  * ScaleFactor,
+                        fullW:         srcW   * ScaleFactor,
+                        fullH:         srcH   * ScaleFactor);
+                }
             }
         }
 
@@ -128,37 +175,39 @@ public static class SuperResolutionService
         SKBitmap target,
         int destX,
         int destY,
-        int validW,
-        int validH,
+        int tensorOffsetX,   // 张量中跳过的 X 偏移（pad 区域）
+        int tensorOffsetY,   // 张量中跳过的 Y 偏移（pad 区域）
+        int copyW,           // 实际写入的宽度（已缩放）
+        int copyH,           // 实际写入的高度（已缩放）
         int fullW,
         int fullH)
     {
-        int scaledH = validH * ScaleFactor;
-        int scaledW = validW * ScaleFactor;
         int rowBytes = target.RowBytes;
 
         unsafe
         {
             var ptr = (byte*)target.GetPixels();
 
-            for (int y = 0; y < scaledH; y++)
+            for (int y = 0; y < copyH; y++)
             {
-                int finalY = destY + y;
-                if (finalY >= fullH) continue;
+                int tensorY = tensorOffsetY + y;
+                int finalY  = destY + y;
+                if (finalY >= fullH) break;
 
-                for (int x = 0; x < scaledW; x++)
+                for (int x = 0; x < copyW; x++)
                 {
-                    int finalX = destX + x;
-                    if (finalX >= fullW) continue;
+                    int tensorX = tensorOffsetX + x;
+                    int finalX  = destX + x;
+                    if (finalX >= fullW) break;
 
-                    float r = Math.Clamp(tensor[0, 0, y, x], 0f, 1f);
-                    float g = Math.Clamp(tensor[0, 1, y, x], 0f, 1f);
-                    float b = Math.Clamp(tensor[0, 2, y, x], 0f, 1f);
+                    float r = Math.Clamp(tensor[0, 0, tensorY, tensorX], 0f, 1f);
+                    float g = Math.Clamp(tensor[0, 1, tensorY, tensorX], 0f, 1f);
+                    float b = Math.Clamp(tensor[0, 2, tensorY, tensorX], 0f, 1f);
 
                     int idx = finalY * rowBytes + finalX * 4;
-                    ptr[idx] = (byte)Math.Clamp(b * 255f, 0f, 255f);
-                    ptr[idx + 1] = (byte)Math.Clamp(g * 255f, 0f, 255f);
-                    ptr[idx + 2] = (byte)Math.Clamp(r * 255f, 0f, 255f);
+                    ptr[idx]     = (byte)(b * 255f + 0.5f);
+                    ptr[idx + 1] = (byte)(g * 255f + 0.5f);
+                    ptr[idx + 2] = (byte)(r * 255f + 0.5f);
                     ptr[idx + 3] = 255;
                 }
             }

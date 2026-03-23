@@ -22,7 +22,8 @@ public static class SettingsService
     // ── 默认快捷键：Ctrl + Shift + Q ──────────────────────────────────────────
     public static readonly ModifierKeys DefaultHotkeyModifiers = ModifierKeys.Control | ModifierKeys.Shift;
     public static readonly Key DefaultHotkeyKey = Key.Q;
-
+    // settings.json 的 schema 版本号；新增字段时递增，用于未来向后兼容迁移
+    private const int CurrentSettingsVersion = 1;
     // ── 开机启动 ─────────────────────────────────────────────────────────────
 
     public static bool ReadStartupEnabled()
@@ -82,6 +83,7 @@ public static class SettingsService
         var dict = ReadConfigDict();
         dict["HotkeyModifiers"] = (int)modifiers;
         dict["HotkeyKey"] = (int)key;
+        dict["Version"] = CurrentSettingsVersion;
         WriteConfigDict(dict);
     }
 

@@ -96,6 +96,8 @@ public partial class App : System.Windows.Application, IRecipient<ScreenshotCapt
         _hotkeyService?.Dispose();
         _hotkeyService = null;
 
+        OnnxSessionFactory.DisposeAll();
+
         // 释放互斥体，允许下一个实例启动
         _instanceMutex.ReleaseMutex();
         _instanceMutex.Dispose();

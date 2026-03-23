@@ -32,7 +32,7 @@ public static class BackgroundRemovalService
             int origH = srcBitmap.Height;
 
             progress?.Report((0.20, "正在初始化推理引擎..."));
-            using var session = OnnxSessionFactory.CreateSession(ModelPath, out var providerName);
+            var session = OnnxSessionFactory.GetOrCreateSession(ModelPath, out var providerName);
             progress?.Report((0.28, $"当前推理设备：{providerName}"));
             var inputName = session.InputMetadata.Keys.First();
             var inputMeta = session.InputMetadata[inputName];

@@ -1,6 +1,8 @@
 using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
 using SkiaSharp;
+using System.Runtime.InteropServices;
+using System.Windows.Media;
 using System.Windows.Media.Imaging;
 
 namespace PixSnap.ViewModels;
@@ -61,13 +63,41 @@ public partial class CropViewModel : ObservableObject
         CropHeight = imagePixelHeight;
     }
 
+    // ── 处理状态 ──────────────────────────────────────────────────────────────
+
+    [ObservableProperty]
+    private bool _isCropProcessing;
+
     // ── 命令 ─────────────────────────────────────────────────────────────────
 
     [RelayCommand(CanExecute = nameof(IsValid))]
-    private void Apply(BitmapSource source)
+    private async Task ApplyAsync(BitmapSource source)
     {
-        var cropped = CropWithSkia(source);
-        CropApplied?.Invoke(cropped);
+        IsCropProcessing = true;
+        try
+        {
+            // 在 UI 线程完成格式转换与像素拷贝（快速内存拷贝）
+            if (!source.IsFrozen) source.Freeze();
+            var pbgra = new FormatConvertedBitmap(source, PixelFormats.Pbgra32, null, 0);
+            int pixelW = pbgra.PixelWidth, pixelH = pbgra.PixelHeight;
+            int stride = pixelW * 4;
+            var pixels = new byte[stride * pixelH];
+            pbgra.CopyPixels(pixels, stride, 0);
+
+            var x = Math.Clamp(CropX, 0, _imagePixelWidth - 1);
+            var y = Math.Clamp(CropY, 0, _imagePixelHeight - 1);
+            var w = Math.Clamp(CropWidth, 1, _imagePixelWidth - x);
+            var h = Math.Clamp(CropHeight, 1, _imagePixelHeight - y);
+
+            // Skia 编码（CPU 密集）放到后台线程，避免卡 UI
+            var cropped = await Task.Run(() => CropOnBackground(pixels, pixelW, pixelH, stride, x, y, w, h));
+            cropped.Freeze();
+            CropApplied?.Invoke(cropped);
+        }
+        finally
+        {
+            IsCropProcessing = false;
+        }
     }
 
     [RelayCommand]
@@ -76,35 +106,26 @@ public partial class CropViewModel : ObservableObject
         CropCancelled?.Invoke();
     }
 
-    // ── SkiaSharp 裁剪 ───────────────────────────────────────────────────────
+    // ── SkiaSharp 裁剪（后台线程执行）────────────────────────────────────────
 
-    private BitmapSource CropWithSkia(BitmapSource source)
+    private static BitmapSource CropOnBackground(byte[] pixels, int pixelW, int pixelH, int stride, int x, int y, int w, int h)
     {
-        // 将 WPF BitmapSource 锁定像素缓冲区，直接安装到 SKBitmap 避免额外内存拷贝
-        var wb = new System.Windows.Media.Imaging.WriteableBitmap(source);
-        wb.Lock();
+        var info = new SKImageInfo(pixelW, pixelH, SKColorType.Bgra8888, SKAlphaType.Premul);
+        var handle = GCHandle.Alloc(pixels, GCHandleType.Pinned);
         try
         {
-            var info = new SKImageInfo(wb.PixelWidth, wb.PixelHeight, SKColorType.Bgra8888, SKAlphaType.Premul);
             using var srcBitmap = new SKBitmap();
-            srcBitmap.InstallPixels(info, wb.BackBuffer, wb.BackBufferStride);
+            srcBitmap.InstallPixels(info, handle.AddrOfPinnedObject(), stride);
 
-            // 将裁剪区域钳制到图片实际范围内
-            var x = Math.Clamp(CropX, 0, _imagePixelWidth - 1);
-            var y = Math.Clamp(CropY, 0, _imagePixelHeight - 1);
-            var w = Math.Clamp(CropWidth, 1, _imagePixelWidth - x);
-            var h = Math.Clamp(CropHeight, 1, _imagePixelHeight - y);
-            var rect = new SKRectI(x, y, x + w, y + h);
+            using var extracted = new SKBitmap(w, h, SKColorType.Bgra8888, SKAlphaType.Premul);
+            using var canvas = new SKCanvas(extracted);
+            canvas.DrawBitmap(srcBitmap, SKRect.Create(x, y, w, h), SKRect.Create(0, 0, w, h));
 
-            using var subset = new SKBitmap();
-            srcBitmap.ExtractSubset(subset, rect);
-
-            return ConvertToBitmapSource(subset);
+            return ConvertToBitmapSource(extracted);
         }
         finally
         {
-            // 确保像素缓冲区始终被释放，即使处理过程中发生异常
-            wb.Unlock();
+            handle.Free();
         }
     }
 

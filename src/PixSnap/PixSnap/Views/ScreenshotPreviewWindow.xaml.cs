@@ -515,8 +515,10 @@ public partial class ScreenshotPreviewWindow : Window
         var pos = e.GetPosition(CropOverlayCanvas);
         var delta = pos - _cropDragStart;
         var img = GetImageDisplayRect();
-        var newX = Math.Clamp(_cropRectAtDragStart.Left + delta.X, img.Left, img.Right  - _cropRect.Width);
-        var newY = Math.Clamp(_cropRectAtDragStart.Top  + delta.Y, img.Top,  img.Bottom - _cropRect.Height);
+        var maxX = Math.Max(img.Left, img.Right  - _cropRect.Width);
+        var maxY = Math.Max(img.Top,  img.Bottom - _cropRect.Height);
+        var newX = Math.Clamp(_cropRectAtDragStart.Left + delta.X, img.Left, maxX);
+        var newY = Math.Clamp(_cropRectAtDragStart.Top  + delta.Y, img.Top,  maxY);
         _cropRect = new Rect(newX, newY, _cropRect.Width, _cropRect.Height);
         RefreshCropOverlay();
         SyncCropRectToViewModel();
@@ -583,26 +585,32 @@ public partial class ScreenshotPreviewWindow : Window
     {
         if (DataContext is not ScreenshotPreviewViewModel vm) return;
         vm.ApplyEditedImage(newImage);
-        vm.IsCropMode = false;
+        vm.ExitEditMode();
     }
 
     private void OnCropCancelled()
     {
         if (DataContext is ScreenshotPreviewViewModel vm)
-            vm.IsCropMode = false;
+            vm.ExitEditMode();
+    }
+
+    private void EraserCancelButton_Click(object sender, RoutedEventArgs e)
+    {
+        if (DataContext is ScreenshotPreviewViewModel vm)
+            vm.ExitEditMode();
     }
 
     private void OnRoundCornerApplied(System.Windows.Media.Imaging.BitmapSource newImage)
     {
         if (DataContext is not ScreenshotPreviewViewModel vm) return;
         vm.ApplyEditedImage(newImage);
-        vm.IsRoundCornerMode = false;
+        vm.ExitEditMode();
     }
 
     private void OnRoundCornerCancelled()
     {
         if (DataContext is ScreenshotPreviewViewModel vm)
-            vm.IsRoundCornerMode = false;
+            vm.ExitEditMode();
     }
 
     // ══════════════════════════════════════════════════════════════════════════

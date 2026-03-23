@@ -7,6 +7,10 @@ public static class OnnxSessionFactory
 {
     private static int? _bestDmlDeviceId;
 
+    // ── Session 缓存（按模型路径），避免每次推理重新加载 DML 权重 ──────────────
+    private static readonly Dictionary<string, (InferenceSession Session, string ProviderName)> _sessionCache = new();
+    private static readonly object _cacheLock = new();
+
     public static InferenceSession CreateSession(string modelPath, out string providerName)
     {
         string? dmlError = null;
@@ -27,6 +31,42 @@ public static class OnnxSessionFactory
 
         providerName = $"CPU(DML失败: {Shorten(dmlError)})";
         return new InferenceSession(modelPath, CreateBaseOptions());
+    }
+
+    /// <summary>强制使用 CPU 执行提供程序（用于 DML 推理时崩溃的回退）。</summary>
+    public static InferenceSession CreateCpuSession(string modelPath)
+    {
+        return new InferenceSession(modelPath, CreateBaseOptions());
+    }
+
+    /// <summary>
+    /// 获取或创建指定路径的 InferenceSession（带全局缓存）。
+    /// 首次调用时初始化；后续直接返回缓存实例，节省 DML 数百毫秒初始化开销。
+    /// </summary>
+    public static InferenceSession GetOrCreateSession(string modelPath, out string providerName)
+    {
+        lock (_cacheLock)
+        {
+            if (_sessionCache.TryGetValue(modelPath, out var cached))
+            {
+                providerName = cached.ProviderName;
+                return cached.Session;
+            }
+            var session = CreateSession(modelPath, out providerName);
+            _sessionCache[modelPath] = (session, providerName);
+            return session;
+        }
+    }
+
+    /// <summary>释放所有缓存的 InferenceSession（应在应用退出时调用）。</summary>
+    public static void DisposeAll()
+    {
+        lock (_cacheLock)
+        {
+            foreach (var entry in _sessionCache.Values)
+                entry.Session.Dispose();
+            _sessionCache.Clear();
+        }
     }
 
     private static SessionOptions CreateBaseOptions()
