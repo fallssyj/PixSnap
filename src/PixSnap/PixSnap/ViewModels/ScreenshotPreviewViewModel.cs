@@ -30,6 +30,7 @@ public partial class ScreenshotPreviewViewModel : ObservableRecipient, IRecipien
     private readonly Stack<BitmapSource> _redoStack = [];
     private readonly SemaphoreSlim _imageApplySemaphore = new(1, 1);
     private CancellationTokenSource? _fileSizeUpdateCts;
+    private CancellationTokenSource? _aiCts;
 
     [ObservableProperty]
     [NotifyCanExecuteChangedFor(nameof(SaveToFileCommand))]
@@ -77,6 +78,12 @@ public partial class ScreenshotPreviewViewModel : ObservableRecipient, IRecipien
     [ObservableProperty]
     [NotifyPropertyChangedFor(nameof(ActiveAiProgressText))]
     private string _aiModuleProgressText = string.Empty;
+
+    [ObservableProperty]
+    [NotifyPropertyChangedFor(nameof(IsAnyAiProcessing))]
+    [NotifyPropertyChangedFor(nameof(IsAnyIndeterminateProcessing))]
+    [NotifyPropertyChangedFor(nameof(ActiveAiProgressText))]
+    private bool _isRotating;
 
     [ObservableProperty]
     [NotifyPropertyChangedFor(nameof(IsAnyAiProcessing))]
@@ -128,21 +135,23 @@ public partial class ScreenshotPreviewViewModel : ObservableRecipient, IRecipien
     public string ZoomDisplayText => $"缩放 {(IsActualSize ? ZoomFactor : FitZoomFactor):P0}";
     public string ZoomCompactText => $"{(IsActualSize ? ZoomFactor : FitZoomFactor):P0}";
     public string CaptureTitleDisplay => MiddleEllipsis(CaptureTime, 24);
-    public bool IsAnyAiProcessing => EraserPanel.IsProcessing || IsAiModuleProcessing || IsFileOperationProcessing || CropPanel.IsCropProcessing || RoundCornerPanel.IsProcessing;
+    public bool IsAnyAiProcessing => EraserPanel.IsProcessing || IsAiModuleProcessing || IsFileOperationProcessing || CropPanel.IsCropProcessing || RoundCornerPanel.IsProcessing || IsRotating;
 
-    /// <summary>当前处理属于不定进度类型（裁剪或圆角），进度条应显示不确定动画。</summary>
-    public bool IsAnyIndeterminateProcessing => CropPanel.IsCropProcessing || RoundCornerPanel.IsProcessing;
+    /// <summary>当前处理属于不定进度类型（裁剪、圆角或旋转），进度条应显示不确定动画。</summary>
+    public bool IsAnyIndeterminateProcessing => CropPanel.IsCropProcessing || RoundCornerPanel.IsProcessing || IsRotating;
 
     public string ActiveAiProgressText
         => CropPanel.IsCropProcessing
             ? "正在裁剪..."
             : RoundCornerPanel.IsProcessing
                 ? "正在处理圆角..."
-                : EraserPanel.IsProcessing
-                    ? EraserPanel.ProgressText
-                    : IsAiModuleProcessing
-                        ? AiModuleProgressText
-                        : FileOperationProgressText;
+                : IsRotating
+                    ? "正在旋转图片..."
+                    : EraserPanel.IsProcessing
+                        ? EraserPanel.ProgressText
+                        : IsAiModuleProcessing
+                            ? AiModuleProgressText
+                            : FileOperationProgressText;
     public double ActiveAiProgress
         => EraserPanel.IsProcessing
             ? EraserPanel.Progress
@@ -396,9 +405,7 @@ public partial class ScreenshotPreviewViewModel : ObservableRecipient, IRecipien
     {
         if (ScreenshotImage is null) return;
 
-        IsAiModuleProcessing = true;
-        AiModuleProgressText = "正在旋转图片...";
-        AiModuleProgress = 0;
+        IsRotating = true;
         try
         {
             var source = ScreenshotImage;
@@ -420,13 +427,11 @@ public partial class ScreenshotPreviewViewModel : ObservableRecipient, IRecipien
             rotated.WritePixels(new System.Windows.Int32Rect(0, 0, dstW, dstH), dstPixels, dstStride, 0);
             rotated.Freeze();
 
-            AiModuleProgress = 1;
             await ApplyEditedImageAsync(rotated, switchToFit: false);
         }
         finally
         {
-            IsAiModuleProcessing = false;
-            AiModuleProgressText = string.Empty;
+            IsRotating = false;
         }
     }
 
@@ -514,6 +519,7 @@ public partial class ScreenshotPreviewViewModel : ObservableRecipient, IRecipien
         IsAiModuleProcessing = true;
         AiModuleProgress = 0;
         AiModuleProgressText = "正在准备去除背景...";
+        var token = CreateAiCancellationToken();
         try
         {
             var progress = new Progress<(double Value, string Text)>(t =>
@@ -522,12 +528,16 @@ public partial class ScreenshotPreviewViewModel : ObservableRecipient, IRecipien
                 AiModuleProgressText = t.Text;
             });
 
-            var result = await BackgroundRemovalService.RunAsync(ScreenshotImage, progress);
+            var result = await BackgroundRemovalService.RunAsync(ScreenshotImage, progress, token);
             if (result is null) return;
 
             await ApplyEditedImageAsync(result);
             AiModuleProgress = 1;
             AiModuleProgressText = "去除背景完成";
+        }
+        catch (OperationCanceledException)
+        {
+            AiModuleProgressText = string.Empty;
         }
         catch (Exception ex)
         {
@@ -549,6 +559,7 @@ public partial class ScreenshotPreviewViewModel : ObservableRecipient, IRecipien
         IsAiModuleProcessing = true;
         AiModuleProgress = 0;
         AiModuleProgressText = "正在准备超分辨率...";
+        var token = CreateAiCancellationToken();
         try
         {
             var progress = new Progress<(double Value, string Text)>(t =>
@@ -557,12 +568,16 @@ public partial class ScreenshotPreviewViewModel : ObservableRecipient, IRecipien
                 AiModuleProgressText = t.Text;
             });
 
-            var result = await SuperResolutionService.RunAsync(ScreenshotImage, progress);
+            var result = await SuperResolutionService.RunAsync(ScreenshotImage, progress, token);
             if (result is null) return;
 
             await ApplyEditedImageAsync(result);
             AiModuleProgress = 1;
             AiModuleProgressText = "超分辨率完成";
+        }
+        catch (OperationCanceledException)
+        {
+            AiModuleProgressText = string.Empty;
         }
         catch (Exception ex)
         {
@@ -572,6 +587,15 @@ public partial class ScreenshotPreviewViewModel : ObservableRecipient, IRecipien
         {
             IsAiModuleProcessing = false;
         }
+    }
+
+    /// <summary>创建新的 AI 操作取消令牌，取消上一个正在进行的 AI 操作（若有）。</summary>
+    private CancellationToken CreateAiCancellationToken()
+    {
+        _aiCts?.Cancel();
+        _aiCts?.Dispose();
+        _aiCts = new CancellationTokenSource();
+        return _aiCts.Token;
     }
 
     private bool CanUndo() => ScreenshotImage is not null && _undoStack.Count > 0;
@@ -660,6 +684,11 @@ public partial class ScreenshotPreviewViewModel : ObservableRecipient, IRecipien
     /// </summary>
     public void Cleanup()
     {
+        // 取消所有正在进行的 AI 操作，避免访问已释放的 ONNX Session
+        _aiCts?.Cancel();
+        _aiCts?.Dispose();
+        _aiCts = null;
+
         // 断开 EraserPanel 事件，避免循环引用
         EraserPanel.InpaintApplied -= OnEraserApplied;
         EraserPanel.PropertyChanged -= OnEraserPanelPropertyChanged;

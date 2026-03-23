@@ -19,10 +19,12 @@ public static class BackgroundRemovalService
 
     public static async Task<BitmapSource?> RunAsync(
         BitmapSource originalImage,
-        IProgress<(double Value, string Text)>? progress = null)
+        IProgress<(double Value, string Text)>? progress = null,
+        CancellationToken cancellationToken = default)
     {
         return await Task.Run(() =>
         {
+            cancellationToken.ThrowIfCancellationRequested();
             progress?.Report((0.05, "正在加载去背景模型..."));
             if (!File.Exists(ModelPath))
                 throw new FileNotFoundException($"未找到 ONNX 模型：{ModelPath}");
@@ -48,6 +50,7 @@ public static class BackgroundRemovalService
             var imageTensor = BitmapToRgbTensor(scaled, modelW, modelH);
 
             progress?.Report((0.55, "正在执行去背景推理..."));
+            cancellationToken.ThrowIfCancellationRequested();
             using var outputs = session.Run(new List<NamedOnnxValue>
             {
                 NamedOnnxValue.CreateFromTensor(inputName, imageTensor)
@@ -61,6 +64,7 @@ public static class BackgroundRemovalService
             maskBitmap.ScalePixels(maskAtOriginal, new SKSamplingOptions(SKFilterMode.Linear, SKMipmapMode.Linear));
 
             progress?.Report((0.90, "正在合成透明背景..."));
+            cancellationToken.ThrowIfCancellationRequested();
             using var composed = ApplyMaskAsAlpha(srcBitmap, maskAtOriginal);
             var result = SKBitmapToBitmapSource(composed);
             result.Freeze();

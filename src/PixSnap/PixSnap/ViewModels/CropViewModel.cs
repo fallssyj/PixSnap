@@ -70,7 +70,9 @@ public partial class CropViewModel : ObservableObject
 
     // ── 命令 ─────────────────────────────────────────────────────────────────
 
-    [RelayCommand(CanExecute = nameof(IsValid))]
+    private bool CanApply() => IsValid && !IsCropProcessing;
+
+    [RelayCommand(CanExecute = nameof(CanApply))]
     private async Task ApplyAsync(BitmapSource source)
     {
         IsCropProcessing = true;
@@ -146,4 +148,5 @@ public partial class CropViewModel : ObservableObject
     partial void OnCropYChanged(int value) => ApplyCommand.NotifyCanExecuteChanged();
     partial void OnCropWidthChanged(int value) => ApplyCommand.NotifyCanExecuteChanged();
     partial void OnCropHeightChanged(int value) => ApplyCommand.NotifyCanExecuteChanged();
+    partial void OnIsCropProcessingChanged(bool value) => ApplyCommand.NotifyCanExecuteChanged();
 }

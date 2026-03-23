@@ -26,10 +26,12 @@ public static class SuperResolutionService
 
     public static async Task<BitmapSource?> RunAsync(
         BitmapSource originalImage,
-        IProgress<(double Value, string Text)>? progress = null)
+        IProgress<(double Value, string Text)>? progress = null,
+        CancellationToken cancellationToken = default)
     {
         return await Task.Run(() =>
         {
+            cancellationToken.ThrowIfCancellationRequested();
             progress?.Report((0.05, "正在加载超分模型..."));
             if (!File.Exists(ModelPath))
                 throw new FileNotFoundException($"未找到 ONNX 模型：{ModelPath}");
@@ -44,7 +46,7 @@ public static class SuperResolutionService
             var inputName = session.InputMetadata.Keys.First();
 
             progress?.Report((0.35, "正在执行超分推理..."));
-            using var outputBitmap = RunTiled(session, inputName, srcBitmap, srcW, srcH, progress);
+            using var outputBitmap = RunTiled(session, inputName, srcBitmap, srcW, srcH, progress, cancellationToken);
 
             progress?.Report((0.90, "正在生成超分结果..."));
             var result = SKBitmapToBitmapSource(outputBitmap);
@@ -61,7 +63,8 @@ public static class SuperResolutionService
         SKBitmap source,
         int srcW,
         int srcH,
-        IProgress<(double Value, string Text)>? progress)
+        IProgress<(double Value, string Text)>? progress,
+        CancellationToken cancellationToken = default)
     {
         var result = new SKBitmap(new SKImageInfo(srcW * ScaleFactor, srcH * ScaleFactor, SKColorType.Bgra8888, SKAlphaType.Unpremul));
 
@@ -74,6 +77,7 @@ public static class SuperResolutionService
         {
             for (int tx = 0; tx < tilesX; tx++)
             {
+                cancellationToken.ThrowIfCancellationRequested();
                 tileIndex++;
                 double phase = 0.35 + 0.45 * tileIndex / totalTiles;
                 progress?.Report((phase, $"正在分块超分 ({tileIndex}/{totalTiles})..."));

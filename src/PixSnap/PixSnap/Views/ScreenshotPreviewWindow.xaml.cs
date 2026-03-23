@@ -1010,8 +1010,9 @@ public partial class ScreenshotPreviewWindow : Window
         AiModulePopup.HorizontalOffset = x;
         AiModulePopup.VerticalOffset = y;
 
-        // 直接设置 IsOpen，TwoWay 绑定将自动同步至 ViewModel.IsAiPopupOpen
-        AiModulePopup.IsOpen = true;
+        // 直接更新 ViewModel，TwoWay 绑定将自动同步至 AiModulePopup.IsOpen
+        if (DataContext is ScreenshotPreviewViewModel vm2)
+            vm2.IsAiPopupOpen = true;
         e.Handled = true;
     }
 }
