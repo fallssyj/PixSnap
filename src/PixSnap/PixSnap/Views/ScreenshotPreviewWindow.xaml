@@ -690,39 +690,6 @@
                         </Border>
                     </Popup>
 
-                    <!--  AI 处理进度面板（预览区底部居中，推理时显示）  -->
-                    <Border
-                        Margin="0,0,0,20"
-                        Padding="16,10"
-                        HorizontalAlignment="Center"
-                        VerticalAlignment="Bottom"
-                        CornerRadius="12">
-                        <Border.Style>
-                            <Style TargetType="Border">
-                                <Setter Property="Background" Value="#CC1A1A1A" />
-                                <Setter Property="Visibility" Value="Collapsed" />
-                                <Style.Triggers>
-                                    <DataTrigger Binding="{Binding IsAnyAiProcessing}" Value="True">
-                                        <Setter Property="Visibility" Value="Visible" />
-                                    </DataTrigger>
-                                </Style.Triggers>
-                            </Style>
-                        </Border.Style>
-                        <StackPanel MinWidth="260" Orientation="Vertical">
-                            <TextBlock
-                                Margin="0,0,0,8"
-                                HorizontalAlignment="Center"
-                                FontSize="12"
-                                Foreground="White"
-                                Text="{Binding ActiveAiProgressText}" />
-                            <ProgressBar
-                                Height="6"
-                                Maximum="1"
-                                Minimum="0"
-                                Value="{Binding ActiveAiProgress, Mode=OneWay}" />
-                        </StackPanel>
-                    </Border>
-
                 </Grid>
                 <!--  控制区域  -->
                 <Border
@@ -849,6 +816,46 @@
                     </Grid>
                 </Border>
             </Grid>
+
+            <!--  全窗口处理遮罩：处理期间阻断所有操作，完成或异常后自动隐藏  -->
+            <Grid Panel.ZIndex="998">
+                <Grid.Style>
+                    <Style TargetType="Grid">
+                        <Setter Property="Visibility" Value="Collapsed" />
+                        <Setter Property="IsHitTestVisible" Value="False" />
+                        <Style.Triggers>
+                            <DataTrigger Binding="{Binding IsAnyAiProcessing}" Value="True">
+                                <Setter Property="Visibility" Value="Visible" />
+                                <Setter Property="IsHitTestVisible" Value="True" />
+                            </DataTrigger>
+                        </Style.Triggers>
+                    </Style>
+                </Grid.Style>
+
+                <Border Background="#80101010" />
+
+                <Border
+                    Padding="16,12"
+                    HorizontalAlignment="Center"
+                    VerticalAlignment="Center"
+                    Background="#CC1A1A1A"
+                    CornerRadius="12">
+                    <StackPanel MinWidth="280" Orientation="Vertical">
+                        <TextBlock
+                            Margin="0,0,0,8"
+                            HorizontalAlignment="Center"
+                            FontSize="12"
+                            Foreground="White"
+                            Text="{Binding ActiveAiProgressText}" />
+                        <ProgressBar
+                            Height="6"
+                            Maximum="1"
+                            Minimum="0"
+                            Value="{Binding ActiveAiProgress, Mode=OneWay}" />
+                    </StackPanel>
+                </Border>
+            </Grid>
+
             <Border
                 x:Name="OverlayBorder"
                 Panel.ZIndex="999"

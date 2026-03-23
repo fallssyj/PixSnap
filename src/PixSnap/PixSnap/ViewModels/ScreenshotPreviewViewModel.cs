@@ -3,11 +3,9 @@ using CommunityToolkit.Mvvm.Input;
 using CommunityToolkit.Mvvm.Messaging;
 using PixSnap.Models;
 using PixSnap.Services;
-using System.Collections.Generic;
+using PixSnap.Views;
 using System.ComponentModel;
 using System.IO;
-using System.Linq;
-using System.Threading;
 using System.Windows;
 using System.Windows.Media;
 using System.Windows.Media.Imaging;
@@ -21,6 +19,7 @@ public partial class ScreenshotPreviewViewModel : ObservableRecipient, IRecipien
     public const double MinZoomFactor = 0.1;
     public const double MaxZoomFactor = 8.0;
     private const long LargeImagePixelThreshold = 16_000_000;
+    private const long ExactFileSizePixelThreshold = 16_000_000;
     private const int NormalUndoLimit = 10;
     private const int LargeImageUndoLimit = 3;
 
@@ -30,6 +29,7 @@ public partial class ScreenshotPreviewViewModel : ObservableRecipient, IRecipien
     private CancellationTokenSource? _fileSizeUpdateCts;
 
     [ObservableProperty]
+    [NotifyCanExecuteChangedFor(nameof(SaveToFileCommand))]
     private BitmapSource? _screenshotImage;
 
     [ObservableProperty]
@@ -71,6 +71,26 @@ public partial class ScreenshotPreviewViewModel : ObservableRecipient, IRecipien
     [NotifyPropertyChangedFor(nameof(ActiveAiProgressText))]
     private string _aiModuleProgressText = string.Empty;
 
+    [ObservableProperty]
+    [NotifyPropertyChangedFor(nameof(IsAnyAiProcessing))]
+    [NotifyPropertyChangedFor(nameof(ActiveAiProgressText))]
+    [NotifyPropertyChangedFor(nameof(ActiveAiProgress))]
+    private bool _isSaving;
+
+    [ObservableProperty]
+    [NotifyPropertyChangedFor(nameof(IsAnyAiProcessing))]
+    [NotifyPropertyChangedFor(nameof(ActiveAiProgressText))]
+    [NotifyPropertyChangedFor(nameof(ActiveAiProgress))]
+    private bool _isFileOperationProcessing;
+
+    [ObservableProperty]
+    [NotifyPropertyChangedFor(nameof(ActiveAiProgress))]
+    private double _fileOperationProgress;
+
+    [ObservableProperty]
+    [NotifyPropertyChangedFor(nameof(ActiveAiProgressText))]
+    private string _fileOperationProgressText = string.Empty;
+
     // ── 裁剪 / 圆角子 ViewModel ─────────────────────────────────────────────
 
     [ObservableProperty]
@@ -95,9 +115,19 @@ public partial class ScreenshotPreviewViewModel : ObservableRecipient, IRecipien
     public string ZoomDisplayText => $"缩放 {(IsActualSize ? ZoomFactor : FitZoomFactor):P0}";
     public string ZoomCompactText => $"{(IsActualSize ? ZoomFactor : FitZoomFactor):P0}";
     public string CaptureTitleDisplay => MiddleEllipsis(CaptureTime, 24);
-    public bool IsAnyAiProcessing => EraserPanel.IsProcessing || IsAiModuleProcessing;
-    public string ActiveAiProgressText => EraserPanel.IsProcessing ? EraserPanel.ProgressText : AiModuleProgressText;
-    public double ActiveAiProgress => EraserPanel.IsProcessing ? EraserPanel.Progress : AiModuleProgress;
+    public bool IsAnyAiProcessing => EraserPanel.IsProcessing || IsAiModuleProcessing || IsFileOperationProcessing;
+    public string ActiveAiProgressText
+        => EraserPanel.IsProcessing
+            ? EraserPanel.ProgressText
+            : IsAiModuleProcessing
+                ? AiModuleProgressText
+                : FileOperationProgressText;
+    public double ActiveAiProgress
+        => EraserPanel.IsProcessing
+            ? EraserPanel.Progress
+            : IsAiModuleProcessing
+                ? AiModuleProgress
+                : FileOperationProgress;
     public double ZoomSliderValue
     {
         get => (IsActualSize ? ZoomFactor : FitZoomFactor) * 100.0;
@@ -150,6 +180,11 @@ public partial class ScreenshotPreviewViewModel : ObservableRecipient, IRecipien
         OnPropertyChanged(nameof(ZoomSliderValue));
     }
 
+    partial void OnIsSavingChanged(bool value)
+    {
+        SaveToFileCommand.NotifyCanExecuteChanged();
+    }
+
     public void SetManualZoomFactor(double zoomFactor)
     {
         ZoomFactor = Math.Clamp(zoomFactor, MinZoomFactor, MaxZoomFactor);
@@ -187,7 +222,7 @@ public partial class ScreenshotPreviewViewModel : ObservableRecipient, IRecipien
     }
 
     [RelayCommand]
-    private void OpenFile()
+    private async Task OpenFile()
     {
         var dialog = new Microsoft.Win32.OpenFileDialog
         {
@@ -197,24 +232,48 @@ public partial class ScreenshotPreviewViewModel : ObservableRecipient, IRecipien
 
         if (dialog.ShowDialog() != true) return;
 
-        // 先释放旧图像引用，再加载新图，减少同时在内存中的大位图数量
-        ScreenshotImage = null;
+        IsFileOperationProcessing = true;
+        FileOperationProgress = 0.05;
+        FileOperationProgressText = "正在加载图片...";
 
-        var bitmap = new BitmapImage();
-        bitmap.BeginInit();
-        bitmap.UriSource = new Uri(dialog.FileName);
-        bitmap.CacheOption = BitmapCacheOption.OnLoad;
-        bitmap.EndInit();
-        bitmap.Freeze();
+        try
+        {
+            // 先释放旧图像引用，再加载新图，减少同时在内存中的大位图数量
+            ScreenshotImage = null;
 
-        SetCurrentImage(bitmap, switchToFit: true);
-        ResetHistory();
-        CaptureTime = Path.GetFileName(dialog.FileName);
-        FileSize = FormatFileSize(new FileInfo(dialog.FileName).Length);
+            var progress = new Progress<(double Value, string Text)>(p =>
+            {
+                FileOperationProgress = Math.Clamp(p.Value, 0, 1);
+                FileOperationProgressText = p.Text;
+            });
+
+            var bitmap = await LoadBitmapFromFileAsync(dialog.FileName, progress);
+
+            SetCurrentImage(bitmap, switchToFit: true);
+            ResetHistory();
+            CaptureTime = Path.GetFileName(dialog.FileName);
+            FileSize = FormatFileSize(new FileInfo(dialog.FileName).Length);
+            FileOperationProgress = 1.0;
+            FileOperationProgressText = "图片加载完成";
+        }
+        catch (Exception ex)
+        {
+            MessageBoxWindow.Show(
+                $"加载失败：{ex.Message}",
+                "PixSnap 错误",
+                MessageBoxButton.OK,
+                MessageBoxImage.Error);
+        }
+        finally
+        {
+            IsFileOperationProcessing = false;
+        }
     }
 
-    [RelayCommand]
-    private void SaveToFile()
+    private bool CanSaveToFile() => ScreenshotImage is not null && !IsSaving;
+
+    [RelayCommand(CanExecute = nameof(CanSaveToFile))]
+    private async Task SaveToFile()
     {
         if (ScreenshotImage is null)
         {
@@ -233,11 +292,36 @@ public partial class ScreenshotPreviewViewModel : ObservableRecipient, IRecipien
             return;
         }
 
-        var encoder = new PngBitmapEncoder();
-        encoder.Frames.Add(BitmapFrame.Create(ScreenshotImage));
+        var imageSnapshot = CreateFrozenSnapshot(ScreenshotImage);
+        IsSaving = true;
+        IsFileOperationProcessing = true;
+        FileOperationProgress = 0.1;
+        FileOperationProgressText = "正在保存图片...";
+        try
+        {
+            var progress = new Progress<(double Value, string Text)>(p =>
+            {
+                FileOperationProgress = Math.Clamp(p.Value, 0, 1);
+                FileOperationProgressText = p.Text;
+            });
 
-        using var stream = File.Create(dialog.FileName);
-        encoder.Save(stream);
+            await SavePngAsync(imageSnapshot, dialog.FileName, progress);
+            FileOperationProgress = 1.0;
+            FileOperationProgressText = "图片保存完成";
+        }
+        catch (Exception ex)
+        {
+            MessageBoxWindow.Show(
+                $"保存失败：{ex.Message}",
+                "PixSnap 错误",
+                MessageBoxButton.OK,
+                MessageBoxImage.Error);
+        }
+        finally
+        {
+            IsSaving = false;
+            IsFileOperationProcessing = false;
+        }
     }
 
     [RelayCommand]
@@ -300,7 +384,7 @@ public partial class ScreenshotPreviewViewModel : ObservableRecipient, IRecipien
     {
         if (ScreenshotImage is null) return;
         // 互斥：进入擦除时关闭其他编辑模式
-        IsCropMode        = false;
+        IsCropMode = false;
         IsRoundCornerMode = false;
         SwitchToFitMode();
         IsEraserMode = !IsEraserMode;
@@ -536,10 +620,37 @@ public partial class ScreenshotPreviewViewModel : ObservableRecipient, IRecipien
         ImageSize = $"{image.PixelWidth} × {image.PixelHeight}";
         // 先显示即时估算值，避免大图编码阻塞 UI 线程；随后后台刷新为精确值。
         FileSize = FormatFileSize((long)image.PixelWidth * image.PixelHeight * 4);
-        StartUpdateExactFileSizeAsync(image);
+        if ((long)image.PixelWidth * image.PixelHeight < ExactFileSizePixelThreshold)
+        {
+            StartUpdateExactFileSizeAsync(image);
+        }
 
         if (switchToFit)
             SwitchToFitMode();
+    }
+
+    private static Task<BitmapSource> LoadBitmapFromFileAsync(string filePath, IProgress<(double Value, string Text)>? progress = null)
+    {
+        return Task.Run(() =>
+        {
+            progress?.Report((0.2, "正在读取文件..."));
+            using var stream = File.OpenRead(filePath);
+            progress?.Report((0.55, "正在解码图片..."));
+            var decoder = BitmapDecoder.Create(
+                stream,
+                BitmapCreateOptions.IgnoreColorProfile | BitmapCreateOptions.PreservePixelFormat,
+                BitmapCacheOption.OnLoad);
+
+            var bitmap = decoder.Frames[0];
+            if (!bitmap.IsFrozen)
+            {
+                bitmap.Freeze();
+            }
+
+            progress?.Report((0.95, "正在准备显示..."));
+
+            return (BitmapSource)bitmap;
+        });
     }
 
     private static BitmapSource CreateFrozenSnapshot(BitmapSource source)
@@ -594,11 +705,11 @@ public partial class ScreenshotPreviewViewModel : ObservableRecipient, IRecipien
             var exact = GetEncodedPngSize(image);
             if (token.IsCancellationRequested) return;
 
-            Application.Current.Dispatcher.Invoke(() =>
+            Application.Current.Dispatcher.BeginInvoke(() =>
             {
                 if (!token.IsCancellationRequested && ReferenceEquals(ScreenshotImage, image))
                     FileSize = FormatFileSize(exact);
-            });
+            }, System.Windows.Threading.DispatcherPriority.Background);
         }, token);
     }
 
@@ -617,6 +728,21 @@ public partial class ScreenshotPreviewViewModel : ObservableRecipient, IRecipien
         using var stream = new MemoryStream();
         encoder.Save(stream);
         return stream.Length;
+    }
+
+    private static Task SavePngAsync(BitmapSource bitmap, string filePath, IProgress<(double Value, string Text)>? progress = null)
+    {
+        return Task.Run(() =>
+        {
+            progress?.Report((0.25, "正在编码图片..."));
+            var encoder = new PngBitmapEncoder();
+            encoder.Frames.Add(BitmapFrame.Create(bitmap));
+
+            progress?.Report((0.7, "正在写入磁盘..."));
+            using var stream = File.Create(filePath);
+            encoder.Save(stream);
+            progress?.Report((0.95, "正在完成保存..."));
+        });
     }
 
     private static string FormatFileSize(long byteCount)
