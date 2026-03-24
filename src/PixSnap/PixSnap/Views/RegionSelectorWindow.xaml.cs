@@ -4,7 +4,6 @@ using PixSnap.ViewModels;
 using System;
 using System.Collections.Generic;
 using System.Linq;
-using System.Runtime.InteropServices;
 using System.Windows;
 using System.Windows.Controls;
 using System.Windows.Input;
@@ -18,7 +17,6 @@ namespace PixSnap.Views;
 // 与截图结果相关的语义状态仍通过 RegionSelectorViewModel 暴露给 XAML 绑定。
 public partial class RegionSelectorWindow : Window
 {
-    private const uint GwHwndNext = 2;
     private const double InfoBubbleMargin = 24;
 
     private readonly IReadOnlyDictionary<IntPtr, WindowInfo> _windowsByHandle;
@@ -65,7 +63,7 @@ public partial class RegionSelectorWindow : Window
     {
         _windowHandle = new WindowInteropHelper(this).Handle;
         _dpiScale = VisualTreeHelper.GetDpi(this);
-        if (TryGetWindowRect(_windowHandle, out var overlayRect))
+        if (NativeWindowHelper.TryGetWindowRect(_windowHandle, out var overlayRect))
         {
             _overlayScreenBounds = overlayRect;
         }
@@ -80,8 +78,8 @@ public partial class RegionSelectorWindow : Window
         // 只能显示窗口，不能激活它，导致首次截图键盘事件完全无法接收。
         Activate();
         Focus();
-        GetCursorPos(out var cursorPos);
-        UpdateHover(new Point(cursorPos.X, cursorPos.Y));
+        var cursorPos = NativeWindowHelper.GetCursorPosition();
+        UpdateHover(cursorPos);
     }
 
     private void OnMouseLeftButtonDown(object sender, MouseButtonEventArgs e)
@@ -208,7 +206,7 @@ public partial class RegionSelectorWindow : Window
         _hoveredScreen = FindScreen(screenPoint);
         _hoveredWindow = FindWindowAtPoint(screenPoint);
 
-        if (_hoveredWindow is not null && TryGetWindowRect(_hoveredWindow.Hwnd, out var windowRect))
+        if (_hoveredWindow is not null && NativeWindowHelper.TryGetWindowRect(_hoveredWindow.Hwnd, out var windowRect))
         {
             var localRect = ScreenRectToLocalRect(windowRect);
             _viewModel.UpdateWindowHighlight(new Rect(windowRect.Left, windowRect.Top, windowRect.Width, windowRect.Height));
@@ -221,15 +219,6 @@ public partial class RegionSelectorWindow : Window
             WindowHighlightRect.Height = localRect.Height;
             Canvas.SetLeft(InfoBubble, Math.Max(InfoBubbleMargin, localRect.X));
             Canvas.SetTop(InfoBubble, Math.Max(InfoBubbleMargin, localRect.Y - 58));
-
-            if (FooterHint is not null)
-            {
-                var canvasWidth = RootCanvas.ActualWidth > 0 ? RootCanvas.ActualWidth : Width;
-                var canvasHeight = RootCanvas.ActualHeight > 0 ? RootCanvas.ActualHeight : Height;
-                var footerSize = MeasureElement(FooterHint);
-                Canvas.SetLeft(FooterHint, Math.Max(InfoBubbleMargin, canvasWidth - footerSize.Width - InfoBubbleMargin));
-                Canvas.SetTop(FooterHint, Math.Max(InfoBubbleMargin, canvasHeight - footerSize.Height - InfoBubbleMargin));
-            }
         }
         else
         {
@@ -238,18 +227,23 @@ public partial class RegionSelectorWindow : Window
             var localPoint = ScreenPointToLocalPoint(screenPoint);
             Canvas.SetLeft(InfoBubble, Math.Max(InfoBubbleMargin, localPoint.X + 18));
             Canvas.SetTop(InfoBubble, Math.Max(InfoBubbleMargin, localPoint.Y + 18));
-
-            if (FooterHint is not null)
-            {
-                var canvasWidth = RootCanvas.ActualWidth > 0 ? RootCanvas.ActualWidth : Width;
-                var canvasHeight = RootCanvas.ActualHeight > 0 ? RootCanvas.ActualHeight : Height;
-                var footerSize = MeasureElement(FooterHint);
-                Canvas.SetLeft(FooterHint, Math.Max(InfoBubbleMargin, canvasWidth - footerSize.Width - InfoBubbleMargin));
-                Canvas.SetTop(FooterHint, Math.Max(InfoBubbleMargin, canvasHeight - footerSize.Height - InfoBubbleMargin));
-            }
         }
 
+        // 底部提示始终固定在右下角（两个分支共享同一定位逻辑）
+        PositionFooterHint();
+
         _viewModel.UpdateHover(_hoveredWindow, _hoveredScreen);
+    }
+
+    /// <summary>将底部操作提示固定在画布右下角。</summary>
+    private void PositionFooterHint()
+    {
+        if (FooterHint is null) return;
+        var canvasWidth  = RootCanvas.ActualWidth  > 0 ? RootCanvas.ActualWidth  : Width;
+        var canvasHeight = RootCanvas.ActualHeight > 0 ? RootCanvas.ActualHeight : Height;
+        var footerSize = MeasureElement(FooterHint);
+        Canvas.SetLeft(FooterHint, Math.Max(InfoBubbleMargin, canvasWidth  - footerSize.Width  - InfoBubbleMargin));
+        Canvas.SetTop(FooterHint,  Math.Max(InfoBubbleMargin, canvasHeight - footerSize.Height - InfoBubbleMargin));
     }
 
     private ScreenInfo? FindScreen(Point screenPoint)
@@ -266,20 +260,9 @@ public partial class RegionSelectorWindow : Window
 
     private WindowInfo? FindWindowAtPoint(Point screenPoint)
     {
-        var hwnd = GetTopWindow(IntPtr.Zero);
-        while (hwnd != IntPtr.Zero)
-        {
-            if (hwnd != _windowHandle
-                && _windowsByHandle.TryGetValue(hwnd, out var window)
-                && TryGetWindowRect(hwnd, out var rect)
-                && rect.Contains(screenPoint))
-            {
-                return window;
-            }
-
-            hwnd = GetWindow(hwnd, GwHwndNext);
-        }
-
+        var hwnd = NativeWindowHelper.FindTopWindowAtPoint(screenPoint, _windowHandle);
+        if (hwnd != IntPtr.Zero && _windowsByHandle.TryGetValue(hwnd, out var window))
+            return window;
         return null;
     }
 
@@ -383,57 +366,5 @@ public partial class RegionSelectorWindow : Window
         var width = measured.Width > 0 ? measured.Width : element.ActualWidth;
         var height = measured.Height > 0 ? measured.Height : element.ActualHeight;
         return new Size(width, height);
-    }
-
-    private static bool TryGetWindowRect(IntPtr hwnd, out Rect rect)
-    {
-        rect = Rect.Empty;
-        if (!GetWindowRect(hwnd, out var nativeRect))
-        {
-            return false;
-        }
-
-        rect = new Rect(
-            nativeRect.Left,
-            nativeRect.Top,
-            nativeRect.Right - nativeRect.Left,
-            nativeRect.Bottom - nativeRect.Top);
-        return rect.Width > 0 && rect.Height > 0;
-    }
-
-    private static Point GetCursorPosition()
-    {
-        GetCursorPos(out var point);
-        return new Point(point.X, point.Y);
-    }
-
-    [DllImport("user32.dll")]
-    private static extern IntPtr GetTopWindow(IntPtr hwnd);
-
-    [DllImport("user32.dll")]
-    private static extern IntPtr GetWindow(IntPtr hwnd, uint command);
-
-    [DllImport("user32.dll")]
-    [return: MarshalAs(UnmanagedType.Bool)]
-    private static extern bool GetWindowRect(IntPtr hwnd, out NativeRect rect);
-
-    [DllImport("user32.dll")]
-    [return: MarshalAs(UnmanagedType.Bool)]
-    private static extern bool GetCursorPos(out NativePoint point);
-
-    [StructLayout(LayoutKind.Sequential)]
-    private struct NativePoint
-    {
-        public int X;
-        public int Y;
-    }
-
-    [StructLayout(LayoutKind.Sequential)]
-    private struct NativeRect
-    {
-        public int Left;
-        public int Top;
-        public int Right;
-        public int Bottom;
     }
 }

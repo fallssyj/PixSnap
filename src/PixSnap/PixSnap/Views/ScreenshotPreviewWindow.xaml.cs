@@ -1,13 +1,18 @@
+using PixSnap.Controls;
+using PixSnap.Services;
 using PixSnap.ViewModels;
 using System.ComponentModel;
 using System.Runtime.InteropServices;
 using System.Windows;
 using System.Windows.Controls;
 using System.Windows.Controls.Primitives;
+using System.Windows.Data;
 using System.Windows.Input;
 using System.Windows.Interop;
 using System.Windows.Media;
+using System.Windows.Media.Imaging;
 using System.Windows.Shapes;
+using System.Windows.Threading;
 using Cursors = System.Windows.Input.Cursors;
 using Point = System.Windows.Point;
 using ScrollBar = System.Windows.Controls.Primitives.ScrollBar;
@@ -16,34 +21,31 @@ namespace PixSnap.Views;
 
 public partial class ScreenshotPreviewWindow : Window
 {
+    // ── 常量 ─────────────────────────────────────────────────────
+    private const int ResizeBorderThickness = 5;
+    private const double OverscrollPadding = 200;
+    private const double ZoomStepFactor = 1.1;
+    private const double EraserSampleStepRatio = 0.30;
+    private const double PopupWidthEstimate = 200;
+    private const double PopupHeightEstimate = 94;
+
+    // ── 字段 ─────────────────────────────────────────────────────
+    private HwndSourceHook? _wndProcHook;
+    private bool _zoomTriggeredModeSwitch;
     private bool _isPanningPreview;
     private Point _panStartPoint;
     private double _panStartHorizontalOffset;
     private double _panStartVerticalOffset;
-    // 是否由滚轮触发了模式切换（此时由滚轮 handler 负责设置滚动位置，无需 Dispatcher 重置）
-    private bool _zoomTriggeredModeSwitch;
-    // 缩放热区宽度（像素）
-    private const int ResizeBorderThickness = 5;
-    // 图片边缘可多拖动的额外空白（与 XAML 中 Border.Padding 保持一致）
-    private const double OverscrollPadding = 200;
-
-    // ── 擦除画刷交互 ─────────────────────────────────────────────
+    private bool _syncingCropRect;
     private bool _isEraserDrawing;
     private Point _lastEraserCanvasPoint;
     private bool _hasLastEraserCanvasPoint;
     private Polyline? _currentEraserStrokeVisual;
+    private Border? _draggingPanel;
+    private TranslateTransform? _draggingTransform;
+    private Point _panelDragStart;
+    private Point _panelTransformStart;
 
-    private const int WM_NCHITTEST = 0x0084;
-    private const int WM_GETMINMAXINFO = 0x0024;
-    private const int HTCLIENT = 1;
-    private const int HTLEFT = 10;
-    private const int HTRIGHT = 11;
-    private const int HTTOP = 12;
-    private const int HTTOPLEFT = 13;
-    private const int HTTOPRIGHT = 14;
-    private const int HTBOTTOM = 15;
-    private const int HTBOTTOMLEFT = 16;
-    private const int HTBOTTOMRIGHT = 17;
     public ScreenshotPreviewWindow()
     {
         InitializeComponent();
@@ -53,11 +55,44 @@ public partial class ScreenshotPreviewWindow : Window
         StateChanged += OnWindowStateChanged;
     }
 
+    [LibraryImport("psapi.dll")]
+    [return: MarshalAs(UnmanagedType.Bool)]
+    private static partial bool EmptyWorkingSet(IntPtr hProcess);
+
+    [LibraryImport("kernel32.dll")]
+    private static partial IntPtr GetCurrentProcess();
+
     private void OnClosed(object? sender, EventArgs e)
     {
+        // 1. 移除 WndProc 钩子，断开 HwndSource → Window 引用链
+        RemoveWndProcHook();
+
+        // 2. 断开所有事件订阅，释放 ViewModel 内部引用
         var viewModel = DataContext as ScreenshotPreviewViewModel;
         DetachViewModelHandlers(viewModel);
         viewModel?.Cleanup();
+
+        // 3. 彻底移除 WPF 绑定表达式（光设 Source=null 只是覆盖值，绑定对象本身仍存在）
+        BindingOperations.ClearBinding(FitPreviewImage, Image.SourceProperty);
+        BindingOperations.ClearBinding(ActualSizeImage, Image.SourceProperty);
+        FitPreviewImage.Source = null;
+        ActualSizeImage.Source = null;
+
+        // 4. 清除擦除画布视觉元素
+        ClearEraserVisualStrokes();
+
+        // 5. 断开整个可视化树 + DataContext，强制 WPF 渲染线程释放 MIL composition 资源
+        Content = null;
+        DataContext = null;
+
+        // 6. GC 回收托管对象 + 运行终结器释放非托管像素内存 + 压缩 LOH
+        GC.Collect(GC.MaxGeneration, GCCollectionMode.Aggressive, blocking: true, compacting: true);
+        GC.WaitForPendingFinalizers();
+        GC.Collect(GC.MaxGeneration, GCCollectionMode.Aggressive, blocking: true, compacting: true);
+
+        // 7. 通知 Windows 立即释放进程工作集中已释放的物理页面
+        //    否则 OS 会将已释放的页面保留在工作集中作为缓存，任务管理器显示的内存不会下降
+        EmptyWorkingSet(GetCurrentProcess());
     }
 
     private void OnLoaded(object sender, RoutedEventArgs e)
@@ -79,34 +114,30 @@ public partial class ScreenshotPreviewWindow : Window
 
     private void OnViewModelPropertyChanged(object? sender, PropertyChangedEventArgs e)
     {
-        if (e.PropertyName == nameof(ScreenshotPreviewViewModel.IsActualSize))
+        switch (e.PropertyName)
         {
-            UpdatePreviewModeVisibility();
-            return;
-        }
+            case nameof(ScreenshotPreviewViewModel.IsActualSize):
+                UpdatePreviewModeVisibility();
+                break;
 
-        if (e.PropertyName == nameof(ScreenshotPreviewViewModel.ScreenshotImage))
-        {
-            UpdateFitZoomFactor();
-        }
+            case nameof(ScreenshotPreviewViewModel.ScreenshotImage):
+                UpdateFitZoomFactor();
+                break;
 
-        if (e.PropertyName == nameof(ScreenshotPreviewViewModel.IsCropMode))
-        {
-            UpdateCropOverlayVisibility();
-        }
+            case nameof(ScreenshotPreviewViewModel.IsCropMode):
+                UpdateCropOverlayVisibility();
+                break;
 
-        if (e.PropertyName == nameof(ScreenshotPreviewViewModel.IsRoundCornerMode))
-        {
-            RoundCornerPanel.Visibility = (DataContext is ScreenshotPreviewViewModel vm && vm.IsRoundCornerMode)
-                ? Visibility.Visible : Visibility.Collapsed;
-            // 重置面板位置
-            if (RoundCornerPanel.Visibility == Visibility.Visible)
-                RoundCornerPanelTranslate.X = RoundCornerPanelTranslate.Y = 0;
-        }
+            case nameof(ScreenshotPreviewViewModel.IsRoundCornerMode):
+                RoundCornerPanel.Visibility = (DataContext is ScreenshotPreviewViewModel vm && vm.IsRoundCornerMode)
+                    ? Visibility.Visible : Visibility.Collapsed;
+                if (RoundCornerPanel.Visibility == Visibility.Visible)
+                    RoundCornerPanelTranslate.X = RoundCornerPanelTranslate.Y = 0;
+                break;
 
-        if (e.PropertyName == nameof(ScreenshotPreviewViewModel.IsEraserMode))
-        {
-            UpdateEraserCanvasState();
+            case nameof(ScreenshotPreviewViewModel.IsEraserMode):
+                UpdateEraserCanvasState();
+                break;
         }
     }
 
@@ -123,6 +154,10 @@ public partial class ScreenshotPreviewWindow : Window
             viewModel.RoundCornerPanel.RoundCornerCancelled += OnRoundCornerCancelled;
             viewModel.EraserPanel.StrokesCleared += OnEraserStrokesCleared;
             viewModel.EraserPanel.InpaintApplied += OnEraserInpaintApplied;
+
+            CropOverlay.CropRectChanged += OnCropOverlayRectChanged;
+            CropOverlay.EnterPressed += OnCropOverlayEnter;
+            CropOverlay.EscapePressed += OnCropOverlayEscape;
         }
     }
 
@@ -139,6 +174,10 @@ public partial class ScreenshotPreviewWindow : Window
             viewModel.RoundCornerPanel.RoundCornerCancelled -= OnRoundCornerCancelled;
             viewModel.EraserPanel.StrokesCleared -= OnEraserStrokesCleared;
             viewModel.EraserPanel.InpaintApplied -= OnEraserInpaintApplied;
+
+            CropOverlay.CropRectChanged -= OnCropOverlayRectChanged;
+            CropOverlay.EnterPressed -= OnCropOverlayEnter;
+            CropOverlay.EscapePressed -= OnCropOverlayEscape;
         }
     }
 
@@ -152,6 +191,16 @@ public partial class ScreenshotPreviewWindow : Window
     private void PreviewViewport_SizeChanged(object sender, SizeChangedEventArgs e)
     {
         UpdateFitZoomFactor();
+
+        // 裁剪模式下窗口尺寸变化后，等布局完成再刷新裁剪框叠加层
+        if (DataContext is ScreenshotPreviewViewModel vm && vm.IsCropMode && vm.ScreenshotImage is not null)
+        {
+            Dispatcher.InvokeAsync(() =>
+            {
+                var imgRect = GetImageDisplayRect();
+                CropOverlay.RefreshForResize(imgRect, vm.ScreenshotImage.PixelWidth, vm.ScreenshotImage.PixelHeight);
+            }, DispatcherPriority.Loaded);
+        }
     }
 
     private void UpdatePreviewModeVisibility()
@@ -177,7 +226,7 @@ public partial class ScreenshotPreviewWindow : Window
             {
                 ActualSizeScrollViewer.ScrollToHorizontalOffset(OverscrollPadding);
                 ActualSizeScrollViewer.ScrollToVerticalOffset(OverscrollPadding);
-            }, System.Windows.Threading.DispatcherPriority.Loaded);
+            }, DispatcherPriority.Loaded);
         }
     }
 
@@ -213,11 +262,18 @@ public partial class ScreenshotPreviewWindow : Window
             return;
         }
 
+        // 裁剪模式下禁止缩放，防止 overlay 与图片显示错位
+        if (viewModel.IsCropMode)
+        {
+            e.Handled = true;
+            return;
+        }
+
         e.Handled = true;
 
         var pointerPosition = e.GetPosition(PreviewViewport);
         var oldZoom = viewModel.IsActualSize ? viewModel.ZoomFactor : viewModel.FitZoomFactor;
-        var zoomStep = e.Delta > 0 ? 1.1 : 1.0 / 1.1;
+        var zoomStep = e.Delta > 0 ? ZoomStepFactor : 1.0 / ZoomStepFactor;
         var newZoom = Math.Clamp(
             oldZoom * zoomStep,
             ScreenshotPreviewViewModel.MinZoomFactor,
@@ -239,14 +295,7 @@ public partial class ScreenshotPreviewWindow : Window
             var contentX = (pointerPosition.X - originX) / oldZoom;
             var contentY = (pointerPosition.Y - originY) / oldZoom;
 
-            // 直接切换到最终缩放，只触发一次 layout
-            _zoomTriggeredModeSwitch = true;
-            viewModel.SetManualZoomFactor(newZoom);
-            _zoomTriggeredModeSwitch = false;
-
-            ActualSizeScrollViewer.UpdateLayout();
-            ActualSizeScrollViewer.ScrollToHorizontalOffset(Math.Max(0, OverscrollPadding + contentX * newZoom - pointerPosition.X));
-            ActualSizeScrollViewer.ScrollToVerticalOffset(Math.Max(0, OverscrollPadding + contentY * newZoom - pointerPosition.Y));
+            ApplyZoomAroundCursor(viewModel, newZoom, contentX, contentY, pointerPosition, isModeSwitch: true);
             return;
         }
 
@@ -254,11 +303,21 @@ public partial class ScreenshotPreviewWindow : Window
         var hContentX = (ActualSizeScrollViewer.HorizontalOffset + pointerPosition.X - OverscrollPadding) / oldZoom;
         var hContentY = (ActualSizeScrollViewer.VerticalOffset + pointerPosition.Y - OverscrollPadding) / oldZoom;
 
-        viewModel.SetManualZoomFactor(newZoom);
+        ApplyZoomAroundCursor(viewModel, newZoom, hContentX, hContentY, pointerPosition, isModeSwitch: false);
+    }
+
+    /// <summary>以鼠标为中心应用缩放并定位滚动偏移，保持鼠标下方图片像素不动。</summary>
+    private void ApplyZoomAroundCursor(
+        ScreenshotPreviewViewModel vm, double newZoom,
+        double contentX, double contentY, Point pointer, bool isModeSwitch)
+    {
+        if (isModeSwitch) _zoomTriggeredModeSwitch = true;
+        vm.SetManualZoomFactor(newZoom);
+        if (isModeSwitch) _zoomTriggeredModeSwitch = false;
 
         ActualSizeScrollViewer.UpdateLayout();
-        ActualSizeScrollViewer.ScrollToHorizontalOffset(Math.Max(0, OverscrollPadding + hContentX * newZoom - pointerPosition.X));
-        ActualSizeScrollViewer.ScrollToVerticalOffset(Math.Max(0, OverscrollPadding + hContentY * newZoom - pointerPosition.Y));
+        ActualSizeScrollViewer.ScrollToHorizontalOffset(Math.Max(0, OverscrollPadding + contentX * newZoom - pointer.X));
+        ActualSizeScrollViewer.ScrollToVerticalOffset(Math.Max(0, OverscrollPadding + contentY * newZoom - pointer.Y));
     }
 
     private void ActualSizeScrollViewer_PreviewMouseLeftButtonDown(object sender, MouseButtonEventArgs e)
@@ -287,7 +346,7 @@ public partial class ScreenshotPreviewWindow : Window
         e.Handled = true;
     }
 
-    private void ActualSizeScrollViewer_PreviewMouseMove(object sender, System.Windows.Input.MouseEventArgs e)
+    private void ActualSizeScrollViewer_PreviewMouseMove(object sender, MouseEventArgs e)
     {
         if (!_isPanningPreview)
         {
@@ -307,7 +366,7 @@ public partial class ScreenshotPreviewWindow : Window
         EndPreviewPan();
     }
 
-    private void ActualSizeScrollViewer_MouseLeave(object sender, System.Windows.Input.MouseEventArgs e)
+    private void ActualSizeScrollViewer_MouseLeave(object sender, MouseEventArgs e)
     {
         if (e.LeftButton != MouseButtonState.Pressed)
         {
@@ -344,52 +403,85 @@ public partial class ScreenshotPreviewWindow : Window
     }
 
     // ══════════════════════════════════════════════════════════════════════════
-    // 裁剪覆盖层
+    // 裁剪覆盖层（委托给 CropOverlayControl）
     // ══════════════════════════════════════════════════════════════════════════
-
-    // 裁剪框在 PreviewViewport 中的位置（device pixels，未缩放）
-    private Rect _cropRect;
-    // 当前拖拽的 handle 标识（TL/TR/BL/BR/TC/BC/ML/MR）或 null
-    private string? _dragHandle;
-    private Point _dragStart;
-    private Rect _dragStartRect;
 
     private void UpdateCropOverlayVisibility()
     {
         if (DataContext is not ScreenshotPreviewViewModel vm) return;
         if (vm.IsCropMode)
         {
-            CropOverlayCanvas.Visibility = Visibility.Visible;
+            CropOverlay.Visibility = Visibility.Visible;
             CropPanel.Visibility = Visibility.Visible;
             CropPanelTranslate.X = CropPanelTranslate.Y = 0;
-            // ToggleCrop 已将 IsActualSize 设为 false，等 Measure/Arrange 完成后再初始化裁剪框
-            // DispatcherPriority.Loaded 在 layout 完成之后执行，确保 ActualWidth/Height 已更新
+            CropOverlay.LockedAspectRatio = vm.CropPanel.LockedAspectRatio;
             Dispatcher.InvokeAsync(() =>
             {
                 PreviewViewport.UpdateLayout();
-                _cropRect = GetImageDisplayRect();
-                RefreshCropOverlay();
-                SyncCropRectToViewModel();
-            }, System.Windows.Threading.DispatcherPriority.Loaded);
+                var imgRect = GetImageDisplayRect();
+                var img = vm.ScreenshotImage!;
+                CropOverlay.Initialize(imgRect, img.PixelWidth, img.PixelHeight);
+                CropOverlay.Focus();
+            }, DispatcherPriority.Loaded);
         }
         else
         {
-            CropOverlayCanvas.Visibility = Visibility.Collapsed;
+            CropOverlay.Visibility = Visibility.Collapsed;
             CropPanel.Visibility = Visibility.Collapsed;
         }
     }
 
-    private bool _syncingCropRect;
-
-    private void OnCropPanelPropertyChanged(object? sender, System.ComponentModel.PropertyChangedEventArgs e)
+    private void OnCropPanelPropertyChanged(object? sender, PropertyChangedEventArgs e)
     {
         if (_syncingCropRect) return;
+        if (DataContext is not ScreenshotPreviewViewModel vm || vm.ScreenshotImage is null) return;
+
+        if (e.PropertyName is nameof(CropViewModel.LockedAspectRatio))
+        {
+            CropOverlay.LockedAspectRatio = vm.CropPanel.LockedAspectRatio;
+            return;
+        }
+
         if (e.PropertyName is nameof(CropViewModel.CropX) or nameof(CropViewModel.CropY)
             or nameof(CropViewModel.CropWidth) or nameof(CropViewModel.CropHeight))
         {
-            // 文本框输入改变了 ViewModel，将变化同步到 overlay 矩形
-            SyncViewModelToCropRect();
+            var imgRect = GetImageDisplayRect();
+            var img = vm.ScreenshotImage;
+            CropOverlay.SetPixelRect(
+                vm.CropPanel.CropX, vm.CropPanel.CropY,
+                vm.CropPanel.CropWidth, vm.CropPanel.CropHeight,
+                imgRect, img.PixelWidth, img.PixelHeight);
         }
+    }
+
+    private void OnCropOverlayRectChanged(int x, int y, int w, int h)
+    {
+        if (DataContext is not ScreenshotPreviewViewModel vm) return;
+        _syncingCropRect = true;
+        try
+        {
+            vm.CropPanel.CropX = x;
+            vm.CropPanel.CropY = y;
+            vm.CropPanel.CropWidth = w;
+            vm.CropPanel.CropHeight = h;
+        }
+        finally
+        {
+            _syncingCropRect = false;
+        }
+    }
+
+    private void OnCropOverlayEnter()
+    {
+        if (DataContext is ScreenshotPreviewViewModel vm &&
+            vm.CropPanel.ApplyCommand.CanExecute(vm.ScreenshotImage))
+            vm.CropPanel.ApplyCommand.Execute(vm.ScreenshotImage);
+    }
+
+    private void OnCropOverlayEscape()
+    {
+        if (DataContext is ScreenshotPreviewViewModel vm)
+            vm.CropPanel.CancelCommand.Execute(null);
     }
 
     /// <summary>获取图片在 FitPreviewHost 中居中显示的区域（像素）。</summary>
@@ -409,179 +501,9 @@ public partial class ScreenshotPreviewWindow : Window
         return new Rect((vpW - dW) / 2, (vpH - dH) / 2, dW, dH);
     }
 
-    private void RefreshCropOverlay()
-    {
-        var vp = new Rect(0, 0, PreviewViewport.ActualWidth, PreviewViewport.ActualHeight);
-        var r = _cropRect;
-
-        // 4 块遮罩
-        SetMask(CropMaskTop, 0, 0, vp.Width, r.Top);
-        SetMask(CropMaskBottom, 0, r.Bottom, vp.Width, vp.Height - r.Bottom);
-        SetMask(CropMaskLeft, 0, r.Top, r.Left, r.Height);
-        SetMask(CropMaskRight, r.Right, r.Top, vp.Width - r.Right, r.Height);
-
-        // 裁剪框
-        Canvas.SetLeft(CropRect, r.Left);
-        Canvas.SetTop(CropRect, r.Top);
-        CropRect.Width = Math.Max(0, r.Width);
-        CropRect.Height = Math.Max(0, r.Height);
-
-        // 8 个 handle（半径 5，中心在角 / 边中点）
-        PlaceHandle(HandleTL, r.Left, r.Top);
-        PlaceHandle(HandleTR, r.Right, r.Top);
-        PlaceHandle(HandleBL, r.Left, r.Bottom);
-        PlaceHandle(HandleBR, r.Right, r.Bottom);
-        PlaceHandle(HandleTC, r.Left + r.Width / 2, r.Top);
-        PlaceHandle(HandleBC, r.Left + r.Width / 2, r.Bottom);
-        PlaceHandle(HandleML, r.Left, r.Top + r.Height / 2);
-        PlaceHandle(HandleMR, r.Right, r.Top + r.Height / 2);
-    }
-
-    private static void SetMask(Rectangle rect, double x, double y, double w, double h)
-    {
-        Canvas.SetLeft(rect, x);
-        Canvas.SetTop(rect, y);
-        rect.Width = Math.Max(0, w);
-        rect.Height = Math.Max(0, h);
-    }
-
-    private static void PlaceHandle(Ellipse e, double cx, double cy)
-    {
-        Canvas.SetLeft(e, cx - e.Width / 2);
-        Canvas.SetTop(e, cy - e.Height / 2);
-    }
-
-    // 同步裁剪框坐标到 ViewModel（把 overlay 坐标换算为图片像素）
-    private void SyncCropRectToViewModel()
-    {
-        if (DataContext is not ScreenshotPreviewViewModel vm || vm.ScreenshotImage is null) return;
-        var imgRect = GetImageDisplayRect();
-        if (imgRect.Width <= 0 || imgRect.Height <= 0) return;
-
-        var scaleX = vm.ScreenshotImage.PixelWidth / imgRect.Width;
-        var scaleY = vm.ScreenshotImage.PixelHeight / imgRect.Height;
-
-        var r = _cropRect;
-        _syncingCropRect = true;
-        try
-        {
-            vm.CropPanel.CropX = (int)Math.Round(Math.Clamp((r.Left - imgRect.Left) * scaleX, 0, vm.ScreenshotImage.PixelWidth));
-            vm.CropPanel.CropY = (int)Math.Round(Math.Clamp((r.Top - imgRect.Top) * scaleY, 0, vm.ScreenshotImage.PixelHeight));
-            vm.CropPanel.CropWidth = (int)Math.Round(Math.Clamp(r.Width * scaleX, 1, vm.ScreenshotImage.PixelWidth - vm.CropPanel.CropX));
-            vm.CropPanel.CropHeight = (int)Math.Round(Math.Clamp(r.Height * scaleY, 1, vm.ScreenshotImage.PixelHeight - vm.CropPanel.CropY));
-        }
-        finally
-        {
-            _syncingCropRect = false;
-        }
-    }
-
-    // 同步 ViewModel 字段变化到裁剪框（用户在文本框输入时）
-    private void SyncViewModelToCropRect()
-    {
-        if (DataContext is not ScreenshotPreviewViewModel vm || vm.ScreenshotImage is null) return;
-        var imgRect = GetImageDisplayRect();
-        if (imgRect.Width <= 0 || imgRect.Height <= 0) return;
-
-        var scaleX = imgRect.Width / vm.ScreenshotImage.PixelWidth;
-        var scaleY = imgRect.Height / vm.ScreenshotImage.PixelHeight;
-
-        _cropRect = new Rect(
-            imgRect.Left + vm.CropPanel.CropX * scaleX,
-            imgRect.Top + vm.CropPanel.CropY * scaleY,
-            vm.CropPanel.CropWidth * scaleX,
-            vm.CropPanel.CropHeight * scaleY);
-        RefreshCropOverlay();
-    }
-
-    // ── 裁剪框拖动（整体移动） ────────────────────────────────────────────────
-
-    private bool _isDraggingCropRect;
-    private Point _cropDragStart;
-    private Rect _cropRectAtDragStart;
-
-    private void CropRect_MouseLeftButtonDown(object sender, MouseButtonEventArgs e)
-    {
-        _isDraggingCropRect = true;
-        _cropDragStart = e.GetPosition(CropOverlayCanvas);
-        _cropRectAtDragStart = _cropRect;
-        ((UIElement)sender).CaptureMouse();
-        e.Handled = true;
-    }
-
-    private void CropRect_MouseMove(object sender, MouseEventArgs e)
-    {
-        if (!_isDraggingCropRect) return;
-        var pos = e.GetPosition(CropOverlayCanvas);
-        var delta = pos - _cropDragStart;
-        var img = GetImageDisplayRect();
-        var maxX = Math.Max(img.Left, img.Right - _cropRect.Width);
-        var maxY = Math.Max(img.Top, img.Bottom - _cropRect.Height);
-        var newX = Math.Clamp(_cropRectAtDragStart.Left + delta.X, img.Left, maxX);
-        var newY = Math.Clamp(_cropRectAtDragStart.Top + delta.Y, img.Top, maxY);
-        _cropRect = new Rect(newX, newY, _cropRect.Width, _cropRect.Height);
-        RefreshCropOverlay();
-        SyncCropRectToViewModel();
-    }
-
-    private void CropRect_MouseLeftButtonUp(object sender, MouseButtonEventArgs e)
-    {
-        _isDraggingCropRect = false;
-        ((UIElement)sender).ReleaseMouseCapture();
-    }
-
-    // ── 8 个 handle 拖拽（改变尺寸） ─────────────────────────────────────────
-
-    private void Handle_MouseLeftButtonDown(object sender, MouseButtonEventArgs e)
-    {
-        _dragHandle = (sender as FrameworkElement)?.Tag as string;
-        _dragStart = e.GetPosition(CropOverlayCanvas);
-        _dragStartRect = _cropRect;
-        ((UIElement)sender).CaptureMouse();
-        e.Handled = true;
-    }
-
-    private void Handle_MouseMove(object sender, MouseEventArgs e)
-    {
-        if (_dragHandle is null) return;
-        var pos = e.GetPosition(CropOverlayCanvas);
-        var dx = pos.X - _dragStart.X;
-        var dy = pos.Y - _dragStart.Y;
-        var r = _dragStartRect;
-        const double minSize = 10;
-
-        double l = r.Left, t = r.Top, rr = r.Right, b = r.Bottom;
-        switch (_dragHandle)
-        {
-            case "TL": l = Math.Min(l + dx, rr - minSize); t = Math.Min(t + dy, b - minSize); break;
-            case "TR": rr = Math.Max(rr + dx, l + minSize); t = Math.Min(t + dy, b - minSize); break;
-            case "BL": l = Math.Min(l + dx, rr - minSize); b = Math.Max(b + dy, t + minSize); break;
-            case "BR": rr = Math.Max(rr + dx, l + minSize); b = Math.Max(b + dy, t + minSize); break;
-            case "TC": t = Math.Min(t + dy, b - minSize); break;
-            case "BC": b = Math.Max(b + dy, t + minSize); break;
-            case "ML": l = Math.Min(l + dx, rr - minSize); break;
-            case "MR": rr = Math.Max(rr + dx, l + minSize); break;
-        }
-
-        var img = GetImageDisplayRect();
-        l = Math.Max(img.Left, l);
-        t = Math.Max(img.Top, t);
-        rr = Math.Min(img.Right, rr);
-        b = Math.Min(img.Bottom, b);
-        _cropRect = new Rect(l, t, rr - l, b - t);
-        RefreshCropOverlay();
-        SyncCropRectToViewModel();
-    }
-
-    private void Handle_MouseLeftButtonUp(object sender, MouseButtonEventArgs e)
-    {
-        _dragHandle = null;
-        ((UIElement)sender).ReleaseMouseCapture();
-    }
-
     // ── 裁剪 / 圆角 ViewModel 事件回调 ────────────────────────────────────────
 
-    private void OnCropApplied(System.Windows.Media.Imaging.BitmapSource newImage)
+    private void OnCropApplied(BitmapSource newImage)
     {
         if (DataContext is not ScreenshotPreviewViewModel vm) return;
         vm.ApplyEditedImage(newImage);
@@ -594,7 +516,7 @@ public partial class ScreenshotPreviewWindow : Window
             vm.ExitEditMode();
     }
 
-    private void OnRoundCornerApplied(System.Windows.Media.Imaging.BitmapSource newImage)
+    private void OnRoundCornerApplied(BitmapSource newImage)
     {
         if (DataContext is not ScreenshotPreviewViewModel vm) return;
         vm.ApplyEditedImage(newImage);
@@ -650,15 +572,6 @@ public partial class ScreenshotPreviewWindow : Window
             (canvasPos.X - imgRect.X) / imgRect.Width * vm.ScreenshotImage.PixelWidth,
             (canvasPos.Y - imgRect.Y) / imgRect.Height * vm.ScreenshotImage.PixelHeight);
         return true;
-    }
-
-    /// <summary>将图片像素坐标的画刷半径换算为画布显示半径。</summary>
-    private double GetDisplayBrushRadius(double pixelRadius)
-    {
-        if (DataContext is not ScreenshotPreviewViewModel vm || vm.ScreenshotImage is null)
-            return pixelRadius;
-        var imgRect = GetImageDisplayRect();
-        return pixelRadius * imgRect.Width / vm.ScreenshotImage.PixelWidth;
     }
 
     private void UpdateEraserCursorIndicator(Point canvasPos)
@@ -721,7 +634,7 @@ public partial class ScreenshotPreviewWindow : Window
         double distance = Math.Sqrt(dx * dx + dy * dy);
 
         // 算法采样用较小步长，保证遮罩连续
-        double step = Math.Max(1.0, vm.EraserPanel.BrushSize * 0.30);
+        double step = Math.Max(1.0, vm.EraserPanel.BrushSize * EraserSampleStepRatio);
         int segments = Math.Max(1, (int)Math.Ceiling(distance / step));
 
         for (int i = 1; i <= segments; i++)
@@ -752,7 +665,7 @@ public partial class ScreenshotPreviewWindow : Window
         Dispatcher.InvokeAsync(ClearEraserVisualStrokes);
     }
 
-    private void OnEraserInpaintApplied(System.Windows.Media.Imaging.BitmapSource _)
+    private void OnEraserInpaintApplied(BitmapSource _)
     {
         // ViewModel 已更新 ScreenshotImage；FitZoomFactor 会由 PropertyChanged 触发刷新
         // 此处确保视觉笔画已清空（StrokesCleared 会先于此触发，双重保险）
@@ -808,7 +721,7 @@ public partial class ScreenshotPreviewWindow : Window
         }
     }
 
-    private async void EraserCanvas_MouseLeftButtonUp(object sender, MouseButtonEventArgs e)
+    private void EraserCanvas_MouseLeftButtonUp(object sender, MouseButtonEventArgs e)
     {
         if (!_isEraserDrawing) return;
         _isEraserDrawing = false;
@@ -816,16 +729,7 @@ public partial class ScreenshotPreviewWindow : Window
         _currentEraserStrokeVisual = null;
         EraserCanvas.ReleaseMouseCapture();
         e.Handled = true;
-
-        // 鼠标抬起后立即触发 AI 修复
-        if (DataContext is ScreenshotPreviewViewModel vm && vm.ScreenshotImage is not null)
-            await vm.EraserPanel.RunInpaintAsync(vm.ScreenshotImage);
     }
-
-    private Border? _draggingPanel;
-    private TranslateTransform? _draggingTransform;
-    private Point _panelDragStart;
-    private Point _panelTransformStart;
 
     private void EditPanel_MouseLeftButtonDown(object sender, MouseButtonEventArgs e)
     {
@@ -879,111 +783,40 @@ public partial class ScreenshotPreviewWindow : Window
     protected override void OnSourceInitialized(EventArgs e)
     {
         base.OnSourceInitialized(e);
+        _wndProcHook = WndProc;
         var source = HwndSource.FromHwnd(new WindowInteropHelper(this).Handle);
-        source?.AddHook(WndProc);
+        source?.AddHook(_wndProcHook);
+    }
+
+    private void RemoveWndProcHook()
+    {
+        if (_wndProcHook is null) return;
+        var helper = new WindowInteropHelper(this);
+        if (helper.Handle != IntPtr.Zero)
+        {
+            var source = HwndSource.FromHwnd(helper.Handle);
+            source?.RemoveHook(_wndProcHook);
+        }
+        _wndProcHook = null;
     }
 
     private IntPtr WndProc(IntPtr hwnd, int msg, IntPtr wParam, IntPtr lParam, ref bool handled)
     {
-        if (msg == WM_NCHITTEST)
+        if (msg == NativeWindowHelper.WM_NCHITTEST)
         {
-            int hit = GetResizeHitTest(lParam);
-            if (hit != HTCLIENT)
+            int hit = NativeWindowHelper.GetResizeHitTest(this, lParam, ResizeBorderThickness);
+            if (!NativeWindowHelper.IsClientHit(hit))
             {
                 handled = true;
                 return new IntPtr(hit);
             }
         }
-        else if (msg == WM_GETMINMAXINFO)
+        else if (msg == NativeWindowHelper.WM_GETMINMAXINFO)
         {
-            WmGetMinMaxInfo(hwnd, lParam);
+            NativeWindowHelper.HandleGetMinMaxInfo(this, hwnd, lParam);
             handled = true;
         }
         return IntPtr.Zero;
-    }
-
-    [StructLayout(LayoutKind.Sequential)]
-    private struct POINT { public int x, y; }
-
-    [StructLayout(LayoutKind.Sequential)]
-    private struct MINMAXINFO
-    {
-        public POINT ptReserved, ptMaxSize, ptMaxPosition, ptMinTrackSize, ptMaxTrackSize;
-    }
-
-    [StructLayout(LayoutKind.Sequential, CharSet = CharSet.Auto)]
-    private struct MONITORINFO
-    {
-        public int cbSize;
-        public RECT rcMonitor, rcWork;
-        public uint dwFlags;
-    }
-
-    [StructLayout(LayoutKind.Sequential)]
-    private struct RECT { public int left, top, right, bottom; }
-
-    [DllImport("user32")]
-    private static extern IntPtr MonitorFromWindow(IntPtr hwnd, uint dwFlags);
-
-    [DllImport("user32")]
-    private static extern bool GetMonitorInfo(IntPtr hMonitor, ref MONITORINFO lpmi);
-
-    private void WmGetMinMaxInfo(IntPtr hwnd, IntPtr lParam)
-    {
-        var mmi = Marshal.PtrToStructure<MINMAXINFO>(lParam);
-        IntPtr monitor = MonitorFromWindow(hwnd, 0x00000002 /* MONITOR_DEFAULTTONEAREST */);
-        if (monitor != IntPtr.Zero)
-        {
-            var mi = new MONITORINFO { cbSize = Marshal.SizeOf<MONITORINFO>() };
-            GetMonitorInfo(monitor, ref mi);
-            var wa = mi.rcWork; // 工作区（排除任务栏）
-                                // 以窗口客户端坐标表示：位置相对于左上角，尺寸为工作区大小
-            mmi.ptMaxPosition.x = wa.left;
-            mmi.ptMaxPosition.y = wa.top;
-            mmi.ptMaxSize.x = wa.right - wa.left;
-            mmi.ptMaxSize.y = wa.bottom - wa.top;
-        }
-        // 设置最小跟踪尺寸（考虑 DPI 缩放）
-        try
-        {
-            var dpi = VisualTreeHelper.GetDpi(this);
-            int minW = (int)Math.Round(MinWidth * dpi.DpiScaleX);
-            int minH = (int)Math.Round(MinHeight * dpi.DpiScaleY);
-            if (minW > 0) mmi.ptMinTrackSize.x = minW;
-            if (minH > 0) mmi.ptMinTrackSize.y = minH;
-        }
-        catch { }
-        Marshal.StructureToPtr(mmi, lParam, true);
-    }
-
-    private int GetResizeHitTest(IntPtr lParam)
-    {
-        // lParam 低16位=屏幕X，高16位=屏幕Y
-        int screenX = unchecked((short)(lParam.ToInt32() & 0xFFFF));
-        int screenY = unchecked((short)((lParam.ToInt32() >> 16) & 0xFFFF));
-        Point pt = PointFromScreen(new Point(screenX, screenY));
-
-        int x = (int)pt.X;
-        int y = (int)pt.Y;
-        int w = (int)ActualWidth;
-        int h = (int)ActualHeight;
-        int b = ResizeBorderThickness;
-
-        bool onLeft = x < b;
-        bool onRight = x > w - b;
-        bool onTop = y < b;
-        bool onBottom = y > h - b;
-
-        if (onTop && onLeft) return HTTOPLEFT;
-        if (onTop && onRight) return HTTOPRIGHT;
-        if (onBottom && onLeft) return HTBOTTOMLEFT;
-        if (onBottom && onRight) return HTBOTTOMRIGHT;
-        if (onTop) return HTTOP;
-        if (onBottom) return HTBOTTOM;
-        if (onLeft) return HTLEFT;
-        if (onRight) return HTRIGHT;
-
-        return HTCLIENT;
     }
 
     // 拖拽移动：挂在外层 Border 的 MouseLeftButtonDown
@@ -999,10 +832,8 @@ public partial class ScreenshotPreviewWindow : Window
         var pos = e.GetPosition(PreviewViewport);
 
         // 控制弹出位置在预览区域可见范围内
-        const double popupWidthEstimate = 200;
-        const double popupHeightEstimate = 94;
-        double x = Math.Clamp(pos.X, 0, Math.Max(0, PreviewViewport.ActualWidth - popupWidthEstimate));
-        double y = Math.Clamp(pos.Y, 0, Math.Max(0, PreviewViewport.ActualHeight - popupHeightEstimate));
+        double x = Math.Clamp(pos.X, 0, Math.Max(0, PreviewViewport.ActualWidth - PopupWidthEstimate));
+        double y = Math.Clamp(pos.Y, 0, Math.Max(0, PreviewViewport.ActualHeight - PopupHeightEstimate));
 
         // 将弹出位置切换为相对于预览区域的点击坐标
         AiModulePopup.PlacementTarget = PreviewViewport;

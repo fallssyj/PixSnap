@@ -1,8 +1,14 @@
 using Microsoft.ML.OnnxRuntime;
+using Serilog;
+using System.IO;
 using System.Management;
 
 namespace PixSnap.Services;
 
+/// <summary>
+/// ONNX InferenceSession 工厂：管理 DirectML / CPU 推理会话的创建与全局缓存。
+/// 自动探测独立 GPU（NVIDIA / AMD / Intel Arc），失败时回退到 CPU。
+/// </summary>
 public static class OnnxSessionFactory
 {
     private static int? _bestDmlDeviceId;
@@ -11,6 +17,7 @@ public static class OnnxSessionFactory
     private static readonly Dictionary<string, (InferenceSession Session, string ProviderName)> _sessionCache = new();
     private static readonly object _cacheLock = new();
 
+    /// <summary>创建新的推理会话：优先尝试 DirectML GPU，失败则回退到 CPU。</summary>
     public static InferenceSession CreateSession(string modelPath, out string providerName)
     {
         string? dmlError = null;
@@ -19,16 +26,20 @@ public static class OnnxSessionFactory
             var dmlOptions = CreateBaseOptions();
             try
             {
+                Log.Debug("尝试 DirectML 设备 {DeviceId}", dmlDeviceId);
                 dmlOptions.AppendExecutionProvider_DML(dmlDeviceId);
                 providerName = $"DirectML(device={dmlDeviceId})";
+                Log.Information("创建 ONNX 会话成功: {Provider}, 模型 {Model}", providerName, Path.GetFileName(modelPath));
                 return new InferenceSession(modelPath, dmlOptions);
             }
             catch (Exception ex)
             {
+                Log.Warning("DirectML 设备 {DeviceId} 初始化失败: {Error}", dmlDeviceId, ex.Message);
                 dmlError = ex.Message;
             }
         }
 
+        Log.Information("所有 DirectML 尝试失败，回退到 CPU: {Error}", Shorten(dmlError));
         providerName = $"CPU(DML失败: {Shorten(dmlError)})";
         return new InferenceSession(modelPath, CreateBaseOptions());
     }
@@ -49,9 +60,11 @@ public static class OnnxSessionFactory
         {
             if (_sessionCache.TryGetValue(modelPath, out var cached))
             {
+                Log.Debug("ONNX 会话缓存命中: {Model}", Path.GetFileName(modelPath));
                 providerName = cached.ProviderName;
                 return cached.Session;
             }
+            Log.Debug("ONNX 会话缓存未命中，创建新会话: {Model}", Path.GetFileName(modelPath));
             var session = CreateSession(modelPath, out providerName);
             _sessionCache[modelPath] = (session, providerName);
             return session;
@@ -63,12 +76,14 @@ public static class OnnxSessionFactory
     {
         lock (_cacheLock)
         {
+            Log.Debug("释放所有缓存的 ONNX 会话: {Count} 个", _sessionCache.Count);
             foreach (var entry in _sessionCache.Values)
                 entry.Session.Dispose();
             _sessionCache.Clear();
         }
     }
 
+    /// <summary>创建基础 SessionOptions，启用图优化。</summary>
     private static SessionOptions CreateBaseOptions()
     {
         return new SessionOptions
@@ -77,6 +92,7 @@ public static class OnnxSessionFactory
         };
     }
 
+    /// <summary>获取 DirectML 设备候选列表：优先使用环境变量 / 独显，然后按序尝试 0–3。</summary>
     private static IEnumerable<int> GetDirectMlDeviceCandidates()
     {
         var configured = Environment.GetEnvironmentVariable("PIXSNAP_DML_DEVICE_ID");
@@ -90,6 +106,7 @@ public static class OnnxSessionFactory
         return new[] { best, 0, 1, 2, 3 }.Distinct();
     }
 
+    /// <summary>通过 WMI 查询 Win32_VideoController 找到最适合推理的 GPU 设备索引。</summary>
     private static int GetBestGpuDeviceId()
     {
         if (_bestDmlDeviceId.HasValue)
@@ -100,23 +117,31 @@ public static class OnnxSessionFactory
         {
             using var searcher = new ManagementObjectSearcher("SELECT Name FROM Win32_VideoController");
             var devices = searcher.Get().Cast<ManagementObject>().ToList();
-
-            for (int index = 0; index < devices.Count; index++)
+            try
             {
-                var name = devices[index]["Name"]?.ToString() ?? string.Empty;
-                if (name.Contains("NVIDIA", StringComparison.OrdinalIgnoreCase)
-                    || (name.Contains("AMD", StringComparison.OrdinalIgnoreCase)
-                        && !name.Contains("Radeon(TM) Graphics", StringComparison.OrdinalIgnoreCase)
-                        && !name.Contains("Radeon TM Graphics", StringComparison.OrdinalIgnoreCase))
-                    || name.Contains("Arc", StringComparison.OrdinalIgnoreCase))
+                for (int index = 0; index < devices.Count; index++)
                 {
-                    bestId = index;
-                    break;
+                    var name = devices[index]["Name"]?.ToString() ?? string.Empty;
+                    if (name.Contains("NVIDIA", StringComparison.OrdinalIgnoreCase)
+                        || (name.Contains("AMD", StringComparison.OrdinalIgnoreCase)
+                            && !name.Contains("Radeon(TM) Graphics", StringComparison.OrdinalIgnoreCase)
+                            && !name.Contains("Radeon TM Graphics", StringComparison.OrdinalIgnoreCase))
+                        || name.Contains("Arc", StringComparison.OrdinalIgnoreCase))
+                    {
+                        bestId = index;
+                        break;
+                    }
                 }
             }
+            finally
+            {
+                foreach (var device in devices)
+                    device.Dispose();
+            }
         }
-        catch
+        catch (Exception ex)
         {
+            Log.Warning(ex, "WMI GPU 探测失败，回退到默认设备 0");
             bestId = 0;
         }
 

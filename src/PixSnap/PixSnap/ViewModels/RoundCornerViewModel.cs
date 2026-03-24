@@ -1,5 +1,7 @@
 using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
+using PixSnap.Services;
+using Serilog;
 using SkiaSharp;
 using System.Runtime.InteropServices;
 using System.Windows.Media;
@@ -37,6 +39,7 @@ public partial class RoundCornerViewModel : ObservableObject
     [RelayCommand]
     private async Task ApplyAsync(BitmapSource source)
     {
+        Log.Information("应用圆角: 半径={Radius}px", CornerRadius);
         IsProcessing = true;
         try
         {
@@ -52,9 +55,8 @@ public partial class RoundCornerViewModel : ObservableObject
 
             int radius = CornerRadius;
 
-            // 后台线程：SkiaSharp 圆角绘制 + PNG 编码，对大图不阻塞 UI
+            // 后台线程：SkiaSharp 圆角绘制 + 直接像素拷贝，对大图不阻塞 UI
             var result = await Task.Run(() => ApplyRoundCornerOnBackground(pixels, w, h, stride, radius));
-            result.Freeze();
 
             RoundCornerApplied?.Invoke(result);
         }
@@ -97,19 +99,13 @@ public partial class RoundCornerViewModel : ObservableObject
             canvas.ClipPath(roundPath, SKClipOperation.Intersect, antialias: true);
             canvas.DrawBitmap(srcBitmap, 0, 0, paint);
 
-            return ConvertToBitmapSource(dst);
+            var bitmapSource = SkiaInteropHelper.SKBitmapToBitmapSource(dst);
+            bitmapSource.Freeze();
+            return bitmapSource;
         }
         finally
         {
             handle.Free();
         }
-    }
-
-    private static BitmapSource ConvertToBitmapSource(SKBitmap bitmap)
-    {
-        using var image = SKImage.FromBitmap(bitmap);
-        using var data = image.Encode(SKEncodedImageFormat.Png, 100);
-        using var stream = new System.IO.MemoryStream(data.ToArray());
-        return BitmapFrame.Create(stream, BitmapCreateOptions.None, BitmapCacheOption.OnLoad);
     }
 }

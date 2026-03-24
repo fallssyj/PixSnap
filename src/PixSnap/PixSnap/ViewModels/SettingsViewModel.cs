@@ -1,6 +1,7 @@
 using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
 using PixSnap.Services;
+using Serilog;
 using System;
 using System.Collections.Generic;
 using System.Windows.Input;
@@ -67,6 +68,7 @@ public partial class SettingsViewModel : ObservableObject
     {
         SettingsService.WriteStartupEnabled(IsStartupEnabled);
         SettingsService.WriteHotkey((ModifierKeys)_pendingModifiers, (Key)_pendingKey);
+        Log.Information("设置已保存: 开机启动={Startup}, 快捷键={Modifiers}+{Key}", IsStartupEnabled, (ModifierKeys)_pendingModifiers, (Key)_pendingKey);
         HotkeyChanged?.Invoke((ModifierKeys)_pendingModifiers, (Key)_pendingKey);
         RequestClose?.Invoke();
     }

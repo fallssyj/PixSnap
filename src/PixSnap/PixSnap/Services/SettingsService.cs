@@ -1,4 +1,5 @@
 using Microsoft.Win32;
+using Serilog;
 using System;
 using System.Diagnostics;
 using System.IO;
@@ -34,6 +35,7 @@ public static class SettingsService
 
     public static void WriteStartupEnabled(bool enabled)
     {
+        Log.Information("设置开机启动: {Enabled}", enabled);
         using var key = Registry.CurrentUser.OpenSubKey(StartupRegPath, writable: true);
         if (enabled)
         {
@@ -70,8 +72,9 @@ public static class SettingsService
 
             return (modifiers, key);
         }
-        catch
+        catch (Exception ex)
         {
+            Log.Warning(ex, "ReadHotkey 失败，使用默认值");
             return (DefaultHotkeyModifiers, DefaultHotkeyKey);
         }
     }
@@ -79,6 +82,7 @@ public static class SettingsService
     /// <summary>将快捷键写入 settings.json。</summary>
     public static void WriteHotkey(ModifierKeys modifiers, Key key)
     {
+        Log.Information("写入快捷键: {Modifiers}+{Key}", modifiers, key);
         // 读取现有内容，合并写入，避免覆盖其他字段
         var dict = ReadConfigDict();
         dict["HotkeyModifiers"] = (int)modifiers;
@@ -110,7 +114,10 @@ public static class SettingsService
                 }
             }
         }
-        catch { }
+        catch (Exception ex)
+        {
+            Log.Warning(ex, "ReadConfigDict 失败，返回空配置");
+        }
         return [];
     }
 

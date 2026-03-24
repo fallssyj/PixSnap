@@ -1,6 +1,7 @@
 using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
 using PixSnap.Services;
+using Serilog;
 using System;
 using System.Collections.Generic;
 using System.Threading;
@@ -76,6 +77,8 @@ public partial class EraserViewModel : ObservableObject
     {
         if (IsProcessing || Strokes.Count == 0) return;
 
+        Log.Information("开始 AI 擦除: {StrokeCount} 笔画, 画笔大小={BrushSize}px", Strokes.Count, BrushSize);
+
         IsProcessing = true;
         Progress     = 0;
         ProgressText = "正在准备...";
@@ -94,6 +97,7 @@ public partial class EraserViewModel : ObservableObject
 
             if (result is not null && !token.IsCancellationRequested)
             {
+                Log.Information("AI 擦除完成");
                 // 推理成功：清除旧笔画，通知 View 和父 ViewModel
                 Strokes.Clear();
                 StrokesCleared?.Invoke();
@@ -102,10 +106,12 @@ public partial class EraserViewModel : ObservableObject
         }
         catch (OperationCanceledException)
         {
+            Log.Information("AI 擦除已取消");
             ProgressText = "已取消";
         }
         catch (Exception ex)
         {
+            Log.Error(ex, "AI 擦除失败");
             ProgressText = $"AI 处理失败：{ex.Message}";
             await Task.Delay(2000);
         }

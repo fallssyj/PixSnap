@@ -1,5 +1,6 @@
 using Microsoft.ML.OnnxRuntime;
 using Microsoft.ML.OnnxRuntime.Tensors;
+using Serilog;
 using SkiaSharp;
 using System;
 using System.Collections.Generic;
@@ -7,11 +8,15 @@ using System.IO;
 using System.Linq;
 using System.Threading.Tasks;
 using System.Windows;
-using System.Windows.Media;
 using System.Windows.Media.Imaging;
 
 namespace PixSnap.Services;
 
+/// <summary>
+/// 基于 RealESRGAN-x4plus ONNX 模型的图像超分辨率服务。
+/// 采用分块推理策略，避免大图显存溢出，并通过重叠区域消除接缝。
+/// 模型文件路径：<程序目录>/onnx/realesrgan-x4plus.onnx
+/// </summary>
 public static class SuperResolutionService
 {
     private static readonly string ModelPath =
@@ -24,6 +29,7 @@ public static class SuperResolutionService
     private const int TileStride = TileSize - TilePad * 2;   // 224
     private const int ScaleFactor = 4;
 
+    /// <summary>异步执行 4x 超分辨率。按 TileSize 分块推理后拼合成完整的 4 倍放大图。</summary>
     public static async Task<BitmapSource?> RunAsync(
         BitmapSource originalImage,
         IProgress<(double Value, string Text)>? progress = null,
@@ -34,9 +40,14 @@ public static class SuperResolutionService
             cancellationToken.ThrowIfCancellationRequested();
             progress?.Report((0.05, "正在加载超分模型..."));
             if (!File.Exists(ModelPath))
+            {
+                Log.Error("RealESRGAN 模型文件不存在: {ModelPath}", ModelPath);
                 throw new FileNotFoundException($"未找到 ONNX 模型：{ModelPath}");
+            }
 
-            using var srcBitmap = BitmapSourceToSKBitmap(originalImage);
+            Log.Information("开始超分辨率: 图像 {W}×{H}", originalImage.PixelWidth, originalImage.PixelHeight);
+
+            using var srcBitmap = SkiaInteropHelper.BitmapSourceToSKBitmap(originalImage);
             int srcW = srcBitmap.Width;
             int srcH = srcBitmap.Height;
 
@@ -49,14 +60,16 @@ public static class SuperResolutionService
             using var outputBitmap = RunTiled(session, inputName, srcBitmap, srcW, srcH, progress, cancellationToken);
 
             progress?.Report((0.90, "正在生成超分结果..."));
-            var result = SKBitmapToBitmapSource(outputBitmap);
+            var result = SkiaInteropHelper.SKBitmapToBitmapSource(outputBitmap);
             result.Freeze();
 
             progress?.Report((1.0, "超分辨率完成"));
+            Log.Information("超分辨率完成: 结果图像 {W}×{H}", result.PixelWidth, result.PixelHeight);
             return result;
         });
     }
 
+    /// <summary>分块推理：将源图按 TileStride 步长切成若干 TileSize×TileSize 块，逐块 4x 超分后写回结果位图。</summary>
     private static SKBitmap RunTiled(
         InferenceSession session,
         string inputName,
@@ -67,11 +80,14 @@ public static class SuperResolutionService
         CancellationToken cancellationToken = default)
     {
         var result = new SKBitmap(new SKImageInfo(srcW * ScaleFactor, srcH * ScaleFactor, SKColorType.Bgra8888, SKAlphaType.Unpremul));
+        try
+        {
 
         int tilesX = (int)Math.Ceiling((double)srcW / TileStride);
         int tilesY = (int)Math.Ceiling((double)srcH / TileStride);
         int totalTiles = tilesX * tilesY;
         int tileIndex = 0;
+        Log.Debug("分块超分: {TilesX}×{TilesY} = {Total} 块", tilesX, tilesY, totalTiles);
 
         for (int ty = 0; ty < tilesY; ty++)
         {
@@ -111,8 +127,9 @@ public static class SuperResolutionService
                         NamedOnnxValue.CreateFromTensor(inputName, inputTensor)
                     });
                 }
-                catch (OnnxRuntimeException)
+                catch (OnnxRuntimeException ex)
                 {
+                    Log.Warning(ex, "超分分块 {Index}/{Total} DirectML 推理失败，回退到 CPU", tileIndex, totalTiles);
                     using var cpuSession = OnnxSessionFactory.CreateCpuSession(ModelPath);
                     outputs = cpuSession.Run(new List<NamedOnnxValue>
                     {
@@ -139,9 +156,17 @@ public static class SuperResolutionService
             }
         }
 
+        }
+        catch
+        {
+            result.Dispose();
+            throw;
+        }
+
         return result;
     }
 
+    /// <summary>从源位图指定区域抽取像素并转换为 [1,3,H,W] RGB float32 张量（归一化到 0–1）。</summary>
     private static DenseTensor<float> ExtractTileToTensor(
         SKBitmap source,
         int startX,
@@ -174,6 +199,7 @@ public static class SuperResolutionService
         return tensor;
     }
 
+    /// <summary>将推理输出张量的有效区域写入目标 SKBitmap。跳过两侧的 pad 重叠区，只拷贝中心像素。</summary>
     private static void WriteTensorToBitmap(
         Tensor<float> tensor,
         SKBitmap target,
@@ -218,48 +244,6 @@ public static class SuperResolutionService
         }
     }
 
-    private static SKBitmap BitmapSourceToSKBitmap(BitmapSource source)
-    {
-        var bgra = source.Format == PixelFormats.Bgra32
-            ? source
-            : new FormatConvertedBitmap(source, PixelFormats.Bgra32, null, 0);
 
-        int w = bgra.PixelWidth;
-        int h = bgra.PixelHeight;
-        int stride = w * 4;
-        var pixels = new byte[h * stride];
-        bgra.CopyPixels(pixels, stride, 0);
 
-        var bmp = new SKBitmap(new SKImageInfo(w, h, SKColorType.Bgra8888, SKAlphaType.Unpremul));
-        unsafe
-        {
-            fixed (byte* srcPtr = pixels)
-            {
-                Buffer.MemoryCopy(srcPtr, (void*)bmp.GetPixels(), pixels.LongLength, pixels.LongLength);
-            }
-        }
-
-        return bmp;
-    }
-
-    private static BitmapSource SKBitmapToBitmapSource(SKBitmap bmp)
-    {
-        int w = bmp.Width;
-        int h = bmp.Height;
-        var wb = new WriteableBitmap(w, h, 96, 96, PixelFormats.Bgra32, null);
-        wb.Lock();
-        try
-        {
-            unsafe
-            {
-                Buffer.MemoryCopy((void*)bmp.GetPixels(), (void*)wb.BackBuffer, (long)h * w * 4, (long)h * w * 4);
-            }
-            wb.AddDirtyRect(new Int32Rect(0, 0, w, h));
-        }
-        finally
-        {
-            wb.Unlock();
-        }
-        return wb;
-    }
 }

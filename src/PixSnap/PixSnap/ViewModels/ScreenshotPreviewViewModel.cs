@@ -4,6 +4,7 @@ using CommunityToolkit.Mvvm.Messaging;
 using PixSnap.Models;
 using PixSnap.Services;
 using PixSnap.Views;
+using Serilog;
 using System.ComponentModel;
 using System.IO;
 using System.Windows;
@@ -21,13 +22,9 @@ public partial class ScreenshotPreviewViewModel : ObservableRecipient, IRecipien
 {
     public const double MinZoomFactor = 0.1;
     public const double MaxZoomFactor = 8.0;
-    private const long LargeImagePixelThreshold = 16_000_000;
     private const long ExactFileSizePixelThreshold = 16_000_000;
-    private const int NormalUndoLimit = 10;
-    private const int LargeImageUndoLimit = 3;
 
-    private readonly Stack<BitmapSource> _undoStack = [];
-    private readonly Stack<BitmapSource> _redoStack = [];
+    private readonly UndoRedoManager _history = new();
     private readonly SemaphoreSlim _imageApplySemaphore = new(1, 1);
     private CancellationTokenSource? _fileSizeUpdateCts;
     private CancellationTokenSource? _aiCts;
@@ -302,17 +299,19 @@ public partial class ScreenshotPreviewViewModel : ObservableRecipient, IRecipien
                 FileOperationProgressText = p.Text;
             });
 
-            var bitmap = await LoadBitmapFromFileAsync(dialog.FileName, progress);
+            Log.Information("加载图片: {FilePath}", dialog.FileName);
+            var bitmap = await ImageIOService.LoadBitmapFromFileAsync(dialog.FileName, progress);
 
             SetCurrentImage(bitmap, switchToFit: true);
             ResetHistory();
             CaptureTime = Path.GetFileName(dialog.FileName);
-            FileSize = FormatFileSize(new FileInfo(dialog.FileName).Length);
+            FileSize = ImageIOService.FormatFileSize(new FileInfo(dialog.FileName).Length);
             FileOperationProgress = 1.0;
             FileOperationProgressText = "图片加载完成";
         }
         catch (Exception ex)
         {
+            Log.Error(ex, "加载图片失败: {FilePath}", dialog.FileName);
             MessageBoxWindow.Show(
                 $"加载失败：{ex.Message}",
                 "PixSnap 错误",
@@ -347,11 +346,12 @@ public partial class ScreenshotPreviewViewModel : ObservableRecipient, IRecipien
             return;
         }
 
-        var imageSnapshot = CreateFrozenSnapshot(ScreenshotImage);
+        var imageSnapshot = ImageIOService.CreateFrozenSnapshot(ScreenshotImage);
         IsSaving = true;
         IsFileOperationProcessing = true;
         FileOperationProgress = 0.1;
         FileOperationProgressText = "正在保存图片...";
+        Log.Information("保存图片: {FilePath}", dialog.FileName);
         try
         {
             var progress = new Progress<(double Value, string Text)>(p =>
@@ -360,12 +360,13 @@ public partial class ScreenshotPreviewViewModel : ObservableRecipient, IRecipien
                 FileOperationProgressText = p.Text;
             });
 
-            await SavePngAsync(imageSnapshot, dialog.FileName, progress);
+            await ImageIOService.SavePngAsync(imageSnapshot, dialog.FileName, progress);
             FileOperationProgress = 1.0;
             FileOperationProgressText = "图片保存完成";
         }
         catch (Exception ex)
         {
+            Log.Error(ex, "保存图片失败: {FilePath}", dialog.FileName);
             MessageBoxWindow.Show(
                 $"保存失败：{ex.Message}",
                 "PixSnap 错误",
@@ -504,6 +505,14 @@ public partial class ScreenshotPreviewViewModel : ObservableRecipient, IRecipien
         ExitEditMode();
     }
 
+    /// <summary>手动触发 AI 擦除推理。</summary>
+    [RelayCommand]
+    private async Task ApplyEraser(BitmapSource? image)
+    {
+        if (image is null) return;
+        await EraserPanel.RunInpaintAsync(image);
+    }
+
 
     /// <summary>执行背景去除 AI 功能。</summary>
     [RelayCommand]
@@ -538,6 +547,7 @@ public partial class ScreenshotPreviewViewModel : ObservableRecipient, IRecipien
         }
         catch (Exception ex)
         {
+            Log.Error(ex, "去除背景失败");
             AiModuleProgressText = $"去除背景失败：{ex.Message}";
         }
         finally
@@ -578,6 +588,7 @@ public partial class ScreenshotPreviewViewModel : ObservableRecipient, IRecipien
         }
         catch (Exception ex)
         {
+            Log.Error(ex, "超分辨率失败");
             AiModuleProgressText = $"超分辨率失败：{ex.Message}";
         }
         finally
@@ -595,28 +606,26 @@ public partial class ScreenshotPreviewViewModel : ObservableRecipient, IRecipien
         return _aiCts.Token;
     }
 
-    private bool CanUndo() => ScreenshotImage is not null && _undoStack.Count > 0;
+    private bool CanUndo() => ScreenshotImage is not null && _history.CanUndo;
 
     [RelayCommand(CanExecute = nameof(CanUndo))]
     private void Undo()
     {
         if (!CanUndo() || ScreenshotImage is null) return;
 
-        _redoStack.Push(CreateFrozenSnapshot(ScreenshotImage));
-        var previous = _undoStack.Pop();
+        var previous = _history.Undo(ImageIOService.CreateFrozenSnapshot(ScreenshotImage));
         SetCurrentImage(previous, switchToFit: false);
         NotifyUndoRedoStateChanged();
     }
 
-    private bool CanRedo() => ScreenshotImage is not null && _redoStack.Count > 0;
+    private bool CanRedo() => ScreenshotImage is not null && _history.CanRedo;
 
     [RelayCommand(CanExecute = nameof(CanRedo))]
     private void Redo()
     {
         if (!CanRedo() || ScreenshotImage is null) return;
 
-        _undoStack.Push(CreateFrozenSnapshot(ScreenshotImage));
-        var next = _redoStack.Pop();
+        var next = _history.Redo(ImageIOService.CreateFrozenSnapshot(ScreenshotImage));
         SetCurrentImage(next, switchToFit: false);
         NotifyUndoRedoStateChanged();
     }
@@ -695,14 +704,21 @@ public partial class ScreenshotPreviewViewModel : ObservableRecipient, IRecipien
     /// </summary>
     public void Cleanup()
     {
+        Log.Debug("ScreenshotPreviewViewModel.Cleanup");
         // 取消所有正在进行的 AI 操作，避免访问已释放的 ONNX Session
         _aiCts?.Cancel();
         _aiCts?.Dispose();
         _aiCts = null;
 
-        // 断开 EraserPanel 事件，避免循环引用
+        _fileSizeUpdateCts?.Cancel();
+        _fileSizeUpdateCts?.Dispose();
+        _fileSizeUpdateCts = null;
+
+        // 断开子 ViewModel 事件，避免循环引用
         EraserPanel.InpaintApplied -= OnEraserApplied;
         EraserPanel.PropertyChanged -= OnEraserPanelPropertyChanged;
+        CropPanel.PropertyChanged -= OnCropPanelPropertyChanged;
+        RoundCornerPanel.PropertyChanged -= OnRoundCornerPanelPropertyChanged;
 
         // 确保从 Messenger 注销（兼容未来可能重新激活的场景）
         IsActive = false;
@@ -710,8 +726,8 @@ public partial class ScreenshotPreviewViewModel : ObservableRecipient, IRecipien
         // 显式置空，解除对大尺寸 BitmapSource 的引用，让 GC 及时回收
         ScreenshotImage = null;
 
-        _undoStack.Clear();
-        _redoStack.Clear();
+        _history.Dispose();
+        _imageApplySemaphore.Dispose();
     }
 
     protected override void OnActivated()
@@ -726,6 +742,7 @@ public partial class ScreenshotPreviewViewModel : ObservableRecipient, IRecipien
 
     public void Receive(ScreenshotCapturedMessage message)
     {
+        Log.Information("接收截图: 模式={Mode}, 尺寸={W}×{H}", message.CaptureMode, message.Screenshot.PixelWidth, message.Screenshot.PixelHeight);
         SetCurrentImage(message.Screenshot, switchToFit: true);
         ResetHistory();
         IsActualSize = false;
@@ -748,11 +765,9 @@ public partial class ScreenshotPreviewViewModel : ObservableRecipient, IRecipien
 
             if (ScreenshotImage is not null)
             {
-                _undoStack.Push(CreateSnapshotFast(ScreenshotImage));
-                TrimUndoStack(GetUndoLimit(newImage));
+                _history.PushUndo(ImageIOService.CreateSnapshotFast(ScreenshotImage), newImage);
             }
 
-            _redoStack.Clear();
             SetCurrentImage(newImage, switchToFit);
             NotifyUndoRedoStateChanged();
         }
@@ -775,7 +790,7 @@ public partial class ScreenshotPreviewViewModel : ObservableRecipient, IRecipien
 
         ImageSize = $"{image.PixelWidth} × {image.PixelHeight}";
         // 先显示即时估算值，避免大图编码阻塞 UI 线程；随后后台刷新为精确值。
-        FileSize = FormatFileSize((long)image.PixelWidth * image.PixelHeight * 4);
+        FileSize = ImageIOService.FormatFileSize((long)image.PixelWidth * image.PixelHeight * 4);
         if ((long)image.PixelWidth * image.PixelHeight < ExactFileSizePixelThreshold)
         {
             StartUpdateExactFileSizeAsync(image);
@@ -828,25 +843,8 @@ public partial class ScreenshotPreviewViewModel : ObservableRecipient, IRecipien
 
     private void ResetHistory()
     {
-        _undoStack.Clear();
-        _redoStack.Clear();
+        _history.Reset();
         NotifyUndoRedoStateChanged();
-    }
-
-    private int GetUndoLimit(BitmapSource image)
-    {
-        long pixels = (long)image.PixelWidth * image.PixelHeight;
-        return pixels >= LargeImagePixelThreshold ? LargeImageUndoLimit : NormalUndoLimit;
-    }
-
-    private void TrimUndoStack(int limit)
-    {
-        if (_undoStack.Count <= limit) return;
-
-        var kept = _undoStack.Take(limit).Reverse().ToArray();
-        _undoStack.Clear();
-        foreach (var item in kept)
-            _undoStack.Push(item);
     }
 
     private void StartUpdateExactFileSizeAsync(BitmapSource image)
@@ -856,15 +854,18 @@ public partial class ScreenshotPreviewViewModel : ObservableRecipient, IRecipien
         _fileSizeUpdateCts = new CancellationTokenSource();
         var token = _fileSizeUpdateCts.Token;
 
+        // 必须在 UI 线程创建冻结快照，避免后台线程访问 UI 线程拥有的 BitmapSource
+        var frozen = ImageIOService.CreateFrozenSnapshot(image);
+
         _ = Task.Run(() =>
         {
-            var exact = GetEncodedPngSize(image);
+            var exact = ImageIOService.GetEncodedPngSize(frozen);
             if (token.IsCancellationRequested) return;
 
             Application.Current.Dispatcher.BeginInvoke(() =>
             {
                 if (!token.IsCancellationRequested && ReferenceEquals(ScreenshotImage, image))
-                    FileSize = FormatFileSize(exact);
+                    FileSize = ImageIOService.FormatFileSize(exact);
             }, System.Windows.Threading.DispatcherPriority.Background);
         }, token);
     }
@@ -873,44 +874,5 @@ public partial class ScreenshotPreviewViewModel : ObservableRecipient, IRecipien
     {
         UndoCommand.NotifyCanExecuteChanged();
         RedoCommand.NotifyCanExecuteChanged();
-    }
-
-    // 编码为 PNG 流以获取压缩后的实际文件大小估算值
-    private static long GetEncodedPngSize(BitmapSource bitmap)
-    {
-        var encoder = new PngBitmapEncoder();
-        encoder.Frames.Add(BitmapFrame.Create(bitmap));
-
-        using var stream = new MemoryStream();
-        encoder.Save(stream);
-        return stream.Length;
-    }
-
-    private static Task SavePngAsync(BitmapSource bitmap, string filePath, IProgress<(double Value, string Text)>? progress = null)
-    {
-        return Task.Run(() =>
-        {
-            progress?.Report((0.25, "正在编码图片..."));
-            var encoder = new PngBitmapEncoder();
-            encoder.Frames.Add(BitmapFrame.Create(bitmap));
-
-            progress?.Report((0.7, "正在写入磁盘..."));
-            using var stream = File.Create(filePath);
-            encoder.Save(stream);
-            progress?.Report((0.95, "正在完成保存..."));
-        });
-    }
-
-    private static string FormatFileSize(long byteCount)
-    {
-        const double kilo = 1024d;
-        const double mega = kilo * 1024d;
-
-        return byteCount switch
-        {
-            >= (long)mega => $"{byteCount / mega:0.0} MB",
-            >= (long)kilo => $"{byteCount / kilo:0.0} KB",
-            _ => $"{byteCount} B"
-        };
     }
 }

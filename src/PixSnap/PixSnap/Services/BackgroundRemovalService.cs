@@ -1,5 +1,6 @@
 using Microsoft.ML.OnnxRuntime;
 using Microsoft.ML.OnnxRuntime.Tensors;
+using Serilog;
 using SkiaSharp;
 using System;
 using System.Collections.Generic;
@@ -7,16 +8,21 @@ using System.IO;
 using System.Linq;
 using System.Threading.Tasks;
 using System.Windows;
-using System.Windows.Media;
 using System.Windows.Media.Imaging;
 
 namespace PixSnap.Services;
 
+/// <summary>
+/// 基于 RMBG-1.4 ONNX 模型的背景去除服务。
+/// 输入原图，输出带 Alpha 通透背景的 BitmapSource。
+/// 模型文件路径：<程序目录>/onnx/rmbg-1.4.onnx
+/// </summary>
 public static class BackgroundRemovalService
 {
     private static readonly string ModelPath =
         Path.Combine(AppContext.BaseDirectory, "onnx", "rmbg-1.4.onnx");
 
+    /// <summary>异步执行背景去除。将原图缩放至模型输入尺寸，推理得到前景掩码，再还原到原始分辨率并合成透明背景。</summary>
     public static async Task<BitmapSource?> RunAsync(
         BitmapSource originalImage,
         IProgress<(double Value, string Text)>? progress = null,
@@ -27,9 +33,14 @@ public static class BackgroundRemovalService
             cancellationToken.ThrowIfCancellationRequested();
             progress?.Report((0.05, "正在加载去背景模型..."));
             if (!File.Exists(ModelPath))
+            {
+                Log.Error("RMBG 模型文件不存在: {ModelPath}", ModelPath);
                 throw new FileNotFoundException($"未找到 ONNX 模型：{ModelPath}");
+            }
 
-            using var srcBitmap = BitmapSourceToSKBitmap(originalImage);
+            Log.Information("开始去除背景: 图像 {W}×{H}", originalImage.PixelWidth, originalImage.PixelHeight);
+
+            using var srcBitmap = SkiaInteropHelper.BitmapSourceToSKBitmap(originalImage);
             int origW = srcBitmap.Width;
             int origH = srcBitmap.Height;
 
@@ -66,14 +77,16 @@ public static class BackgroundRemovalService
             progress?.Report((0.90, "正在合成透明背景..."));
             cancellationToken.ThrowIfCancellationRequested();
             using var composed = ApplyMaskAsAlpha(srcBitmap, maskAtOriginal);
-            var result = SKBitmapToBitmapSource(composed);
+            var result = SkiaInteropHelper.SKBitmapToBitmapSource(composed);
             result.Freeze();
 
             progress?.Report((1.0, "去除背景完成"));
+            Log.Information("去除背景完成");
             return result;
         });
     }
 
+    /// <summary>解析模型输入维度，动态值或无效值时使用回退默认值。</summary>
     private static int ResolveDim(IReadOnlyList<int> dims, int index, int fallback)
     {
         if (index >= dims.Count) return fallback;
@@ -81,6 +94,7 @@ public static class BackgroundRemovalService
         return dim > 0 ? dim : fallback;
     }
 
+    /// <summary>BGRA SKBitmap → [1, 3, H, W] RGB float32 张量（归一化到 0–1）。</summary>
     private static DenseTensor<float> BitmapToRgbTensor(SKBitmap bmp, int w, int h)
     {
         var tensor = new DenseTensor<float>(new[] { 1, 3, h, w });
@@ -108,6 +122,7 @@ public static class BackgroundRemovalService
         return tensor;
     }
 
+    /// <summary>将模型输出张量转换为灰度掩码 SKBitmap（白色=前景，黑色=背景）。</summary>
     private static SKBitmap OutputToMaskBitmap(Tensor<float> tensor, int fallbackW, int fallbackH)
     {
         int rank = tensor.Rank;
@@ -172,6 +187,7 @@ public static class BackgroundRemovalService
         return mask;
     }
 
+    /// <summary>将模型输出值归一化到 [0, 1] 范围，自动识别值域（0–1 / -1–1 / 0–255）。</summary>
     private static float NormalizeToUnit(float value, float min, float max)
     {
         if (max - min > 1e-6f)
@@ -186,6 +202,7 @@ public static class BackgroundRemovalService
         return Math.Clamp(value, 0f, 1f);
     }
 
+    /// <summary>将灰度掩码作为 Alpha 通道应用到原图，生成透明背景的结果。</summary>
     private static SKBitmap ApplyMaskAsAlpha(SKBitmap source, SKBitmap mask)
     {
         int w = source.Width;
@@ -222,48 +239,6 @@ public static class BackgroundRemovalService
         return result;
     }
 
-    private static SKBitmap BitmapSourceToSKBitmap(BitmapSource source)
-    {
-        var bgra = source.Format == PixelFormats.Bgra32
-            ? source
-            : new FormatConvertedBitmap(source, PixelFormats.Bgra32, null, 0);
 
-        int w = bgra.PixelWidth;
-        int h = bgra.PixelHeight;
-        int stride = w * 4;
-        var pixels = new byte[h * stride];
-        bgra.CopyPixels(pixels, stride, 0);
 
-        var bmp = new SKBitmap(new SKImageInfo(w, h, SKColorType.Bgra8888, SKAlphaType.Unpremul));
-        unsafe
-        {
-            fixed (byte* srcPtr = pixels)
-            {
-                Buffer.MemoryCopy(srcPtr, (void*)bmp.GetPixels(), pixels.LongLength, pixels.LongLength);
-            }
-        }
-
-        return bmp;
-    }
-
-    private static BitmapSource SKBitmapToBitmapSource(SKBitmap bmp)
-    {
-        int w = bmp.Width;
-        int h = bmp.Height;
-        var wb = new WriteableBitmap(w, h, 96, 96, PixelFormats.Bgra32, null);
-        wb.Lock();
-        try
-        {
-            unsafe
-            {
-                Buffer.MemoryCopy((void*)bmp.GetPixels(), (void*)wb.BackBuffer, (long)h * w * 4, (long)h * w * 4);
-            }
-            wb.AddDirtyRect(new Int32Rect(0, 0, w, h));
-        }
-        finally
-        {
-            wb.Unlock();
-        }
-        return wb;
-    }
 }

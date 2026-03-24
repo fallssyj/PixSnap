@@ -1,5 +1,6 @@
 using Microsoft.ML.OnnxRuntime;
 using Microsoft.ML.OnnxRuntime.Tensors;
+using Serilog;
 using SkiaSharp;
 using System;
 using System.Collections.Generic;
@@ -8,7 +9,6 @@ using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
 using System.Windows;
-using System.Windows.Media;
 using System.Windows.Media.Imaging;
 
 namespace PixSnap.Services;
@@ -50,13 +50,21 @@ public static class InpaintService
             progress.Report((0.05, "正在加载模型..."));
 
             if (!File.Exists(ModelPath))
+            {
+                Log.Error("LaMa 模型文件不存在: {ModelPath}", ModelPath);
                 throw new FileNotFoundException($"未找到 ONNX 模型：{ModelPath}");
+            }
 
             if (strokes.Count == 0)
+            {
+                Log.Debug("无涂抹笔画，跳过修复");
                 return originalImage;
+            }
+
+            Log.Information("开始 AI 修复: {StrokeCount} 笔画, 图像 {W}×{H}", strokes.Count, originalImage.PixelWidth, originalImage.PixelHeight);
 
             // — 第一步：BitmapSource → BGRA SKBitmap（保留原图用于最终高精度合成） —
-            using var srcBitmap = BitmapSourceToSKBitmap(originalImage);
+            using var srcBitmap = SkiaInteropHelper.BitmapSourceToSKBitmap(originalImage);
             int origW = srcBitmap.Width;
             int origH = srcBitmap.Height;
 
@@ -64,6 +72,7 @@ public static class InpaintService
             var roiRect = ComputeRoiRect(strokes, origW, origH);
             int roiW = roiRect.Width;
             int roiH = roiRect.Height;
+            Log.Debug("ROI 区域: ({Left},{Top}) {W}×{H}", roiRect.Left, roiRect.Top, roiW, roiH);
 
             using var roiBitmap = new SKBitmap(new SKImageInfo(roiW, roiH, SKColorType.Bgra8888, SKAlphaType.Unpremul));
             if (!srcBitmap.ExtractSubset(roiBitmap, roiRect))
@@ -92,7 +101,7 @@ public static class InpaintService
             var imageTensor = BitmapToRgbTensor(imageScaled, ModelSize, ModelSize);
             var maskTensor  = MaskBitmapToTensor(maskBitmap, ModelSize, ModelSize);
 
-            progress.Report((0.45, "AI 处理中，请稍候..."));
+            progress.Report((0.40, "AI 处理中，请稍候..."));
             token.ThrowIfCancellationRequested();
 
             // — 第四步：ONNX 推理 —
@@ -100,7 +109,7 @@ public static class InpaintService
             var session = OnnxSessionFactory.GetOrCreateSession(ModelPath, out var providerName);
             {
                 token.ThrowIfCancellationRequested();
-                progress.Report((0.40, $"当前推理设备：{providerName}"));
+                progress.Report((0.45, $"当前推理设备：{providerName}"));
 
                 // 动态解析模型输入名，兼容不同 LaMa 导出版本
                 var inputNames     = session.InputMetadata.Keys.ToList();
@@ -124,9 +133,10 @@ public static class InpaintService
                 {
                     outputs = session.Run(inputs);
                 }
-                catch (OnnxRuntimeException) when (providerName.StartsWith("DirectML", StringComparison.OrdinalIgnoreCase))
+                catch (OnnxRuntimeException ex) when (providerName.StartsWith("DirectML", StringComparison.OrdinalIgnoreCase))
                 {
                     // DML 推理时崩溃（如不支持的算子），回退到 CPU 重试
+                    Log.Warning(ex, "DirectML 推理失败，回退到 CPU");
                     progress.Report((0.50, "DirectML 推理失败，已回退至 CPU..."));
                     using var cpuSession = OnnxSessionFactory.CreateCpuSession(ModelPath);
                     outputs = cpuSession.Run(inputs);
@@ -153,12 +163,13 @@ public static class InpaintService
                 srcBitmap.CopyTo(finalBitmap);
                 BlitRoi(finalBitmap, blendedRoi, roiRect.Left, roiRect.Top);
 
-                result = SKBitmapToBitmapSource(finalBitmap);
+                result = SkiaInteropHelper.SKBitmapToBitmapSource(finalBitmap);
                 result.Freeze();
                 }
             }
 
             progress.Report((1.0, "完成"));
+            Log.Information("AI 修复完成");
             return result;
         }, token);
     }
@@ -247,36 +258,14 @@ public static class InpaintService
             canvas.DrawCircle(
                 (float)(center.X * scaleX),
                 (float)(center.Y * scaleY),
-                (float)(radius * Math.Max(scaleX, scaleY)),
+                (float)(radius * Math.Sqrt(scaleX * scaleY)),
                 paint);
         }
 
         return mask;
     }
 
-    private static SKBitmap BitmapSourceToSKBitmap(BitmapSource source)
-    {
-        // 统一转为 Bgra32
-        var bgra = source.Format == PixelFormats.Bgra32
-            ? source
-            : new FormatConvertedBitmap(source, PixelFormats.Bgra32, null, 0);
 
-        int w      = bgra.PixelWidth;
-        int h      = bgra.PixelHeight;
-        int stride = w * 4;
-        var pixels = new byte[h * stride];
-        bgra.CopyPixels(pixels, stride, 0);
-
-        var bmp = new SKBitmap(new SKImageInfo(w, h, SKColorType.Bgra8888, SKAlphaType.Premul));
-        unsafe
-        {
-            fixed (byte* srcPtr = pixels)
-            {
-                Buffer.MemoryCopy(srcPtr, (void*)bmp.GetPixels(), pixels.LongLength, pixels.LongLength);
-            }
-        }
-        return bmp;
-    }
 
     /// <summary>BGRA SKBitmap → [1, 3, H, W] float32 RGB [0,1] 张量。</summary>
     private static DenseTensor<float> BitmapToRgbTensor(SKBitmap bmp, int w, int h)
@@ -452,28 +441,4 @@ public static class InpaintService
         return Math.Clamp(value, 0f, 1f);
     }
 
-    private static BitmapSource SKBitmapToBitmapSource(SKBitmap bmp)
-    {
-        int w  = bmp.Width;
-        int h  = bmp.Height;
-        var wb = new WriteableBitmap(w, h, 96, 96, PixelFormats.Bgra32, null);
-        wb.Lock();
-        try
-        {
-            unsafe
-            {
-                Buffer.MemoryCopy(
-                    (void*)bmp.GetPixels(),
-                    (void*)wb.BackBuffer,
-                    (long)h * w * 4,
-                    (long)h * w * 4);
-            }
-            wb.AddDirtyRect(new Int32Rect(0, 0, w, h));
-        }
-        finally
-        {
-            wb.Unlock();
-        }
-        return wb;
-    }
 }

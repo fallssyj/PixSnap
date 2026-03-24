@@ -1,3 +1,4 @@
+using Serilog;
 using System;
 using System.Runtime.InteropServices;
 using System.Windows.Input;
@@ -54,6 +55,10 @@ public sealed class GlobalHotkeyService : IDisposable
         _callback = onPressed;
         var vk = (uint)KeyInterop.VirtualKeyFromKey(key);
         _registered = RegisterHotKey(_msgWindow.Handle, HotkeyId, (uint)modifiers, vk);
+        if (_registered)
+            Log.Information("全局快捷键注册成功: {Modifiers}+{Key}", modifiers, key);
+        else
+            Log.Warning("全局快捷键注册失败: {Modifiers}+{Key}", modifiers, key);
         return _registered;
     }
 
@@ -63,6 +68,7 @@ public sealed class GlobalHotkeyService : IDisposable
         if (_registered && _msgWindow != null)
         {
             UnregisterHotKey(_msgWindow.Handle, HotkeyId);
+            Log.Debug("全局快捷键已注销");
             _registered = false;
         }
         _callback = null;
@@ -83,5 +89,6 @@ public sealed class GlobalHotkeyService : IDisposable
         Unregister();
         _msgWindow?.Dispose();
         _msgWindow = null;
+        Log.Debug("GlobalHotkeyService 已释放");
     }
 }

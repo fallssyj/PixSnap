@@ -7,6 +7,9 @@ using MediaColor = System.Windows.Media.Color;
 
 namespace PixSnap.ViewModels;
 
+/// <summary>
+/// 自定义消息对话框 ViewModel：支持多种按钮组合和图标样式，替代原生 MessageBox。
+/// </summary>
 public partial class MessageBoxViewModel : ObservableObject
 {
     [ObservableProperty] private string _title = "PixSnap";

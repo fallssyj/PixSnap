@@ -1,9 +1,11 @@
 using CommunityToolkit.Mvvm.Messaging;
 using Hardcodet.Wpf.TaskbarNotification;
+using Microsoft.Extensions.DependencyInjection;
 using PixSnap.Models;
 using PixSnap.Services;
 using PixSnap.ViewModels;
 using PixSnap.Views;
+using Serilog;
 using System.Diagnostics;
 using System.Drawing;
 using System.IO;
@@ -24,13 +26,29 @@ public partial class App : System.Windows.Application, IRecipient<ScreenshotCapt
     private static readonly Mutex _instanceMutex = new(initiallyOwned: true, name: "Local\\PixSnap_SingleInstance");
 
     private MainWindow? _mainWindow;
-    private IScreenCaptureService? _screenCaptureService;
     private TaskbarIcon? _taskbarIcon;
-    private GlobalHotkeyService? _hotkeyService;
+
+    /// <summary>全局 DI 容器，在 OnStartup 中构建。</summary>
+    public IServiceProvider Services { get; private set; } = null!;
+
+    /// <summary>获取当前 App 实例的便捷属性。</summary>
+    public static new App Current => (App)System.Windows.Application.Current;
 
     protected override void OnStartup(StartupEventArgs e)
     {
         base.OnStartup(e);
+
+        // 初始化 Serilog 文件日志：写入程序目录下的 logs/ 文件夹
+        Log.Logger = new LoggerConfiguration()
+            .MinimumLevel.Information()
+            .WriteTo.File(
+                Path.Combine(AppContext.BaseDirectory, "logs", "pixsnap-.log"),
+                rollingInterval: RollingInterval.Day,
+                retainedFileCountLimit: 7,
+                outputTemplate: "{Timestamp:yyyy-MM-dd HH:mm:ss.fff} [{Level:u3}] {Message:lj}{NewLine}{Exception}")
+            .CreateLogger();
+
+        Log.Information("PixSnap 启动");
 
         DispatcherUnhandledException += OnDispatcherUnhandledException;
         AppDomain.CurrentDomain.UnhandledException += OnCurrentDomainUnhandledException;
@@ -50,7 +68,7 @@ public partial class App : System.Windows.Application, IRecipient<ScreenshotCapt
 
         try
         {
-            _screenCaptureService = new ScreenCaptureService();
+            Services = ConfigureServices();
         }
         catch (Exception exception)
         {
@@ -67,7 +85,7 @@ public partial class App : System.Windows.Application, IRecipient<ScreenshotCapt
 
         _mainWindow = new MainWindow
         {
-            DataContext = new MainViewModel(_screenCaptureService)
+            DataContext = Services.GetRequiredService<MainViewModel>()
         };
 
         MainWindow = _mainWindow;
@@ -75,6 +93,21 @@ public partial class App : System.Windows.Application, IRecipient<ScreenshotCapt
 
         InitializeTrayIcon();
         InitializeHotkey();
+    }
+
+    private static ServiceProvider ConfigureServices()
+    {
+        var services = new ServiceCollection();
+
+        // Services
+        services.AddSingleton<IScreenCaptureService, ScreenCaptureService>();
+        services.AddSingleton<GlobalHotkeyService>();
+
+        // ViewModels
+        services.AddTransient<MainViewModel>();
+        services.AddTransient<ScreenshotPreviewViewModel>();
+
+        return services.BuildServiceProvider();
     }
 
     protected override void OnExit(ExitEventArgs e)
@@ -85,18 +118,17 @@ public partial class App : System.Windows.Application, IRecipient<ScreenshotCapt
 
         WeakReferenceMessenger.Default.UnregisterAll(this);
 
-        if (_screenCaptureService is IDisposable disposable)
-        {
-            disposable.Dispose();
-        }
-
         _taskbarIcon?.Dispose();
         _taskbarIcon = null;
 
-        _hotkeyService?.Dispose();
-        _hotkeyService = null;
-
         OnnxSessionFactory.DisposeAll();
+
+        // 释放 DI 容器（同时 Dispose 所有 Singleton）
+        if (Services is IDisposable disposable)
+            disposable.Dispose();
+
+        Log.Information("PixSnap 退出");
+        Log.CloseAndFlush();
 
         // 释放互斥体，允许下一个实例启动
         _instanceMutex.ReleaseMutex();
@@ -109,7 +141,7 @@ public partial class App : System.Windows.Application, IRecipient<ScreenshotCapt
     {
         try
         {
-            var previewViewModel = new ScreenshotPreviewViewModel();
+            var previewViewModel = Services.GetRequiredService<ScreenshotPreviewViewModel>();
             previewViewModel.Receive(message);
 
             var previewWindow = new ScreenshotPreviewWindow
@@ -133,6 +165,7 @@ public partial class App : System.Windows.Application, IRecipient<ScreenshotCapt
 
     private void OnDispatcherUnhandledException(object sender, DispatcherUnhandledExceptionEventArgs e)
     {
+        Log.Error(e.Exception, "未处理的 UI 线程异常");
         MessageBoxWindow.Show(
             BuildExceptionMessage(e.Exception),
             "应用异常",
@@ -145,6 +178,7 @@ public partial class App : System.Windows.Application, IRecipient<ScreenshotCapt
     {
         if (e.ExceptionObject is Exception exception)
         {
+            Log.Fatal(exception, "未处理的 CLR 异常");
             MessageBoxWindow.Show(
                 BuildExceptionMessage(exception),
                 "应用异常",
@@ -155,6 +189,7 @@ public partial class App : System.Windows.Application, IRecipient<ScreenshotCapt
 
     private void OnUnobservedTaskException(object? sender, UnobservedTaskExceptionEventArgs e)
     {
+        Log.Error(e.Exception, "未观察的后台任务异常");
         MessageBoxWindow.Show(
             BuildExceptionMessage(e.Exception),
             "后台任务异常",
@@ -225,7 +260,7 @@ public partial class App : System.Windows.Application, IRecipient<ScreenshotCapt
             }
         }
 
-        var previewViewModel = new ScreenshotPreviewViewModel();
+        var previewViewModel = Services.GetRequiredService<ScreenshotPreviewViewModel>();
         var newPreviewWindow = new ScreenshotPreviewWindow
         {
             DataContext = previewViewModel,
@@ -238,10 +273,10 @@ public partial class App : System.Windows.Application, IRecipient<ScreenshotCapt
 
     private void InitializeHotkey()
     {
-        _hotkeyService = new GlobalHotkeyService();
+        var hotkeyService = Services.GetRequiredService<GlobalHotkeyService>();
         var (modifiers, key) = SettingsService.ReadHotkey();
         if (key != Key.None)
-            _hotkeyService.Register(modifiers, key, StartCaptureFromTray);
+            hotkeyService.Register(modifiers, key, StartCaptureFromTray);
     }
 
     private void ShowSettings()
@@ -257,12 +292,13 @@ public partial class App : System.Windows.Application, IRecipient<ScreenshotCapt
         }
 
         var win = new SettingsWindow();
+        var hotkeyService = Services.GetRequiredService<GlobalHotkeyService>();
         win.ViewModel.HotkeyChanged += (modifiers, key) =>
         {
             // 用户保存设置后重新注册快捷键
-            _hotkeyService?.Unregister();
+            hotkeyService.Unregister();
             if (key != Key.None)
-                _hotkeyService?.Register(modifiers, key, StartCaptureFromTray);
+                hotkeyService.Register(modifiers, key, StartCaptureFromTray);
         };
         win.ShowDialog();
     }
@@ -333,8 +369,9 @@ public partial class App : System.Windows.Application, IRecipient<ScreenshotCapt
 
             return SystemIcons.Application;
         }
-        catch
+        catch (Exception ex)
         {
+            Log.Warning(ex, "LoadTrayIcon 失败");
             return SystemIcons.Application;
         }
     }

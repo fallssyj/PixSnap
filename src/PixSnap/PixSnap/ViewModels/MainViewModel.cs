@@ -4,12 +4,16 @@ using CommunityToolkit.Mvvm.Messaging;
 using PixSnap.Models;
 using PixSnap.Services;
 using PixSnap.Views;
+using Serilog;
 using System.Text;
 using System.Windows;
 using Application = System.Windows.Application;
 
 namespace PixSnap.ViewModels;
 
+/// <summary>
+/// 主窗口 ViewModel：管理截图流程（全屏 / 窗口 / 区域）并将结果通过 Messenger 发送到预览窗口。
+/// </summary>
 public partial class MainViewModel : ObservableObject
 {
     private readonly IScreenCaptureService _screenCaptureService;
@@ -30,6 +34,8 @@ public partial class MainViewModel : ObservableObject
             return;
         }
 
+        Log.Information("开始截图流程");
+
         var shouldRestoreMainWindow = Application.Current.MainWindow?.IsVisible == true;
 
         try
@@ -44,11 +50,13 @@ public partial class MainViewModel : ObservableObject
             if (selector.ShowDialog() == true && selector.Selection is { } selection)
             {
                 var (screenshot, mode) = await CaptureSelectionAsync(selection);
+                Log.Information("截图完成: 模式={Mode}, 尺寸={W}×{H}", mode, screenshot.PixelWidth, screenshot.PixelHeight);
                 SendScreenshot(screenshot, mode);
             }
         }
         catch (Exception ex)
         {
+            Log.Error(ex, "截图失败");
             ShowError(BuildExceptionMessage("截图失败", ex));
         }
         finally
@@ -63,6 +71,7 @@ public partial class MainViewModel : ObservableObject
         }
     }
 
+    /// <summary>根据用户选区模式执行对应的截图操作，返回截图及模式标识字符串。</summary>
     private async Task<(System.Windows.Media.Imaging.BitmapSource Screenshot, string Mode)> CaptureSelectionAsync(CaptureSelection selection)
     {
         return selection.Mode switch
