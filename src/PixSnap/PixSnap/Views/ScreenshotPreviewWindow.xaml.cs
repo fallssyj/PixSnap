@@ -415,40 +415,40 @@ public partial class ScreenshotPreviewWindow : Window
         var r = _cropRect;
 
         // 4 块遮罩
-        SetMask(CropMaskTop,    0,      0,          vp.Width, r.Top);
-        SetMask(CropMaskBottom, 0,      r.Bottom,   vp.Width, vp.Height - r.Bottom);
-        SetMask(CropMaskLeft,   0,      r.Top,      r.Left,   r.Height);
-        SetMask(CropMaskRight,  r.Right,r.Top,      vp.Width - r.Right, r.Height);
+        SetMask(CropMaskTop, 0, 0, vp.Width, r.Top);
+        SetMask(CropMaskBottom, 0, r.Bottom, vp.Width, vp.Height - r.Bottom);
+        SetMask(CropMaskLeft, 0, r.Top, r.Left, r.Height);
+        SetMask(CropMaskRight, r.Right, r.Top, vp.Width - r.Right, r.Height);
 
         // 裁剪框
         Canvas.SetLeft(CropRect, r.Left);
         Canvas.SetTop(CropRect, r.Top);
-        CropRect.Width  = Math.Max(0, r.Width);
+        CropRect.Width = Math.Max(0, r.Width);
         CropRect.Height = Math.Max(0, r.Height);
 
         // 8 个 handle（半径 5，中心在角 / 边中点）
-        PlaceHandle(HandleTL, r.Left,              r.Top);
-        PlaceHandle(HandleTR, r.Right,             r.Top);
-        PlaceHandle(HandleBL, r.Left,              r.Bottom);
-        PlaceHandle(HandleBR, r.Right,             r.Bottom);
-        PlaceHandle(HandleTC, r.Left + r.Width/2,  r.Top);
-        PlaceHandle(HandleBC, r.Left + r.Width/2,  r.Bottom);
-        PlaceHandle(HandleML, r.Left,              r.Top + r.Height/2);
-        PlaceHandle(HandleMR, r.Right,             r.Top + r.Height/2);
+        PlaceHandle(HandleTL, r.Left, r.Top);
+        PlaceHandle(HandleTR, r.Right, r.Top);
+        PlaceHandle(HandleBL, r.Left, r.Bottom);
+        PlaceHandle(HandleBR, r.Right, r.Bottom);
+        PlaceHandle(HandleTC, r.Left + r.Width / 2, r.Top);
+        PlaceHandle(HandleBC, r.Left + r.Width / 2, r.Bottom);
+        PlaceHandle(HandleML, r.Left, r.Top + r.Height / 2);
+        PlaceHandle(HandleMR, r.Right, r.Top + r.Height / 2);
     }
 
     private static void SetMask(Rectangle rect, double x, double y, double w, double h)
     {
         Canvas.SetLeft(rect, x);
-        Canvas.SetTop(rect,  y);
-        rect.Width  = Math.Max(0, w);
+        Canvas.SetTop(rect, y);
+        rect.Width = Math.Max(0, w);
         rect.Height = Math.Max(0, h);
     }
 
     private static void PlaceHandle(Ellipse e, double cx, double cy)
     {
-        Canvas.SetLeft(e, cx - e.Width  / 2);
-        Canvas.SetTop(e,  cy - e.Height / 2);
+        Canvas.SetLeft(e, cx - e.Width / 2);
+        Canvas.SetTop(e, cy - e.Height / 2);
     }
 
     // 同步裁剪框坐标到 ViewModel（把 overlay 坐标换算为图片像素）
@@ -458,17 +458,17 @@ public partial class ScreenshotPreviewWindow : Window
         var imgRect = GetImageDisplayRect();
         if (imgRect.Width <= 0 || imgRect.Height <= 0) return;
 
-        var scaleX = vm.ScreenshotImage.PixelWidth  / imgRect.Width;
+        var scaleX = vm.ScreenshotImage.PixelWidth / imgRect.Width;
         var scaleY = vm.ScreenshotImage.PixelHeight / imgRect.Height;
 
         var r = _cropRect;
         _syncingCropRect = true;
         try
         {
-            vm.CropPanel.CropX      = (int)Math.Round(Math.Clamp((r.Left   - imgRect.Left) * scaleX, 0, vm.ScreenshotImage.PixelWidth));
-            vm.CropPanel.CropY      = (int)Math.Round(Math.Clamp((r.Top    - imgRect.Top)  * scaleY, 0, vm.ScreenshotImage.PixelHeight));
-            vm.CropPanel.CropWidth  = (int)Math.Round(Math.Clamp(r.Width   * scaleX,                1, vm.ScreenshotImage.PixelWidth  - vm.CropPanel.CropX));
-            vm.CropPanel.CropHeight = (int)Math.Round(Math.Clamp(r.Height  * scaleY,                1, vm.ScreenshotImage.PixelHeight - vm.CropPanel.CropY));
+            vm.CropPanel.CropX = (int)Math.Round(Math.Clamp((r.Left - imgRect.Left) * scaleX, 0, vm.ScreenshotImage.PixelWidth));
+            vm.CropPanel.CropY = (int)Math.Round(Math.Clamp((r.Top - imgRect.Top) * scaleY, 0, vm.ScreenshotImage.PixelHeight));
+            vm.CropPanel.CropWidth = (int)Math.Round(Math.Clamp(r.Width * scaleX, 1, vm.ScreenshotImage.PixelWidth - vm.CropPanel.CropX));
+            vm.CropPanel.CropHeight = (int)Math.Round(Math.Clamp(r.Height * scaleY, 1, vm.ScreenshotImage.PixelHeight - vm.CropPanel.CropY));
         }
         finally
         {
@@ -483,13 +483,13 @@ public partial class ScreenshotPreviewWindow : Window
         var imgRect = GetImageDisplayRect();
         if (imgRect.Width <= 0 || imgRect.Height <= 0) return;
 
-        var scaleX = imgRect.Width  / vm.ScreenshotImage.PixelWidth;
+        var scaleX = imgRect.Width / vm.ScreenshotImage.PixelWidth;
         var scaleY = imgRect.Height / vm.ScreenshotImage.PixelHeight;
 
         _cropRect = new Rect(
             imgRect.Left + vm.CropPanel.CropX * scaleX,
-            imgRect.Top  + vm.CropPanel.CropY * scaleY,
-            vm.CropPanel.CropWidth  * scaleX,
+            imgRect.Top + vm.CropPanel.CropY * scaleY,
+            vm.CropPanel.CropWidth * scaleX,
             vm.CropPanel.CropHeight * scaleY);
         RefreshCropOverlay();
     }
@@ -498,7 +498,7 @@ public partial class ScreenshotPreviewWindow : Window
 
     private bool _isDraggingCropRect;
     private Point _cropDragStart;
-    private Rect  _cropRectAtDragStart;
+    private Rect _cropRectAtDragStart;
 
     private void CropRect_MouseLeftButtonDown(object sender, MouseButtonEventArgs e)
     {
@@ -515,10 +515,10 @@ public partial class ScreenshotPreviewWindow : Window
         var pos = e.GetPosition(CropOverlayCanvas);
         var delta = pos - _cropDragStart;
         var img = GetImageDisplayRect();
-        var maxX = Math.Max(img.Left, img.Right  - _cropRect.Width);
-        var maxY = Math.Max(img.Top,  img.Bottom - _cropRect.Height);
+        var maxX = Math.Max(img.Left, img.Right - _cropRect.Width);
+        var maxY = Math.Max(img.Top, img.Bottom - _cropRect.Height);
         var newX = Math.Clamp(_cropRectAtDragStart.Left + delta.X, img.Left, maxX);
-        var newY = Math.Clamp(_cropRectAtDragStart.Top  + delta.Y, img.Top,  maxY);
+        var newY = Math.Clamp(_cropRectAtDragStart.Top + delta.Y, img.Top, maxY);
         _cropRect = new Rect(newX, newY, _cropRect.Width, _cropRect.Height);
         RefreshCropOverlay();
         SyncCropRectToViewModel();
@@ -535,7 +535,7 @@ public partial class ScreenshotPreviewWindow : Window
     private void Handle_MouseLeftButtonDown(object sender, MouseButtonEventArgs e)
     {
         _dragHandle = (sender as FrameworkElement)?.Tag as string;
-        _dragStart  = e.GetPosition(CropOverlayCanvas);
+        _dragStart = e.GetPosition(CropOverlayCanvas);
         _dragStartRect = _cropRect;
         ((UIElement)sender).CaptureMouse();
         e.Handled = true;
@@ -545,9 +545,9 @@ public partial class ScreenshotPreviewWindow : Window
     {
         if (_dragHandle is null) return;
         var pos = e.GetPosition(CropOverlayCanvas);
-        var dx  = pos.X - _dragStart.X;
-        var dy  = pos.Y - _dragStart.Y;
-        var r   = _dragStartRect;
+        var dx = pos.X - _dragStart.X;
+        var dy = pos.Y - _dragStart.Y;
+        var r = _dragStartRect;
         const double minSize = 10;
 
         double l = r.Left, t = r.Top, rr = r.Right, b = r.Bottom;
@@ -564,10 +564,10 @@ public partial class ScreenshotPreviewWindow : Window
         }
 
         var img = GetImageDisplayRect();
-        l  = Math.Max(img.Left,   l);
-        t  = Math.Max(img.Top,    t);
-        rr = Math.Min(img.Right,  rr);
-        b  = Math.Min(img.Bottom, b);
+        l = Math.Max(img.Left, l);
+        t = Math.Max(img.Top, t);
+        rr = Math.Min(img.Right, rr);
+        b = Math.Min(img.Bottom, b);
         _cropRect = new Rect(l, t, rr - l, b - t);
         RefreshCropOverlay();
         SyncCropRectToViewModel();
@@ -647,7 +647,7 @@ public partial class ScreenshotPreviewWindow : Window
             return false;
 
         imgPixelPoint = new Point(
-            (canvasPos.X - imgRect.X) / imgRect.Width  * vm.ScreenshotImage.PixelWidth,
+            (canvasPos.X - imgRect.X) / imgRect.Width * vm.ScreenshotImage.PixelWidth,
             (canvasPos.Y - imgRect.Y) / imgRect.Height * vm.ScreenshotImage.PixelHeight);
         return true;
     }
@@ -668,10 +668,10 @@ public partial class ScreenshotPreviewWindow : Window
         double displayR = vm.EraserPanel.BrushSize;
         double diameter = displayR * 2;
 
-        EraserCursorIndicator.Width  = diameter;
+        EraserCursorIndicator.Width = diameter;
         EraserCursorIndicator.Height = diameter;
         Canvas.SetLeft(EraserCursorIndicator, canvasPos.X - displayR);
-        Canvas.SetTop(EraserCursorIndicator,  canvasPos.Y - displayR);
+        Canvas.SetTop(EraserCursorIndicator, canvasPos.Y - displayR);
         EraserCursorIndicator.Visibility = Visibility.Visible;
     }
 
@@ -822,10 +822,10 @@ public partial class ScreenshotPreviewWindow : Window
             await vm.EraserPanel.RunInpaintAsync(vm.ScreenshotImage);
     }
 
-    private Border?          _draggingPanel;
+    private Border? _draggingPanel;
     private TranslateTransform? _draggingTransform;
-    private Point            _panelDragStart;
-    private Point            _panelTransformStart;
+    private Point _panelDragStart;
+    private Point _panelTransformStart;
 
     private void EditPanel_MouseLeftButtonDown(object sender, MouseButtonEventArgs e)
     {
@@ -843,7 +843,7 @@ public partial class ScreenshotPreviewWindow : Window
     private void EditPanel_MouseMove(object sender, MouseEventArgs e)
     {
         if (_draggingPanel is null || _draggingTransform is null) return;
-        var pos   = e.GetPosition(this);
+        var pos = e.GetPosition(this);
         var delta = pos - _panelDragStart;
         _draggingTransform.X = _panelTransformStart.X + delta.X;
         _draggingTransform.Y = _panelTransformStart.Y + delta.Y;
@@ -852,7 +852,7 @@ public partial class ScreenshotPreviewWindow : Window
     private void EditPanel_MouseLeftButtonUp(object sender, MouseButtonEventArgs e)
     {
         _draggingPanel?.ReleaseMouseCapture();
-        _draggingPanel     = null;
+        _draggingPanel = null;
         _draggingTransform = null;
     }
 

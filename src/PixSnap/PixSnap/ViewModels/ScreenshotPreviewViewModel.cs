@@ -119,9 +119,9 @@ public partial class ScreenshotPreviewViewModel : ObservableRecipient, IRecipien
         OnPropertyChanged(nameof(IsEditPanelVisible));
     }
 
-    public bool IsCropMode        => ActiveEditMode == EditMode.Crop;
+    public bool IsCropMode => ActiveEditMode == EditMode.Crop;
     public bool IsRoundCornerMode => ActiveEditMode == EditMode.RoundCorner;
-    public bool IsEraserMode      => ActiveEditMode == EditMode.Eraser;
+    public bool IsEraserMode => ActiveEditMode == EditMode.Eraser;
     public bool IsEditPanelVisible => ActiveEditMode != EditMode.None;
 
     /// <summary>退出当前编辑模式，回到浏览状态。</summary>
@@ -448,7 +448,7 @@ public partial class ScreenshotPreviewViewModel : ObservableRecipient, IRecipien
             {
                 int srcOffset = sy * srcStride + sx * 4;
                 int dstOffset = sx * dstStride + (srcH - 1 - sy) * 4;
-                dst[dstOffset]     = src[srcOffset];
+                dst[dstOffset] = src[srcOffset];
                 dst[dstOffset + 1] = src[srcOffset + 1];
                 dst[dstOffset + 2] = src[srcOffset + 2];
                 dst[dstOffset + 3] = src[srcOffset + 3];
@@ -504,9 +504,6 @@ public partial class ScreenshotPreviewViewModel : ObservableRecipient, IRecipien
         ExitEditMode();
     }
 
-    /// <summary>切换 AI 功能弹出菜单的显示状态。</summary>
-    [RelayCommand]
-    private void ToggleAiPopup() => IsAiPopupOpen = !IsAiPopupOpen;
 
     /// <summary>执行背景去除 AI 功能。</summary>
     [RelayCommand]
@@ -642,6 +639,20 @@ public partial class ScreenshotPreviewViewModel : ObservableRecipient, IRecipien
     private void FitToWindow()
     {
         SwitchToFitMode();
+    }
+
+    [RelayCommand]
+    private void OpenSettings()
+    {
+        foreach (Window w in Application.Current.Windows)
+        {
+            if (w is SettingsWindow existing)
+            {
+                existing.Activate();
+                return;
+            }
+        }
+        new SettingsWindow().ShowDialog();
     }
 
     [RelayCommand]
