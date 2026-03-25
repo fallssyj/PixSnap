@@ -98,6 +98,9 @@ public partial class App : System.Windows.Application, IRecipient<ScreenshotCapt
 
         // 订阅 MicaWPF 主题切换，强制刷新桥接字典使颜色跟随
         _themeSubscription = MicaWPFServiceUtility.ThemeService.ThemeChanged.Subscribe(OnMicaThemeChanged);
+
+        // 应用持久化的主题偏好
+        ApplyTheme(SettingsService.ReadTheme());
     }
 
     private void OnMicaThemeChanged(MicaWPF.Core.Enums.WindowsTheme _)
@@ -116,6 +119,21 @@ public partial class App : System.Windows.Application, IRecipient<ScreenshotCapt
                 }
             }
         });
+    }
+
+    /// <summary>
+    /// 将主题索引映射为 MicaWPF WindowsTheme 并应用。
+    /// 0 = Auto, 1 = Dark, 2 = Light。
+    /// </summary>
+    private static void ApplyTheme(int themeIndex)
+    {
+        var theme = themeIndex switch
+        {
+            1 => MicaWPF.Core.Enums.WindowsTheme.Dark,
+            2 => MicaWPF.Core.Enums.WindowsTheme.Light,
+            _ => MicaWPF.Core.Enums.WindowsTheme.Auto,
+        };
+        MicaWPFServiceUtility.ThemeService.ChangeTheme(theme);
     }
 
     private static ServiceProvider ConfigureServices()
@@ -305,7 +323,10 @@ public partial class App : System.Windows.Application, IRecipient<ScreenshotCapt
             hotkeyService.Register(modifiers, key, StartCaptureFromTray);
     }
 
-    private void ShowSettings()
+    private void ShowSettings() => ShowSettingsWindow();
+
+    /// <summary>打开设置窗口并订阅快捷键变更事件，供外部调用（如 ScreenshotPreviewViewModel）。</summary>
+    public void ShowSettingsWindow()
     {
         // 若设置窗口已开启则激活并返回，避免重复打开
         foreach (Window w in Windows)
@@ -326,6 +347,7 @@ public partial class App : System.Windows.Application, IRecipient<ScreenshotCapt
             if (key != Key.None)
                 hotkeyService.Register(modifiers, key, StartCaptureFromTray);
         };
+        win.ViewModel.ThemeChanged += ApplyTheme;
         win.ShowDialog();
     }
 

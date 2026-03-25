@@ -14,6 +14,7 @@
     <s:String x:Key="S_Common_Clear">清除</s:String>
     <s:String x:Key="S_Common_Settings">设置</s:String>
     <s:String x:Key="S_Common_Open">打开</s:String>
+    <s:String x:Key="S_Common_OpenLog">打开LOG</s:String>
 
     <!--  ═══ 托盘菜单 ═══  -->
     <s:String x:Key="S_Tray_Screenshot">截图</s:String>
@@ -36,6 +37,12 @@
     <!--  ═══ 设置窗口 ═══  -->
     <s:String x:Key="S_Settings_Title">设置</s:String>
     <s:String x:Key="S_Settings_System">系统</s:String>
+    <s:String x:Key="S_Settings_Theme">外观</s:String>
+    <s:String x:Key="S_Settings_ThemeLabel">主题</s:String>
+    <s:String x:Key="S_Settings_ThemeDesc">选择应用的外观主题</s:String>
+    <s:String x:Key="S_Theme_Auto">自动</s:String>
+    <s:String x:Key="S_Theme_Light">浅色</s:String>
+    <s:String x:Key="S_Theme_Dark">深色</s:String>
     <s:String x:Key="S_Settings_AutoStart">开机启动</s:String>
     <s:String x:Key="S_Settings_AutoStartDesc">登录后自动在后台启动 PixSnap</s:String>
     <s:String x:Key="S_Settings_Hotkey">快捷键</s:String>

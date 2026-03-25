@@ -23,6 +23,7 @@ public static class SettingsService
     // ── JSON 配置键名 ──────────────────────────────────────────────────────────────
     private const string KeyHotkeyModifiers = "HotkeyModifiers";
     private const string KeyHotkeyKey = "HotkeyKey";
+    private const string KeyTheme = "Theme";
     private const string KeyVersion = "Version";
 
     // ── 默认快捷键：Ctrl + Shift + Q ──────────────────────────────────────────
@@ -92,6 +93,41 @@ public static class SettingsService
         var dict = ReadConfigDict();
         dict[KeyHotkeyModifiers] = (int)modifiers;
         dict[KeyHotkeyKey] = (int)key;
+        dict[KeyVersion] = CurrentSettingsVersion;
+        WriteConfigDict(dict);
+    }
+
+    // ── 主题（JSON 配置文件） ──────────────────────────────────────────────────
+
+    /// <summary>
+    /// 读取主题索引：0 = Auto, 1 = Dark, 2 = Light。
+    /// </summary>
+    public static int ReadTheme()
+    {
+        try
+        {
+            if (!File.Exists(ConfigFilePath))
+                return 0;
+
+            var json = File.ReadAllText(ConfigFilePath);
+            var doc = JsonDocument.Parse(json);
+            return doc.RootElement.TryGetProperty(KeyTheme, out var v) && v.TryGetInt32(out var t) && t is >= 0 and <= 2
+                ? t
+                : 0;
+        }
+        catch (Exception ex)
+        {
+            Log.Warning(ex, "ReadTheme 失败，使用默认值");
+            return 0;
+        }
+    }
+
+    /// <summary>将主题索引写入 settings.json。</summary>
+    public static void WriteTheme(int themeIndex)
+    {
+        Log.Information("写入主题: {ThemeIndex}", themeIndex);
+        var dict = ReadConfigDict();
+        dict[KeyTheme] = themeIndex;
         dict[KeyVersion] = CurrentSettingsVersion;
         WriteConfigDict(dict);
     }

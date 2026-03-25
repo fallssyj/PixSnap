@@ -18,6 +18,10 @@ public partial class SettingsViewModel : ObservableObject
     [ObservableProperty]
     private bool _isStartupEnabled;
 
+    /// <summary>主题索引：0 = 自动, 1 = 深色, 2 = 浅色。</summary>
+    [ObservableProperty]
+    private int _selectedThemeIndex;
+
     /// <summary>是否处于快捷键录制状态（用户点击输入框后激活）。</summary>
     [ObservableProperty]
     private bool _isRecordingHotkey;
@@ -29,12 +33,16 @@ public partial class SettingsViewModel : ObservableObject
     /// <summary>快捷键已保存时触发，携带新的修饰键和按键。</summary>
     public event Action<ModifierKeys, Key>? HotkeyChanged;
 
+    /// <summary>主题已保存时触发，携带新的主题索引。</summary>
+    public event Action<int>? ThemeChanged;
+
     /// <summary>请求关闭设置窗口。</summary>
     public event Action? RequestClose;
 
     public SettingsViewModel()
     {
         _isStartupEnabled = SettingsService.ReadStartupEnabled();
+        _selectedThemeIndex = SettingsService.ReadTheme();
         var (modifiers, key) = SettingsService.ReadHotkey();
         _pendingModifiers = (int)modifiers;
         _pendingKey = (int)key;
@@ -69,8 +77,10 @@ public partial class SettingsViewModel : ObservableObject
     {
         SettingsService.WriteStartupEnabled(IsStartupEnabled);
         SettingsService.WriteHotkey((ModifierKeys)_pendingModifiers, (Key)_pendingKey);
-        Log.Information("设置已保存: 开机启动={Startup}, 快捷键={Modifiers}+{Key}", IsStartupEnabled, (ModifierKeys)_pendingModifiers, (Key)_pendingKey);
+        SettingsService.WriteTheme(SelectedThemeIndex);
+        Log.Information("设置已保存: 开机启动={Startup}, 快捷键={Modifiers}+{Key}, 主题={Theme}", IsStartupEnabled, (ModifierKeys)_pendingModifiers, (Key)_pendingKey, SelectedThemeIndex);
         HotkeyChanged?.Invoke((ModifierKeys)_pendingModifiers, (Key)_pendingKey);
+        ThemeChanged?.Invoke(SelectedThemeIndex);
         RequestClose?.Invoke();
     }
 

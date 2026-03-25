@@ -145,6 +145,45 @@
                     Opacity="0.6"
                     Text="{StaticResource S_Settings_Hotkey}" />
 
+                <!--  ── 外观 ──────────────────────────────────────────────────  -->
+                <TextBlock
+                    Margin="0,20,0,0"
+                    FontFamily="{StaticResource MiSansRegular}"
+                    FontSize="11"
+                    Opacity="0.6"
+                    Text="{StaticResource S_Settings_Theme}" />
+
+                <Border
+                    Margin="0,8,0,0"
+                    Padding="16,14"
+                    Background="{DynamicResource SurfaceBrush}"
+                    CornerRadius="8">
+                    <Grid>
+                        <StackPanel VerticalAlignment="Center">
+                            <TextBlock
+                                FontFamily="{StaticResource MiSansRegular}"
+                                FontSize="13"
+                                Text="{StaticResource S_Settings_ThemeLabel}" />
+                            <TextBlock
+                                Margin="0,3,0,0"
+                                FontFamily="{StaticResource MiSansRegular}"
+                                FontSize="11"
+                                Opacity="0.6"
+                                Text="{StaticResource S_Settings_ThemeDesc}" />
+                        </StackPanel>
+
+                        <ComboBox
+                            Width="100"
+                            HorizontalAlignment="Right"
+                            VerticalAlignment="Center"
+                            SelectedIndex="{Binding SelectedThemeIndex}">
+                            <ComboBoxItem Content="{StaticResource S_Theme_Auto}" />
+                            <ComboBoxItem Content="{StaticResource S_Theme_Dark}" />
+                            <ComboBoxItem Content="{StaticResource S_Theme_Light}" />
+                        </ComboBox>
+                    </Grid>
+                </Border>
+
                 <Border
                     Margin="0,8,0,0"
                     Padding="16,14"

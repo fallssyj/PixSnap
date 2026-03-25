@@ -7,6 +7,7 @@ using PixSnap.Services;
 using PixSnap.Views;
 using Serilog;
 using System.ComponentModel;
+using System.Diagnostics;
 using System.IO;
 using System.Windows;
 using System.Windows.Media;
@@ -652,17 +653,20 @@ public partial class ScreenshotPreviewViewModel : ObservableRecipient, IRecipien
     }
 
     [RelayCommand]
-    private void OpenSettings()
+    private static void OpenSettings()
     {
-        foreach (Window w in Application.Current.Windows)
+        if (Application.Current is App app)
         {
-            if (w is SettingsWindow existing)
-            {
-                existing.Activate();
-                return;
-            }
+            app.ShowSettingsWindow();
         }
-        new SettingsWindow().ShowDialog();
+    }
+
+    [RelayCommand]
+    private static void OpenLogFolder()
+    {
+        var logDir = Path.Combine(AppContext.BaseDirectory, "logs");
+        if (Directory.Exists(logDir))
+            Process.Start(new ProcessStartInfo(logDir) { UseShellExecute = true });
     }
 
     [RelayCommand]

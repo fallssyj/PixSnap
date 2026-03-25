@@ -256,12 +256,22 @@
                         Orientation="Horizontal">
                         <Button
                             Margin="0,0,0,0"
+                            Command="{Binding OpenLogFolderCommand}"
+                            Style="{StaticResource IconButton}"
+                            ToolTip="{StaticResource S_Common_OpenLog}">
+                            <TextBlock
+                                FontFamily="{StaticResource SegoeFluent}"
+                                FontSize="12"
+                                Text="{StaticResource Glyph_Diagnostic}" />
+                        </Button>
+                        <Button
+                            Margin="0,0,0,0"
                             Command="{Binding OpenSettingsCommand}"
                             Style="{StaticResource IconButton}"
                             ToolTip="{StaticResource S_Common_Settings}">
                             <TextBlock
                                 FontFamily="{StaticResource SegoeFluent}"
-                                FontSize="10"
+                                FontSize="12"
                                 Text="{StaticResource Glyph_Settings}" />
                         </Button>
                         <Button
@@ -272,14 +282,13 @@
                             ToolTip="{StaticResource S_Preview_Minimize}">
                             <TextBlock
                                 FontFamily="{StaticResource SegoeFluent}"
-                                FontSize="10"
+                                FontSize="12"
                                 Text="{StaticResource Glyph_Minimize}" />
                         </Button>
                         <Button
                             Command="{Binding MaximizeCommand}"
                             CommandParameter="{Binding RelativeSource={RelativeSource AncestorType=Window}}"
-                            FontFamily="{StaticResource SegoeFluent}"
-                            FontSize="10">
+                            FontFamily="{StaticResource SegoeFluent}">
                             <Button.Style>
                                 <Style BasedOn="{StaticResource IconButton}" TargetType="Button">
                                     <Setter Property="ToolTip" Value="{StaticResource S_Preview_Maximize}" />
@@ -290,7 +299,7 @@
                                     </Style.Triggers>
                                 </Style>
                             </Button.Style>
-                            <TextBlock FontFamily="{StaticResource SegoeFluent}" FontSize="10">
+                            <TextBlock FontFamily="{StaticResource SegoeFluent}" FontSize="12">
                                 <TextBlock.Style>
                                     <Style TargetType="TextBlock">
                                         <Setter Property="Text" Value="{StaticResource Glyph_Maximize}" />
@@ -310,7 +319,7 @@
                             ToolTip="{StaticResource S_Common_Close}">
                             <TextBlock
                                 FontFamily="{StaticResource SegoeFluent}"
-                                FontSize="10"
+                                FontSize="12"
                                 Text="{StaticResource Glyph_Close}" />
                         </Button>
                     </StackPanel>

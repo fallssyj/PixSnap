@@ -20,10 +20,11 @@
     <s:String x:Key="Glyph_Copy">&#xE8C8;</s:String>
     <s:String x:Key="Glyph_Crop">&#xe924;</s:String>
     <s:String x:Key="Glyph_RoundCorner">&#xF16B;</s:String>
-    <!--  \uEC12  -->
     <s:String x:Key="Glyph_Eraser">&#xED62;</s:String>
     <s:String x:Key="Glyph_Recapture">&#xEF20;</s:String>
-    <s:String x:Key="Glyph_Settings">&#xF8B0;</s:String>
+    <s:String x:Key="Glyph_Color">&#xE790;</s:String>
+    <s:String x:Key="Glyph_Diagnostic">&#xE9D9;</s:String>
+    <s:String x:Key="Glyph_Settings">&#xE713;</s:String>
 
     <!--  底部栏  -->
     <s:String x:Key="Glyph_Resolution">&#xE799;</s:String>
