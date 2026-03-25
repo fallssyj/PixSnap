@@ -31,6 +31,12 @@
                 <tb:TaskbarIcon.ContextMenu>
                     <ContextMenu>
                         <MenuItem Command="{Binding CaptureCommand}" Header="截图" />
+                        <MenuItem Command="{Binding CaptureLastRegionCommand}" Header="上次区域" />
+                        <MenuItem Header="延时截图">
+                            <MenuItem Command="{Binding DelayCapture3Command}" Header="3 秒" />
+                            <MenuItem Command="{Binding DelayCapture5Command}" Header="5 秒" />
+                            <MenuItem Command="{Binding DelayCapture10Command}" Header="10 秒" />
+                        </MenuItem>
                         <Separator />
                         <MenuItem Command="{Binding ShowSettingsCommand}" Header="设置" />
                         <MenuItem Command="{Binding ShowAboutCommand}" Header="关于 PixSnap" />

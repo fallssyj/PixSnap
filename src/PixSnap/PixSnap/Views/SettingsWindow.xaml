@@ -247,6 +247,61 @@
                         </StackPanel>
                     </Border>
 
+                    <!--  ═══  保存  ═══  -->
+                    <TextBlock
+                        Margin="4,18,0,8"
+                        FontSize="12"
+                        Opacity="0.4"
+                        Text="保存" />
+
+                    <Border Style="{StaticResource SettingCardStyle}">
+                        <StackPanel>
+                            <Grid>
+                                <StackPanel Orientation="Horizontal">
+                                    <TextBlock
+                                        VerticalAlignment="Center"
+                                        FontFamily="{StaticResource SegoeFluent}"
+                                        FontSize="16"
+                                        Foreground="{DynamicResource AccentBrush}"
+                                        Text="&#xE74E;" />
+                                    <StackPanel Margin="12,0,0,0" VerticalAlignment="Center">
+                                        <TextBlock FontSize="14" Text="自动保存" />
+                                        <TextBlock
+                                            Margin="0,2,0,0"
+                                            FontSize="12"
+                                            Opacity="0.5"
+                                            Text="截图后自动保存到指定目录" />
+                                    </StackPanel>
+                                </StackPanel>
+                                <ToggleButton
+                                    HorizontalAlignment="Right"
+                                    VerticalAlignment="Center"
+                                    IsChecked="{Binding IsAutoSaveEnabled}"
+                                    Style="{StaticResource ToggleSwitchStyle}" />
+                            </Grid>
+                            <Grid Margin="0,12,0,0">
+                                <Grid.ColumnDefinitions>
+                                    <ColumnDefinition Width="*" />
+                                    <ColumnDefinition Width="Auto" />
+                                </Grid.ColumnDefinitions>
+                                <TextBox
+                                    Grid.Column="0"
+                                    Padding="12,8"
+                                    FontSize="12"
+                                    IsReadOnly="True"
+                                    Text="{Binding SaveDirectory, Mode=OneWay}" />
+                                <Button
+                                    Grid.Column="1"
+                                    Height="38"
+                                    Margin="8,0,0,0"
+                                    Padding="14,0"
+                                    Command="{Binding BrowseSaveDirectoryCommand}"
+                                    Content="浏览"
+                                    FontSize="12" />
+                            </Grid>
+                        </StackPanel>
+                    </Border>
+
                     <!--  操作按钮  -->
                     <Grid Margin="0,24,0,0">
                         <Grid.ColumnDefinitions>

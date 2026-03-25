@@ -21,6 +21,14 @@ public partial class SettingsViewModel : ObservableObject
     [ObservableProperty]
     private int _selectedThemeIndex;
 
+    /// <summary>自定义保存目录。</summary>
+    [ObservableProperty]
+    private string _saveDirectory = string.Empty;
+
+    /// <summary>是否启用自动保存到指定目录。</summary>
+    [ObservableProperty]
+    private bool _isAutoSaveEnabled;
+
     /// <summary>是否处于快捷键录制状态（用户点击输入框后激活）。</summary>
     [ObservableProperty]
     private bool _isRecordingHotkey;
@@ -42,6 +50,8 @@ public partial class SettingsViewModel : ObservableObject
     {
         _isStartupEnabled = SettingsService.ReadStartupEnabled();
         _selectedThemeIndex = SettingsService.ReadTheme();
+        _saveDirectory = SettingsService.ReadSaveDirectory();
+        _isAutoSaveEnabled = SettingsService.ReadAutoSave();
         var (modifiers, key) = SettingsService.ReadHotkey();
         _pendingModifiers = (int)modifiers;
         _pendingKey = (int)key;
@@ -77,10 +87,26 @@ public partial class SettingsViewModel : ObservableObject
         SettingsService.WriteStartupEnabled(IsStartupEnabled);
         SettingsService.WriteHotkey((ModifierKeys)_pendingModifiers, (Key)_pendingKey);
         SettingsService.WriteTheme(SelectedThemeIndex);
-        Log.Information("设置已保存: 开机启动={Startup}, 快捷键={Modifiers}+{Key}, 主题={Theme}", IsStartupEnabled, (ModifierKeys)_pendingModifiers, (Key)_pendingKey, SelectedThemeIndex);
+        SettingsService.WriteSaveDirectory(SaveDirectory);
+        SettingsService.WriteAutoSave(IsAutoSaveEnabled);
+        Log.Information("设置已保存: 开机启动={Startup}, 快捷键={Modifiers}+{Key}, 主题={Theme}, 保存目录={SaveDir}, 自动保存={AutoSave}",
+            IsStartupEnabled, (ModifierKeys)_pendingModifiers, (Key)_pendingKey, SelectedThemeIndex, SaveDirectory, IsAutoSaveEnabled);
         HotkeyChanged?.Invoke((ModifierKeys)_pendingModifiers, (Key)_pendingKey);
         ThemeChanged?.Invoke(SelectedThemeIndex);
         RequestClose?.Invoke();
+    }
+
+    [RelayCommand]
+    private void BrowseSaveDirectory()
+    {
+        var dialog = new Microsoft.Win32.OpenFolderDialog
+        {
+            Title = "选择保存目录"
+        };
+        if (dialog.ShowDialog() == true)
+        {
+            SaveDirectory = dialog.FolderName;
+        }
     }
 
     [RelayCommand]

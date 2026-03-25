@@ -1,11 +1,9 @@
 using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
 using PixSnap.Services;
+using PixSnap.Views;
 using Serilog;
-using System;
-using System.Collections.Generic;
-using System.Threading;
-using System.Threading.Tasks;
+using System.IO;
 using System.Windows;
 using System.Windows.Media.Imaging;
 
@@ -80,16 +78,16 @@ public partial class EraserViewModel : ObservableObject
         Log.Information("开始 AI 擦除: {StrokeCount} 笔画, 画笔大小={BrushSize}px", Strokes.Count, BrushSize);
 
         IsProcessing = true;
-        Progress     = 0;
+        Progress = 0;
         ProgressText = "正在准备...";
-        _cts         = new CancellationTokenSource();
+        _cts = new CancellationTokenSource();
 
         try
         {
-            var token    = _cts.Token;
+            var token = _cts.Token;
             var progress = new Progress<(double Value, string Text)>(t =>
             {
-                Progress     = t.Value;
+                Progress = t.Value;
                 ProgressText = t.Text;
             });
 
@@ -109,11 +107,25 @@ public partial class EraserViewModel : ObservableObject
             Log.Information("AI 擦除已取消");
             ProgressText = "已取消";
         }
+        catch (FileNotFoundException ex)
+        {
+            Log.Error(ex, "AI 擦除模型缺失");
+            ProgressText = string.Empty;
+            MessageBoxWindow.Show(
+                string.Format("AI 模型文件缺失，无法执行擦除。\n\n{0}", ex.Message),
+                "模型缺失",
+                MessageBoxButton.OK,
+                MessageBoxImage.Warning);
+        }
         catch (Exception ex)
         {
             Log.Error(ex, "AI 擦除失败");
-            ProgressText = string.Format("AI 处理失败：{0}", ex.Message);
-            await Task.Delay(2000);
+            ProgressText = string.Empty;
+            MessageBoxWindow.Show(
+                string.Format("AI 擦除失败：{0}", ex.Message),
+                "操作失败",
+                MessageBoxButton.OK,
+                MessageBoxImage.Error);
         }
         finally
         {

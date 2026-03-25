@@ -18,6 +18,7 @@ namespace PixSnap.Views;
 public partial class RegionSelectorWindow : Window
 {
     private const double InfoBubbleMargin = 24;
+    private const double SnapThreshold = 8;
 
     private readonly IReadOnlyDictionary<IntPtr, WindowInfo> _windowsByHandle;
     private readonly IReadOnlyList<ScreenInfo> _screens;
@@ -32,6 +33,8 @@ public partial class RegionSelectorWindow : Window
     private Point _mouseDownPoint;
     private Point _currentPoint;
     private bool _hintsAtBottom;
+    private List<double>? _snapXEdges;
+    private List<double>? _snapYEdges;
 
     public RegionSelectorWindow(IScreenCaptureService screenCaptureService)
     {
@@ -91,6 +94,7 @@ public partial class RegionSelectorWindow : Window
         Selection = null;
         _viewModel.ClearSelection();
         SelectionRect.Visibility = Visibility.Collapsed;
+        BuildSnapEdges();
         CaptureMouse();
     }
 
@@ -187,7 +191,15 @@ public partial class RegionSelectorWindow : Window
 
     private void UpdateSelection()
     {
-        var rect = NormalizeRect(_mouseDownPoint, _currentPoint);
+        var raw = NormalizeRect(_mouseDownPoint, _currentPoint);
+
+        // 边缘吸附：将选区四边对齐到最近的窗口边缘
+        double left = SnapValue(raw.Left, _snapXEdges);
+        double top = SnapValue(raw.Top, _snapYEdges);
+        double right = SnapValue(raw.Right, _snapXEdges);
+        double bottom = SnapValue(raw.Bottom, _snapYEdges);
+        var rect = new Rect(left, top, Math.Max(0, right - left), Math.Max(0, bottom - top));
+
         _viewModel.UpdateSelection(LocalRectToScreenRect(rect));
 
         // 矩形框是即时视觉反馈，直接操作命名元素比为每个像素属性建立绑定更清晰。
@@ -199,6 +211,53 @@ public partial class RegionSelectorWindow : Window
 
         // 拖拽中自动避让选区边缘，避免遮挡精确对齐。
         UpdateHintPanelPositions(rect);
+    }
+
+    private void BuildSnapEdges()
+    {
+        var xEdges = new HashSet<double>();
+        var yEdges = new HashSet<double>();
+        foreach (var win in _windowsByHandle.Values)
+        {
+            if (!NativeWindowHelper.TryGetWindowRect(win.Hwnd, out var wr)) continue;
+            var local = ScreenRectToLocalRect(wr);
+            xEdges.Add(local.Left);
+            xEdges.Add(local.Right);
+            yEdges.Add(local.Top);
+            yEdges.Add(local.Bottom);
+        }
+        // 也加入屏幕边缘
+        foreach (var scr in _screens)
+        {
+            var b = scr.Bounds;
+            var local = ScreenRectToLocalRect(new Rect(b.X, b.Y, b.Width, b.Height));
+            xEdges.Add(local.Left);
+            xEdges.Add(local.Right);
+            yEdges.Add(local.Top);
+            yEdges.Add(local.Bottom);
+        }
+        _snapXEdges = xEdges.OrderBy(v => v).ToList();
+        _snapYEdges = yEdges.OrderBy(v => v).ToList();
+    }
+
+    private static double SnapValue(double value, List<double>? edges)
+    {
+        if (edges is null || edges.Count == 0) return value;
+        // Binary search for nearest edge within threshold
+        int idx = edges.BinarySearch(value);
+        if (idx < 0) idx = ~idx;
+        double best = value;
+        double bestDist = SnapThreshold + 1;
+        for (int i = Math.Max(0, idx - 1); i <= Math.Min(edges.Count - 1, idx + 1); i++)
+        {
+            double dist = Math.Abs(edges[i] - value);
+            if (dist < bestDist)
+            {
+                bestDist = dist;
+                best = edges[i];
+            }
+        }
+        return bestDist <= SnapThreshold ? best : value;
     }
 
     private void UpdateHover(Point screenPoint)

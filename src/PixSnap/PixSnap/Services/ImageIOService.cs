@@ -35,10 +35,21 @@ public static class ImageIOService
     /// <summary>后台线程将 BitmapSource 编码为 PNG 并写入磁盘。</summary>
     public static Task SavePngAsync(BitmapSource bitmap, string filePath, IProgress<(double Value, string Text)>? progress = null)
     {
+        return SaveAsync(bitmap, filePath, "png", progress);
+    }
+
+    /// <summary>后台线程将 BitmapSource 编码为指定格式并写入磁盘。</summary>
+    public static Task SaveAsync(BitmapSource bitmap, string filePath, string format, IProgress<(double Value, string Text)>? progress = null)
+    {
         return Task.Run(() =>
         {
             progress?.Report((0.25, "正在编码图片..."));
-            var encoder = new PngBitmapEncoder();
+            BitmapEncoder encoder = format.ToLowerInvariant() switch
+            {
+                "jpg" or "jpeg" => new JpegBitmapEncoder { QualityLevel = 95 },
+                "bmp" => new BmpBitmapEncoder(),
+                _ => new PngBitmapEncoder(),
+            };
             encoder.Frames.Add(BitmapFrame.Create(bitmap));
 
             progress?.Report((0.7, "正在写入磁盘..."));

@@ -49,6 +49,10 @@ public partial class MainViewModel : ObservableObject
 
             if (selector.ShowDialog() == true && selector.Selection is { } selection)
             {
+                // 记录区域截图的区域，以便 "上次区域" 快捷截图
+                if (selection.Mode == CaptureSelectionMode.Region && selection.Region is { Width: > 0, Height: > 0 } r)
+                    SettingsService.WriteLastRegion(r.X, r.Y, r.Width, r.Height);
+
                 var (screenshot, mode) = await CaptureSelectionAsync(selection);
                 Log.Information("截图完成: 模式={Mode}, 尺寸={W}×{H}", mode, screenshot.PixelWidth, screenshot.PixelHeight);
                 SendScreenshot(screenshot, mode);
@@ -87,6 +91,42 @@ public partial class MainViewModel : ObservableObject
                 "Region"),
             _ => throw new InvalidOperationException("不支持的截图模式。")
         };
+    }
+
+    /// <summary>直接截取上次的区域，无需打开选区窗口。</summary>
+    public async Task CaptureLastRegionAsync()
+    {
+        var region = SettingsService.ReadLastRegion();
+        if (region is null)
+        {
+            MessageBoxWindow.Show("没有保存的截图区域。请先执行一次区域截图。", "PixSnap", MessageBoxButton.OK, MessageBoxImage.Information);
+            return;
+        }
+
+        if (IsCapturing) return;
+        IsCapturing = true;
+
+        try
+        {
+            var (x, y, w, h) = region.Value;
+            Application.Current.MainWindow?.Hide();
+            await Task.Delay(120);
+
+            var rect = new Rect(x, y, w, h);
+            var screenshot = await _screenCaptureService.CaptureRegionAsync(rect);
+            Log.Information("上次区域截图完成: 区域={Region}, 尺寸={W}×{H}", rect, screenshot.PixelWidth, screenshot.PixelHeight);
+            SendScreenshot(screenshot, "Region");
+        }
+        catch (Exception ex)
+        {
+            Log.Error(ex, "上次区域截图失败");
+            ShowError(BuildExceptionMessage("上次区域截图失败", ex));
+        }
+        finally
+        {
+            Application.Current.MainWindow?.Show();
+            IsCapturing = false;
+        }
     }
 
     partial void OnIsCapturingChanged(bool value)

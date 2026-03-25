@@ -21,6 +21,7 @@
     <s:String x:Key="Glyph_Crop">&#xe924;</s:String>
     <s:String x:Key="Glyph_RoundCorner">&#xF16B;</s:String>
     <s:String x:Key="Glyph_Eraser">&#xED62;</s:String>
+    <s:String x:Key="Glyph_Annotate">&#xE76D;</s:String>
     <s:String x:Key="Glyph_Recapture">&#xEF20;</s:String>
     <s:String x:Key="Glyph_Color">&#xE790;</s:String>
     <s:String x:Key="Glyph_Diagnostic">&#xE9D9;</s:String>

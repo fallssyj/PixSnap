@@ -14,8 +14,9 @@ public static class OnnxSessionFactory
     private static readonly Lazy<int> _bestDmlDeviceId = new(DetectBestGpuDeviceId);
 
     // ── Session 缓存（按模型路径），避免每次推理重新加载 DML 权重 ──────────────
-    private static readonly Dictionary<string, (InferenceSession Session, string ProviderName)> _sessionCache = new();
+    private static readonly Dictionary<string, (InferenceSession Session, string ProviderName, DateTime LastUsed)> _sessionCache = new();
     private static readonly object _cacheLock = new();
+    private const int MaxCachedSessions = 4;
 
     /// <summary>创建新的推理会话：优先尝试 DirectML GPU，失败则回退到 CPU。</summary>
     public static InferenceSession CreateSession(string modelPath, out string providerName)
@@ -61,12 +62,23 @@ public static class OnnxSessionFactory
             if (_sessionCache.TryGetValue(modelPath, out var cached))
             {
                 Log.Debug("ONNX 会话缓存命中: {Model}", Path.GetFileName(modelPath));
+                _sessionCache[modelPath] = (cached.Session, cached.ProviderName, DateTime.UtcNow);
                 providerName = cached.ProviderName;
                 return cached.Session;
             }
+
+            // 缓存已满时驱逐最久未使用的会话
+            if (_sessionCache.Count >= MaxCachedSessions)
+            {
+                var oldest = _sessionCache.MinBy(kv => kv.Value.LastUsed);
+                Log.Information("ONNX 缓存已满，驱逐最久未使用: {Model}", Path.GetFileName(oldest.Key));
+                oldest.Value.Session.Dispose();
+                _sessionCache.Remove(oldest.Key);
+            }
+
             Log.Debug("ONNX 会话缓存未命中，创建新会话: {Model}", Path.GetFileName(modelPath));
             var session = CreateSession(modelPath, out providerName);
-            _sessionCache[modelPath] = (session, providerName);
+            _sessionCache[modelPath] = (session, providerName, DateTime.UtcNow);
             return session;
         }
     }

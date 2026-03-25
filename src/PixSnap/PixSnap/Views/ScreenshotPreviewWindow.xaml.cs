@@ -54,6 +54,46 @@ public partial class ScreenshotPreviewWindow : MicaWindow
         DataContextChanged += OnDataContextChanged;
         Closed += OnClosed;
         StateChanged += OnWindowStateChanged;
+        AllowDrop = true;
+        Drop += OnDrop;
+        DragOver += OnDragOver;
+    }
+
+    private void OnDragOver(object sender, DragEventArgs e)
+    {
+        if (e.Data.GetDataPresent(DataFormats.FileDrop))
+        {
+            var files = e.Data.GetData(DataFormats.FileDrop) as string[];
+            if (files?.Length > 0 && IsImageFile(files[0]))
+            {
+                e.Effects = DragDropEffects.Copy;
+                e.Handled = true;
+                return;
+            }
+        }
+        e.Effects = DragDropEffects.None;
+        e.Handled = true;
+    }
+
+    private async void OnDrop(object sender, DragEventArgs e)
+    {
+        if (e.Data.GetDataPresent(DataFormats.FileDrop) &&
+            e.Data.GetData(DataFormats.FileDrop) is string[] files &&
+            files.Length > 0 && IsImageFile(files[0]) &&
+            DataContext is ScreenshotPreviewViewModel vm)
+        {
+            await vm.LoadFromFileAsync(files[0]);
+        }
+    }
+
+    private static bool IsImageFile(string path)
+    {
+        var ext = System.IO.Path.GetExtension(path);
+        return ext.Equals(".png", StringComparison.OrdinalIgnoreCase) ||
+               ext.Equals(".jpg", StringComparison.OrdinalIgnoreCase) ||
+               ext.Equals(".jpeg", StringComparison.OrdinalIgnoreCase) ||
+               ext.Equals(".bmp", StringComparison.OrdinalIgnoreCase) ||
+               ext.Equals(".webp", StringComparison.OrdinalIgnoreCase);
     }
 
     [LibraryImport("psapi.dll")]
@@ -138,6 +178,10 @@ public partial class ScreenshotPreviewWindow : MicaWindow
 
             case nameof(ScreenshotPreviewViewModel.IsEraserMode):
                 UpdateEraserCanvasState();
+                break;
+
+            case nameof(ScreenshotPreviewViewModel.IsAnnotateMode):
+                UpdateAnnotationCanvasState();
                 break;
         }
     }
@@ -730,6 +774,174 @@ public partial class ScreenshotPreviewWindow : MicaWindow
         _currentEraserStrokeVisual = null;
         EraserCanvas.ReleaseMouseCapture();
         e.Handled = true;
+    }
+
+    // ══════════════════════════════════════════════════════════════════════════
+    // 标注画布交互
+    // ══════════════════════════════════════════════════════════════════════════
+
+    private void UpdateAnnotationCanvasState()
+    {
+        if (DataContext is not ScreenshotPreviewViewModel vm) return;
+        var active = vm.IsAnnotateMode;
+
+        AnnotationCanvas.IsHitTestVisible = active;
+        AnnotationCanvas.Cursor = active ? Cursors.Cross : null;
+        AnnotationFloatingPanel.Visibility = active ? Visibility.Visible : Visibility.Collapsed;
+
+        if (active)
+        {
+            AnnotationFloatingPanelTranslate.X = AnnotationFloatingPanelTranslate.Y = 0;
+        }
+        else
+        {
+            AnnotationCanvas.Children.Clear();
+        }
+    }
+
+    private void AnnotationCanvas_MouseLeftButtonDown(object sender, MouseButtonEventArgs e)
+    {
+        if (DataContext is not ScreenshotPreviewViewModel vm || !vm.IsAnnotateMode) return;
+        var pos = e.GetPosition(AnnotationCanvas);
+        if (!TryGetImagePixelPoint(pos, out var imgPoint)) return;
+
+        vm.AnnotationPanel.BeginAnnotation(imgPoint);
+        AnnotationCanvas.CaptureMouse();
+        e.Handled = true;
+    }
+
+    private void AnnotationCanvas_MouseMove(object sender, MouseEventArgs e)
+    {
+        if (DataContext is not ScreenshotPreviewViewModel vm || !vm.IsAnnotateMode) return;
+        if (vm.AnnotationPanel.CurrentAnnotation is null) return;
+        if (e.LeftButton != MouseButtonState.Pressed) return;
+
+        var pos = e.GetPosition(AnnotationCanvas);
+        if (!TryGetImagePixelPoint(pos, out var imgPoint)) return;
+
+        vm.AnnotationPanel.UpdateAnnotation(imgPoint);
+        RedrawAnnotationOverlay();
+    }
+
+    private void AnnotationCanvas_MouseLeftButtonUp(object sender, MouseButtonEventArgs e)
+    {
+        if (DataContext is not ScreenshotPreviewViewModel vm || !vm.IsAnnotateMode) return;
+        if (vm.AnnotationPanel.CurrentAnnotation is null) return;
+
+        vm.AnnotationPanel.EndAnnotation();
+        AnnotationCanvas.ReleaseMouseCapture();
+        RedrawAnnotationOverlay();
+        e.Handled = true;
+    }
+
+    /// <summary>重绘所有标注到画布上（使用 WPF Shapes 实时预览）。</summary>
+    private void RedrawAnnotationOverlay()
+    {
+        if (DataContext is not ScreenshotPreviewViewModel vm) return;
+
+        AnnotationCanvas.Children.Clear();
+        var imgRect = GetImageDisplayRect();
+        if (imgRect.Width <= 0 || imgRect.Height <= 0) return;
+        if (vm.ScreenshotImage is null) return;
+
+        double scaleX = imgRect.Width / vm.ScreenshotImage.PixelWidth;
+        double scaleY = imgRect.Height / vm.ScreenshotImage.PixelHeight;
+
+        foreach (var ann in vm.AnnotationPanel.Annotations)
+            DrawAnnotationShape(ann, imgRect, scaleX, scaleY);
+
+        if (vm.AnnotationPanel.CurrentAnnotation is { } cur)
+            DrawAnnotationShape(cur, imgRect, scaleX, scaleY);
+    }
+
+    private void DrawAnnotationShape(AnnotationItem item, Rect imgRect, double scaleX, double scaleY)
+    {
+        var brush = new SolidColorBrush(item.StrokeColor);
+        double thickness = item.StrokeWidth * Math.Min(scaleX, scaleY);
+
+        double sx = imgRect.X + item.Start.X * scaleX;
+        double sy = imgRect.Y + item.Start.Y * scaleY;
+        double ex = imgRect.X + item.End.X * scaleX;
+        double ey = imgRect.Y + item.End.Y * scaleY;
+
+        switch (item.Tool)
+        {
+            case AnnotationTool.Arrow:
+                // Line
+                var arrowLine = new System.Windows.Shapes.Line
+                {
+                    X1 = sx, Y1 = sy, X2 = ex, Y2 = ey,
+                    Stroke = brush, StrokeThickness = thickness
+                };
+                AnnotationCanvas.Children.Add(arrowLine);
+
+                // Arrowhead
+                double angle = Math.Atan2(ey - sy, ex - sx);
+                double arrowLen = Math.Max(8, thickness * 5);
+                double arrowAngle = Math.PI / 6;
+                var p1 = new Point(ex - arrowLen * Math.Cos(angle - arrowAngle), ey - arrowLen * Math.Sin(angle - arrowAngle));
+                var p2 = new Point(ex - arrowLen * Math.Cos(angle + arrowAngle), ey - arrowLen * Math.Sin(angle + arrowAngle));
+                var arrowHead = new System.Windows.Shapes.Polygon
+                {
+                    Points = [new Point(ex, ey), p1, p2],
+                    Fill = brush
+                };
+                AnnotationCanvas.Children.Add(arrowHead);
+                break;
+
+            case AnnotationTool.Rectangle:
+                var rect = new System.Windows.Shapes.Rectangle
+                {
+                    Width = Math.Abs(ex - sx),
+                    Height = Math.Abs(ey - sy),
+                    Stroke = brush,
+                    StrokeThickness = thickness
+                };
+                Canvas.SetLeft(rect, Math.Min(sx, ex));
+                Canvas.SetTop(rect, Math.Min(sy, ey));
+                AnnotationCanvas.Children.Add(rect);
+                break;
+
+            case AnnotationTool.Ellipse:
+                var ell = new System.Windows.Shapes.Ellipse
+                {
+                    Width = Math.Abs(ex - sx),
+                    Height = Math.Abs(ey - sy),
+                    Stroke = brush,
+                    StrokeThickness = thickness
+                };
+                Canvas.SetLeft(ell, Math.Min(sx, ex));
+                Canvas.SetTop(ell, Math.Min(sy, ey));
+                AnnotationCanvas.Children.Add(ell);
+                break;
+
+            case AnnotationTool.Text:
+                var tb = new TextBlock
+                {
+                    Text = item.Text,
+                    Foreground = brush,
+                    FontSize = item.FontSize * Math.Min(scaleX, scaleY)
+                };
+                Canvas.SetLeft(tb, sx);
+                Canvas.SetTop(tb, sy);
+                AnnotationCanvas.Children.Add(tb);
+                break;
+
+            case AnnotationTool.Pen:
+                if (item.PenPoints.Count >= 2)
+                {
+                    var polyline = new Polyline
+                    {
+                        Stroke = brush,
+                        StrokeThickness = thickness,
+                        StrokeLineJoin = PenLineJoin.Round
+                    };
+                    foreach (var pt in item.PenPoints)
+                        polyline.Points.Add(new Point(imgRect.X + pt.X * scaleX, imgRect.Y + pt.Y * scaleY));
+                    AnnotationCanvas.Children.Add(polyline);
+                }
+                break;
+        }
     }
 
     private void EditPanel_MouseLeftButtonDown(object sender, MouseButtonEventArgs e)

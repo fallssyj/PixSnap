@@ -11,6 +11,7 @@ public sealed class UndoRedoManager : IDisposable
     private const long LargeImagePixelThreshold = 16_000_000;
     private const int NormalUndoLimit = 10;
     private const int LargeImageUndoLimit = 3;
+    private const int AbsoluteMaxUndoLimit = 30;
 
     private readonly Stack<BitmapSource> _undoStack = [];
     private readonly Stack<BitmapSource> _redoStack = [];
@@ -22,7 +23,7 @@ public sealed class UndoRedoManager : IDisposable
     public void PushUndo(BitmapSource current, BitmapSource incoming)
     {
         _undoStack.Push(current);
-        TrimUndoStack(GetUndoLimit(incoming));
+        TrimUndoStack(Math.Min(GetUndoLimit(incoming), AbsoluteMaxUndoLimit));
         _redoStack.Clear();
     }
 

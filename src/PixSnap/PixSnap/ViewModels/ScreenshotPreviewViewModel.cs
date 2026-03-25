@@ -17,7 +17,7 @@ using Clipboard = System.Windows.Clipboard;
 namespace PixSnap.ViewModels;
 
 /// <summary>截图预览窗口的编辑模式，各模式互斥，同一时刻只有一种可激活。</summary>
-public enum EditMode { None, Crop, RoundCorner, Eraser }
+public enum EditMode { None, Crop, RoundCorner, Eraser, Annotate }
 
 public partial class ScreenshotPreviewViewModel : ObservableRecipient, IRecipient<ScreenshotCapturedMessage>
 {
@@ -114,12 +114,14 @@ public partial class ScreenshotPreviewViewModel : ObservableRecipient, IRecipien
         OnPropertyChanged(nameof(IsCropMode));
         OnPropertyChanged(nameof(IsRoundCornerMode));
         OnPropertyChanged(nameof(IsEraserMode));
+        OnPropertyChanged(nameof(IsAnnotateMode));
         OnPropertyChanged(nameof(IsEditPanelVisible));
     }
 
     public bool IsCropMode => ActiveEditMode == EditMode.Crop;
     public bool IsRoundCornerMode => ActiveEditMode == EditMode.RoundCorner;
     public bool IsEraserMode => ActiveEditMode == EditMode.Eraser;
+    public bool IsAnnotateMode => ActiveEditMode == EditMode.Annotate;
     public bool IsEditPanelVisible => ActiveEditMode != EditMode.None;
 
     /// <summary>退出当前编辑模式，回到浏览状态。</summary>
@@ -128,6 +130,7 @@ public partial class ScreenshotPreviewViewModel : ObservableRecipient, IRecipien
     public CropViewModel CropPanel { get; } = new();
     public RoundCornerViewModel RoundCornerPanel { get; } = new();
     public EraserViewModel EraserPanel { get; } = new();
+    public AnnotationViewModel AnnotationPanel { get; } = new();
 
     public string PreviewScaleModeText => IsActualSize ? "缩放以适应" : "缩放以原始";
     public string ZoomDisplayText => string.Format("缩放 {0:P0}", IsActualSize ? ZoomFactor : FitZoomFactor);
@@ -170,6 +173,8 @@ public partial class ScreenshotPreviewViewModel : ObservableRecipient, IRecipien
         EraserPanel.PropertyChanged += OnEraserPanelPropertyChanged;
         CropPanel.PropertyChanged += OnCropPanelPropertyChanged;
         RoundCornerPanel.PropertyChanged += OnRoundCornerPanelPropertyChanged;
+        AnnotationPanel.AnnotationApplied += OnAnnotationApplied;
+        AnnotationPanel.AnnotationCancelled += () => ExitEditMode();
     }
 
     private void OnEraserPanelPropertyChanged(object? sender, PropertyChangedEventArgs e)
@@ -209,6 +214,12 @@ public partial class ScreenshotPreviewViewModel : ObservableRecipient, IRecipien
     private void OnEraserApplied(BitmapSource result)
     {
         _ = ApplyEditedImageAsync(result);
+    }
+
+    private void OnAnnotationApplied(BitmapSource result)
+    {
+        _ = ApplyEditedImageAsync(result);
+        ActiveEditMode = EditMode.None;
     }
 
     partial void OnIsActualSizeChanged(bool value)
@@ -338,7 +349,7 @@ public partial class ScreenshotPreviewViewModel : ObservableRecipient, IRecipien
         var dialog = new Microsoft.Win32.SaveFileDialog
         {
             Title = "保存截图",
-            Filter = "PNG 文件|*.png",
+            Filter = "PNG 文件|*.png|JPEG 文件|*.jpg|BMP 文件|*.bmp",
             FileName = $"PixSnap_{DateTime.Now:yyyyMMdd_HHmmss}.png"
         };
 
@@ -346,6 +357,9 @@ public partial class ScreenshotPreviewViewModel : ObservableRecipient, IRecipien
         {
             return;
         }
+
+        var format = System.IO.Path.GetExtension(dialog.FileName).TrimStart('.').ToLowerInvariant();
+        if (string.IsNullOrEmpty(format)) format = "png";
 
         var imageSnapshot = ImageIOService.CreateFrozenSnapshot(ScreenshotImage);
         IsSaving = true;
@@ -361,7 +375,7 @@ public partial class ScreenshotPreviewViewModel : ObservableRecipient, IRecipien
                 FileOperationProgressText = p.Text;
             });
 
-            await ImageIOService.SavePngAsync(imageSnapshot, dialog.FileName, progress);
+            await ImageIOService.SaveAsync(imageSnapshot, dialog.FileName, format, progress);
             FileOperationProgress = 1.0;
             FileOperationProgressText = "图片保存完成";
         }
@@ -388,6 +402,20 @@ public partial class ScreenshotPreviewViewModel : ObservableRecipient, IRecipien
         {
             Clipboard.SetImage(ScreenshotImage);
         }
+    }
+
+    [RelayCommand]
+    private void PasteFromClipboard()
+    {
+        if (!Clipboard.ContainsImage()) return;
+        var image = Clipboard.GetImage();
+        if (image is null) return;
+
+        if (!image.IsFrozen) image.Freeze();
+        SetCurrentImage(image, switchToFit: true);
+        ResetHistory();
+        CaptureTime = "剪贴板图片";
+        FileSize = ImageIOService.FormatFileSize((long)image.PixelWidth * image.PixelHeight * 4);
     }
 
     [RelayCommand]
@@ -514,6 +542,36 @@ public partial class ScreenshotPreviewViewModel : ObservableRecipient, IRecipien
         await EraserPanel.RunInpaintAsync(image);
     }
 
+    [RelayCommand]
+    private void ToggleAnnotation()
+    {
+        if (ScreenshotImage is null) return;
+        if (ActiveEditMode == EditMode.Annotate)
+        {
+            AnnotationPanel.ClearAnnotationsCommand.Execute(null);
+            ActiveEditMode = EditMode.None;
+        }
+        else
+        {
+            SwitchToFitMode();
+            ActiveEditMode = EditMode.Annotate;
+        }
+    }
+
+    [RelayCommand]
+    private async Task ApplyAnnotation()
+    {
+        if (ScreenshotImage is null || AnnotationPanel.Annotations.Count == 0) return;
+        await AnnotationPanel.ApplyAnnotationsAsync(ScreenshotImage);
+    }
+
+    [RelayCommand]
+    private void ExitAnnotationMode()
+    {
+        AnnotationPanel.ClearAnnotationsCommand.Execute(null);
+        ExitEditMode();
+    }
+
 
     /// <summary>执行背景去除 AI 功能。</summary>
     [RelayCommand]
@@ -546,10 +604,25 @@ public partial class ScreenshotPreviewViewModel : ObservableRecipient, IRecipien
         {
             AiModuleProgressText = string.Empty;
         }
+        catch (FileNotFoundException ex)
+        {
+            Log.Error(ex, "去除背景模型缺失");
+            AiModuleProgressText = string.Empty;
+            MessageBoxWindow.Show(
+                string.Format("AI 模型文件缺失，无法执行去除背景。\n\n{0}", ex.Message),
+                "模型缺失",
+                MessageBoxButton.OK,
+                MessageBoxImage.Warning);
+        }
         catch (Exception ex)
         {
             Log.Error(ex, "去除背景失败");
-            AiModuleProgressText = string.Format("去除背景失败：{0}", ex.Message);
+            AiModuleProgressText = string.Empty;
+            MessageBoxWindow.Show(
+                string.Format("去除背景失败：{0}", ex.Message),
+                "操作失败",
+                MessageBoxButton.OK,
+                MessageBoxImage.Error);
         }
         finally
         {
@@ -587,10 +660,25 @@ public partial class ScreenshotPreviewViewModel : ObservableRecipient, IRecipien
         {
             AiModuleProgressText = string.Empty;
         }
+        catch (FileNotFoundException ex)
+        {
+            Log.Error(ex, "超分辨率模型缺失");
+            AiModuleProgressText = string.Empty;
+            MessageBoxWindow.Show(
+                string.Format("AI 模型文件缺失，无法执行超分辨率。\n\n{0}", ex.Message),
+                "模型缺失",
+                MessageBoxButton.OK,
+                MessageBoxImage.Warning);
+        }
         catch (Exception ex)
         {
             Log.Error(ex, "超分辨率失败");
-            AiModuleProgressText = string.Format("超分辨率失败：{0}", ex.Message);
+            AiModuleProgressText = string.Empty;
+            MessageBoxWindow.Show(
+                string.Format("超分辨率失败：{0}", ex.Message),
+                "操作失败",
+                MessageBoxButton.OK,
+                MessageBoxImage.Error);
         }
         finally
         {
@@ -666,6 +754,42 @@ public partial class ScreenshotPreviewViewModel : ObservableRecipient, IRecipien
         var logDir = Path.Combine(AppContext.BaseDirectory, "logs");
         if (Directory.Exists(logDir))
             Process.Start(new ProcessStartInfo(logDir) { UseShellExecute = true });
+    }
+
+    /// <summary>从文件路径加载图片（拖拽打开时使用）。</summary>
+    public async Task LoadFromFileAsync(string filePath)
+    {
+        IsFileOperationProcessing = true;
+        FileOperationProgress = 0.05;
+        FileOperationProgressText = "正在加载图片...";
+        try
+        {
+            ScreenshotImage = null;
+            var progress = new Progress<(double Value, string Text)>(p =>
+            {
+                FileOperationProgress = Math.Clamp(p.Value, 0, 1);
+                FileOperationProgressText = p.Text;
+            });
+            Log.Information("拖拽加载图片: {FilePath}", filePath);
+            var bitmap = await ImageIOService.LoadBitmapFromFileAsync(filePath, progress);
+            SetCurrentImage(bitmap, switchToFit: true);
+            ResetHistory();
+            CaptureTime = Path.GetFileName(filePath);
+            FileSize = ImageIOService.FormatFileSize(new FileInfo(filePath).Length);
+        }
+        catch (Exception ex)
+        {
+            Log.Error(ex, "拖拽加载图片失败: {FilePath}", filePath);
+            MessageBoxWindow.Show(
+                string.Format("加载失败：{0}", ex.Message),
+                "PixSnap 错误",
+                MessageBoxButton.OK,
+                MessageBoxImage.Error);
+        }
+        finally
+        {
+            IsFileOperationProcessing = false;
+        }
     }
 
     [RelayCommand]
@@ -753,6 +877,32 @@ public partial class ScreenshotPreviewViewModel : ObservableRecipient, IRecipien
         ZoomFactor = 1.0;
         CaptureMode = message.CaptureMode;
         CaptureTime = DateTime.Now.ToString("yyyy-MM-dd HH:mm:ss");
+
+        // 自动保存
+        if (SettingsService.ReadAutoSave())
+        {
+            var dir = SettingsService.ReadSaveDirectory();
+            if (!string.IsNullOrEmpty(dir) && Directory.Exists(dir))
+            {
+                _ = AutoSaveAsync(message.Screenshot, dir);
+            }
+        }
+    }
+
+    private async Task AutoSaveAsync(BitmapSource image, string directory)
+    {
+        var fileName = $"PixSnap_{DateTime.Now:yyyyMMdd_HHmmss}.png";
+        var filePath = Path.Combine(directory, fileName);
+        try
+        {
+            var frozen = ImageIOService.CreateFrozenSnapshot(image);
+            await ImageIOService.SavePngAsync(frozen, filePath);
+            Log.Information("自动保存成功: {FilePath}", filePath);
+        }
+        catch (Exception ex)
+        {
+            Log.Error(ex, "自动保存失败: {FilePath}", filePath);
+        }
     }
 
     public void ApplyEditedImage(BitmapSource newImage, bool switchToFit = true)
