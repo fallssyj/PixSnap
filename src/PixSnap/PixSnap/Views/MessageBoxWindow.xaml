@@ -121,24 +121,24 @@
                     MinWidth="80"
                     Margin="0,0,8,0"
                     Command="{Binding YesCommand}"
-                    Content="{StaticResource S_Common_Yes}"
+                    Content="是"
                     Visibility="{Binding ShowYes, Converter={StaticResource BoolToVis}}" />
                 <Button
                     MinWidth="80"
                     Margin="0,0,8,0"
                     Command="{Binding NoCommand}"
-                    Content="{StaticResource S_Common_No}"
+                    Content="否"
                     Visibility="{Binding ShowNo, Converter={StaticResource BoolToVis}}" />
                 <Button
                     MinWidth="80"
                     Margin="0,0,8,0"
                     Command="{Binding OkCommand}"
-                    Content="{StaticResource S_Common_OK}"
+                    Content="确定"
                     Visibility="{Binding ShowOk, Converter={StaticResource BoolToVis}}" />
                 <Button
                     MinWidth="80"
                     Command="{Binding CancelCommand}"
-                    Content="{StaticResource S_Common_Cancel}"
+                    Content="取消"
                     Visibility="{Binding ShowCancel, Converter={StaticResource BoolToVis}}" />
             </StackPanel>
         </Grid>

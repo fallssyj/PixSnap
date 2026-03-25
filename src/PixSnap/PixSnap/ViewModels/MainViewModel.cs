@@ -2,7 +2,6 @@ using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
 using CommunityToolkit.Mvvm.Messaging;
 using PixSnap.Models;
-using PixSnap.Resources;
 using PixSnap.Services;
 using PixSnap.Views;
 using Serilog;
@@ -58,7 +57,7 @@ public partial class MainViewModel : ObservableObject
         catch (Exception ex)
         {
             Log.Error(ex, "截图失败");
-            ShowError(BuildExceptionMessage(S.Capture_Failed, ex));
+            ShowError(BuildExceptionMessage("截图失败", ex));
         }
         finally
         {
@@ -86,7 +85,7 @@ public partial class MainViewModel : ObservableObject
             CaptureSelectionMode.Region => (
                 await _screenCaptureService.CaptureRegionAsync(selection.Region),
                 "Region"),
-            _ => throw new InvalidOperationException(S.Capture_UnsupportedMode)
+            _ => throw new InvalidOperationException("不支持的截图模式。")
         };
     }
 
@@ -104,7 +103,7 @@ public partial class MainViewModel : ObservableObject
     {
         MessageBoxWindow.Show(
             message,
-            S.Error_PixSnap,
+            "PixSnap 错误",
             MessageBoxButton.OK,
             MessageBoxImage.Error);
     }

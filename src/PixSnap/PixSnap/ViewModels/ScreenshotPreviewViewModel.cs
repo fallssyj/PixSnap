@@ -2,7 +2,6 @@ using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
 using CommunityToolkit.Mvvm.Messaging;
 using PixSnap.Models;
-using PixSnap.Resources;
 using PixSnap.Services;
 using PixSnap.Views;
 using Serilog;
@@ -130,8 +129,8 @@ public partial class ScreenshotPreviewViewModel : ObservableRecipient, IRecipien
     public RoundCornerViewModel RoundCornerPanel { get; } = new();
     public EraserViewModel EraserPanel { get; } = new();
 
-    public string PreviewScaleModeText => IsActualSize ? S.Preview_FitToWindow : S.Preview_ActualSize;
-    public string ZoomDisplayText => string.Format(S.Preview_ZoomFormat, IsActualSize ? ZoomFactor : FitZoomFactor);
+    public string PreviewScaleModeText => IsActualSize ? "缩放以适应" : "缩放以原始";
+    public string ZoomDisplayText => string.Format("缩放 {0:P0}", IsActualSize ? ZoomFactor : FitZoomFactor);
     public string ZoomCompactText => $"{(IsActualSize ? ZoomFactor : FitZoomFactor):P0}";
     public string CaptureTitleDisplay => MiddleEllipsis(CaptureTime, 24);
     public bool IsAnyAiProcessing => EraserPanel.IsProcessing || IsAiModuleProcessing || IsFileOperationProcessing || CropPanel.IsCropProcessing || RoundCornerPanel.IsProcessing || IsRotating;
@@ -141,11 +140,11 @@ public partial class ScreenshotPreviewViewModel : ObservableRecipient, IRecipien
 
     public string ActiveAiProgressText
         => CropPanel.IsCropProcessing
-            ? S.Preview_Cropping
+            ? "正在裁剪..."
             : RoundCornerPanel.IsProcessing
-                ? S.Preview_RoundingCorners
+                ? "正在处理圆角..."
                 : IsRotating
-                    ? S.Preview_Rotating
+                    ? "正在旋转图片..."
                     : EraserPanel.IsProcessing
                         ? EraserPanel.ProgressText
                         : IsAiModuleProcessing
@@ -280,15 +279,15 @@ public partial class ScreenshotPreviewViewModel : ObservableRecipient, IRecipien
     {
         var dialog = new Microsoft.Win32.OpenFileDialog
         {
-            Title = S.File_OpenTitle,
-            Filter = S.File_OpenFilter
+            Title = "打开图片",
+            Filter = "图片文件|*.png;*.jpg;*.jpeg|PNG 文件|*.png|JPEG 文件|*.jpg;*.jpeg"
         };
 
         if (dialog.ShowDialog() != true) return;
 
         IsFileOperationProcessing = true;
         FileOperationProgress = 0.05;
-        FileOperationProgressText = S.File_Loading;
+        FileOperationProgressText = "正在加载图片...";
 
         try
         {
@@ -309,14 +308,14 @@ public partial class ScreenshotPreviewViewModel : ObservableRecipient, IRecipien
             CaptureTime = Path.GetFileName(dialog.FileName);
             FileSize = ImageIOService.FormatFileSize(new FileInfo(dialog.FileName).Length);
             FileOperationProgress = 1.0;
-            FileOperationProgressText = S.File_LoadDone;
+            FileOperationProgressText = "图片加载完成";
         }
         catch (Exception ex)
         {
             Log.Error(ex, "加载图片失败: {FilePath}", dialog.FileName);
             MessageBoxWindow.Show(
-                string.Format(S.File_LoadFailed, ex.Message),
-                S.Error_PixSnap,
+                string.Format("加载失败：{0}", ex.Message),
+                "PixSnap 错误",
                 MessageBoxButton.OK,
                 MessageBoxImage.Error);
         }
@@ -338,8 +337,8 @@ public partial class ScreenshotPreviewViewModel : ObservableRecipient, IRecipien
 
         var dialog = new Microsoft.Win32.SaveFileDialog
         {
-            Title = S.File_SaveTitle,
-            Filter = S.File_SaveFilter,
+            Title = "保存截图",
+            Filter = "PNG 文件|*.png",
             FileName = $"PixSnap_{DateTime.Now:yyyyMMdd_HHmmss}.png"
         };
 
@@ -352,7 +351,7 @@ public partial class ScreenshotPreviewViewModel : ObservableRecipient, IRecipien
         IsSaving = true;
         IsFileOperationProcessing = true;
         FileOperationProgress = 0.1;
-        FileOperationProgressText = S.File_Saving;
+        FileOperationProgressText = "正在保存图片...";
         Log.Information("保存图片: {FilePath}", dialog.FileName);
         try
         {
@@ -364,14 +363,14 @@ public partial class ScreenshotPreviewViewModel : ObservableRecipient, IRecipien
 
             await ImageIOService.SavePngAsync(imageSnapshot, dialog.FileName, progress);
             FileOperationProgress = 1.0;
-            FileOperationProgressText = S.File_SaveDone;
+            FileOperationProgressText = "图片保存完成";
         }
         catch (Exception ex)
         {
             Log.Error(ex, "保存图片失败: {FilePath}", dialog.FileName);
             MessageBoxWindow.Show(
-                string.Format(S.File_SaveFailed, ex.Message),
-                S.Error_PixSnap,
+                string.Format("保存失败：{0}", ex.Message),
+                "PixSnap 错误",
                 MessageBoxButton.OK,
                 MessageBoxImage.Error);
         }
@@ -526,7 +525,7 @@ public partial class ScreenshotPreviewViewModel : ObservableRecipient, IRecipien
         IsAiPopupOpen = false;
         IsAiModuleProcessing = true;
         AiModuleProgress = 0;
-        AiModuleProgressText = S.Bg_PreparingRemoval;
+        AiModuleProgressText = "正在准备去除背景...";
         var token = CreateAiCancellationToken();
         try
         {
@@ -541,7 +540,7 @@ public partial class ScreenshotPreviewViewModel : ObservableRecipient, IRecipien
 
             await ApplyEditedImageAsync(result);
             AiModuleProgress = 1;
-            AiModuleProgressText = S.Bg_RemovalDone;
+            AiModuleProgressText = "去除背景完成";
         }
         catch (OperationCanceledException)
         {
@@ -550,7 +549,7 @@ public partial class ScreenshotPreviewViewModel : ObservableRecipient, IRecipien
         catch (Exception ex)
         {
             Log.Error(ex, "去除背景失败");
-            AiModuleProgressText = string.Format(S.Bg_RemovalFailed, ex.Message);
+            AiModuleProgressText = string.Format("去除背景失败：{0}", ex.Message);
         }
         finally
         {
@@ -567,7 +566,7 @@ public partial class ScreenshotPreviewViewModel : ObservableRecipient, IRecipien
         IsAiPopupOpen = false;
         IsAiModuleProcessing = true;
         AiModuleProgress = 0;
-        AiModuleProgressText = S.Sr_PreparingSuperRes;
+        AiModuleProgressText = "正在准备超分辨率...";
         var token = CreateAiCancellationToken();
         try
         {
@@ -582,7 +581,7 @@ public partial class ScreenshotPreviewViewModel : ObservableRecipient, IRecipien
 
             await ApplyEditedImageAsync(result);
             AiModuleProgress = 1;
-            AiModuleProgressText = S.Sr_SuperResDone;
+            AiModuleProgressText = "超分辨率完成";
         }
         catch (OperationCanceledException)
         {
@@ -591,7 +590,7 @@ public partial class ScreenshotPreviewViewModel : ObservableRecipient, IRecipien
         catch (Exception ex)
         {
             Log.Error(ex, "超分辨率失败");
-            AiModuleProgressText = string.Format(S.Sr_SuperResFailed, ex.Message);
+            AiModuleProgressText = string.Format("超分辨率失败：{0}", ex.Message);
         }
         finally
         {

@@ -55,7 +55,7 @@
             IsHitTestVisible="False">
             <TextBlock
                 MaxWidth="520"
-                Text="{StaticResource S_Region_Instruction}"
+                Text="左键单击高亮窗口截图，左键拖动截矩形，Space 截当前显示器，Esc / 右键退出"
                 TextWrapping="Wrap" />
         </Border>
     </Canvas>

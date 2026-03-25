@@ -4,7 +4,6 @@ using MicaWPF.Core.Events;
 using MicaWPF.Core.Services;
 using Microsoft.Extensions.DependencyInjection;
 using PixSnap.Models;
-using PixSnap.Resources;
 using PixSnap.Services;
 using PixSnap.ViewModels;
 using PixSnap.Views;
@@ -60,8 +59,8 @@ public partial class App : System.Windows.Application, IRecipient<ScreenshotCapt
         if (!_instanceMutex.WaitOne(TimeSpan.Zero, exitContext: false))
         {
             MessageBoxWindow.Show(
-                S.App_AlreadyRunning,
-                S.AppName,
+                "PixSnap 已在运行中，请查看系统托盘。",
+                "PixSnap",
                 MessageBoxButton.OK,
                 MessageBoxImage.Information);
             Shutdown(0);
@@ -76,7 +75,7 @@ public partial class App : System.Windows.Application, IRecipient<ScreenshotCapt
         {
             MessageBoxWindow.Show(
                 BuildExceptionMessage(exception),
-                S.App_StartupFailed,
+                "PixSnap 启动失败",
                 MessageBoxButton.OK,
                 MessageBoxImage.Error);
             Shutdown(-1);
@@ -201,7 +200,7 @@ public partial class App : System.Windows.Application, IRecipient<ScreenshotCapt
         {
             MessageBoxWindow.Show(
                 BuildExceptionMessage(exception),
-                S.App_PreviewOpenFailed,
+                "预览窗口打开失败",
                 MessageBoxButton.OK,
                 MessageBoxImage.Error);
         }
@@ -212,7 +211,7 @@ public partial class App : System.Windows.Application, IRecipient<ScreenshotCapt
         Log.Error(e.Exception, "未处理的 UI 线程异常");
         MessageBoxWindow.Show(
             BuildExceptionMessage(e.Exception),
-            S.App_Exception,
+            "应用异常",
             MessageBoxButton.OK,
             MessageBoxImage.Error);
         e.Handled = true;
@@ -225,7 +224,7 @@ public partial class App : System.Windows.Application, IRecipient<ScreenshotCapt
             Log.Fatal(exception, "未处理的 CLR 异常");
             MessageBoxWindow.Show(
                 BuildExceptionMessage(exception),
-                S.App_Exception,
+                "应用异常",
                 MessageBoxButton.OK,
                 MessageBoxImage.Error);
         }
@@ -236,7 +235,7 @@ public partial class App : System.Windows.Application, IRecipient<ScreenshotCapt
         Log.Error(e.Exception, "未观察的后台任务异常");
         MessageBoxWindow.Show(
             BuildExceptionMessage(e.Exception),
-            S.App_BackgroundTaskException,
+            "后台任务异常",
             MessageBoxButton.OK,
             MessageBoxImage.Error);
         e.SetObserved();
@@ -245,7 +244,7 @@ public partial class App : System.Windows.Application, IRecipient<ScreenshotCapt
     private static string BuildExceptionMessage(Exception exception)
     {
         var builder = new StringBuilder();
-        builder.AppendLine(S.App_StartupFailedDetail);
+        builder.AppendLine("应用启动失败");
 
         var current = exception;
         var depth = 0;

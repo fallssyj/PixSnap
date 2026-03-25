@@ -1,6 +1,5 @@
 using Microsoft.ML.OnnxRuntime;
 using Microsoft.ML.OnnxRuntime.Tensors;
-using PixSnap.Resources;
 using Serilog;
 using SkiaSharp;
 using System;
@@ -41,11 +40,11 @@ public static class SuperResolutionService
         return await Task.Run(() =>
         {
             cancellationToken.ThrowIfCancellationRequested();
-            progress?.Report((0.05, S.Sr_LoadingModel));
+            progress?.Report((0.05, "正在加载超分模型..."));
             if (!File.Exists(ModelPath))
             {
                 Log.Error("RealESRGAN 模型文件不存在: {ModelPath}", ModelPath);
-                throw new FileNotFoundException(string.Format(S.Onnx_ModelNotFound, ModelPath));
+                throw new FileNotFoundException(string.Format("未找到 ONNX 模型：{0}", ModelPath));
             }
 
             Log.Information("开始超分辨率: 图像 {W}×{H}", originalImage.PixelWidth, originalImage.PixelHeight);
@@ -62,19 +61,19 @@ public static class SuperResolutionService
 
             var actualSource = downscaled ?? srcBitmap;
 
-            progress?.Report((0.20, S.Onnx_InitEngine));
+            progress?.Report((0.20, "正在初始化推理引擎..."));
             var session = OnnxSessionFactory.GetOrCreateSession(ModelPath, out var providerName);
-            progress?.Report((0.28, string.Format(S.Onnx_DeviceInfo, providerName)));
+            progress?.Report((0.28, string.Format("当前推理设备：{0}", providerName)));
             var inputName = session.InputMetadata.Keys.First();
 
-            progress?.Report((0.35, S.Sr_RunningInference));
+            progress?.Report((0.35, "正在执行超分推理..."));
             using var outputBitmap = RunTiled(session, inputName, actualSource, srcW, srcH, progress, cancellationToken);
 
-            progress?.Report((0.90, S.Sr_GeneratingResult));
+            progress?.Report((0.90, "正在生成超分结果..."));
             var result = SkiaInteropHelper.SKBitmapToBitmapSource(outputBitmap);
             result.Freeze();
 
-            progress?.Report((1.0, S.Sr_SuperResDone));
+            progress?.Report((1.0, "超分辨率完成"));
             Log.Information("超分辨率完成: 结果图像 {W}×{H}", result.PixelWidth, result.PixelHeight);
             return result;
         }).ConfigureAwait(false);
@@ -89,7 +88,7 @@ public static class SuperResolutionService
         newW = Math.Max(1, (int)(srcW * ratio));
         newH = Math.Max(1, (int)(srcH * ratio));
         Log.Information("源图过大，预缩放: {SrcW}×{SrcH} → {NewW}×{NewH}", srcW, srcH, newW, newH);
-        progress?.Report((0.12, string.Format(S.Sr_PreScaling, newW, newH)));
+        progress?.Report((0.12, string.Format("源图过大，正在预缩放至 {0}×{1}...", newW, newH)));
         var downscaled = new SKBitmap(new SKImageInfo(newW, newH, SKColorType.Bgra8888, SKAlphaType.Unpremul));
         srcBitmap.ScalePixels(downscaled, new SKSamplingOptions(SKFilterMode.Linear, SKMipmapMode.Linear));
         return downscaled;
@@ -156,7 +155,7 @@ public static class SuperResolutionService
                 {
                     cancellationToken.ThrowIfCancellationRequested();
                     tileIndex++;
-                    progress?.Report((0.35 + 0.45 * tileIndex / totalTiles, string.Format(S.Sr_TileProgress, tileIndex, totalTiles)));
+                    progress?.Report((0.35 + 0.45 * tileIndex / totalTiles, string.Format("正在分块超分 ({0}/{1})...", tileIndex, totalTiles)));
 
                     var tile = ComputeTileRegion(tx, ty, srcW, srcH);
 
