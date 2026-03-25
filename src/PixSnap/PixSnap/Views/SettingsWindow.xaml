@@ -4,9 +4,8 @@
     xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
     xmlns:mica="clr-namespace:MicaWPF.Controls;assembly=MicaWPF"
     Title="设置"
-    Width="420"
+    Width="460"
     ResizeMode="NoResize"
-    ShowInTaskbar="False"
     SizeToContent="Height"
     WindowStartupLocation="CenterScreen"
     WindowStyle="None">
@@ -19,249 +18,266 @@
             UseAeroCaptionButtons="False" />
     </WindowChrome.WindowChrome>
 
+    <mica:MicaWindow.Resources>
+        <!--  设置项卡片  -->
+        <Style x:Key="SettingCardStyle" TargetType="Border">
+            <Setter Property="Padding" Value="16,14" />
+            <Setter Property="Background" Value="{DynamicResource SurfaceBrush}" />
+            <Setter Property="CornerRadius" Value="10" />
+        </Style>
+        <!--  开关滑轨  -->
+        <Style x:Key="ToggleSwitchStyle" TargetType="ToggleButton">
+            <Setter Property="FocusVisualStyle" Value="{x:Null}" />
+            <Setter Property="Cursor" Value="Hand" />
+            <Setter Property="Template">
+                <Setter.Value>
+                    <ControlTemplate TargetType="ToggleButton">
+                        <Border
+                            x:Name="Track"
+                            Width="42"
+                            Height="24"
+                            Background="#3E3E3E"
+                            CornerRadius="12">
+                            <Ellipse
+                                x:Name="Thumb"
+                                Width="16"
+                                Height="16"
+                                Margin="4,0,0,0"
+                                HorizontalAlignment="Left"
+                                Fill="White">
+                                <Ellipse.RenderTransform>
+                                    <TranslateTransform x:Name="ThumbTranslate" X="0" />
+                                </Ellipse.RenderTransform>
+                            </Ellipse>
+                        </Border>
+                        <ControlTemplate.Triggers>
+                            <Trigger Property="IsChecked" Value="True">
+                                <Setter TargetName="Track" Property="Background" Value="{DynamicResource AccentBrush}" />
+                                <Setter TargetName="Thumb" Property="HorizontalAlignment" Value="Right" />
+                                <Setter TargetName="Thumb" Property="Margin" Value="0,0,4,0" />
+                            </Trigger>
+                            <Trigger Property="IsMouseOver" Value="True">
+                                <Setter TargetName="Track" Property="Opacity" Value="0.85" />
+                            </Trigger>
+                            <Trigger Property="IsPressed" Value="True">
+                                <Setter TargetName="Track" Property="Opacity" Value="0.7" />
+                            </Trigger>
+                        </ControlTemplate.Triggers>
+                    </ControlTemplate>
+                </Setter.Value>
+            </Setter>
+        </Style>
+    </mica:MicaWindow.Resources>
+
     <Border
         Background="{DynamicResource AppBackgroundBrush}"
         BorderBrush="{DynamicResource BorderBrush}"
         BorderThickness="1">
         <Grid>
-            <Grid.RowDefinitions>
-                <RowDefinition Height="44" />
-                <RowDefinition Height="Auto" />
-            </Grid.RowDefinitions>
+            <!--  关闭按钮浮于最上层  -->
+            <Button
+                Width="44"
+                Height="36"
+                HorizontalAlignment="Right"
+                VerticalAlignment="Top"
+                Panel.ZIndex="10"
+                Command="{Binding CancelCommand}"
+                Content="{StaticResource Glyph_Close}"
+                Style="{StaticResource CloseWindowIconButtonStyle}" />
 
-            <!--  标题栏  -->
-            <Grid Grid.Row="0" MouseLeftButtonDown="OnTitleBarMouseDown">
-                <TextBlock
-                    Margin="18,0,0,0"
-                    VerticalAlignment="Center"
-                    FontSize="13"
-                    Opacity="0.6"
-                    Text="设置" />
-                <Button
-                    Width="44"
-                    Height="36"
-                    HorizontalAlignment="Right"
-                    VerticalAlignment="Top"
-                    Command="{Binding CancelCommand}"
-                    Style="{StaticResource CloseIconButton}">
-                    <TextBlock
-                        FontFamily="{StaticResource SegoeFluent}"
-                        FontSize="10"
-                        Foreground="{DynamicResource TextPrimaryBrush}"
-                        Text="{StaticResource Glyph_Close}" />
-                </Button>
-            </Grid>
-
-            <!--  分隔线  -->
-            <Border
-                Grid.Row="0"
-                Height="1"
-                VerticalAlignment="Bottom"
-                Background="{DynamicResource BorderBrush}" />
-
-            <!--  内容区  -->
-            <StackPanel Grid.Row="1" Margin="{DynamicResource DialogContentPadding}">
-
-                <!--  ── 系统 ──────────────────────────────────────────────────  -->
-                <TextBlock
-                    FontFamily="{StaticResource MiSansRegular}"
-                    FontSize="11"
-                    Opacity="0.6"
-                    Text="系统" />
-
-                <!--  开机启动  -->
+            <StackPanel>
+                <!--  标题栏  -->
                 <Border
-                    Margin="0,8,0,0"
-                    Padding="16,14"
-                    Background="{DynamicResource SurfaceBrush}"
-                    CornerRadius="8">
-                    <Grid>
-                        <StackPanel VerticalAlignment="Center">
+                    Padding="24,20,24,16"
+                    MouseLeftButtonDown="OnTitleBarMouseDown">
+                    <StackPanel Orientation="Horizontal">
+                        <Border
+                            Width="36"
+                            Height="36"
+                            Background="#15845EF7"
+                            CornerRadius="10">
                             <TextBlock
-                                FontFamily="{StaticResource MiSansRegular}"
-                                FontSize="13"
-                                Text="开机启动" />
+                                HorizontalAlignment="Center"
+                                VerticalAlignment="Center"
+                                FontFamily="{StaticResource SegoeFluent}"
+                                FontSize="16"
+                                Foreground="{DynamicResource AccentBrush}"
+                                Text="{StaticResource Glyph_Settings}" />
+                        </Border>
+                        <StackPanel Margin="12,0,0,0" VerticalAlignment="Center">
+                            <TextBlock FontSize="16" Text="设置" />
                             <TextBlock
-                                Margin="0,3,0,0"
-                                FontFamily="{StaticResource MiSansRegular}"
-                                FontSize="11"
-                                Opacity="0.6"
-                                Text="登录后自动在后台启动 PixSnap" />
+                                Margin="0,2,0,0"
+                                FontSize="12"
+                                Opacity="0.45"
+                                Text="自定义你的 PixSnap" />
                         </StackPanel>
-
-                        <!--  开关控件  -->
-                        <ToggleButton
-                            HorizontalAlignment="Right"
-                            VerticalAlignment="Center"
-                            Cursor="Hand"
-                            IsChecked="{Binding IsStartupEnabled}">
-                            <ToggleButton.Style>
-                                <Style TargetType="ToggleButton">
-                                    <Setter Property="FocusVisualStyle" Value="{x:Null}" />
-                                    <Setter Property="Template">
-                                        <Setter.Value>
-                                            <ControlTemplate TargetType="ToggleButton">
-                                                <Border
-                                                    x:Name="Track"
-                                                    Width="40"
-                                                    Height="22"
-                                                    Background="#3E3E3E"
-                                                    CornerRadius="11">
-                                                    <Ellipse
-                                                        x:Name="Thumb"
-                                                        Width="16"
-                                                        Height="16"
-                                                        Margin="3,0,0,0"
-                                                        HorizontalAlignment="Left"
-                                                        Fill="White" />
-                                                </Border>
-                                                <ControlTemplate.Triggers>
-                                                    <Trigger Property="IsChecked" Value="True">
-                                                        <Setter TargetName="Track" Property="Background" Value="{DynamicResource AccentBrush}" />
-                                                        <Setter TargetName="Thumb" Property="HorizontalAlignment" Value="Right" />
-                                                        <Setter TargetName="Thumb" Property="Margin" Value="0,0,3,0" />
-                                                    </Trigger>
-                                                    <Trigger Property="IsMouseOver" Value="True">
-                                                        <Setter TargetName="Track" Property="Opacity" Value="0.85" />
-                                                    </Trigger>
-                                                    <Trigger Property="IsPressed" Value="True">
-                                                        <Setter TargetName="Track" Property="Opacity" Value="0.7" />
-                                                    </Trigger>
-                                                </ControlTemplate.Triggers>
-                                            </ControlTemplate>
-                                        </Setter.Value>
-                                    </Setter>
-                                </Style>
-                            </ToggleButton.Style>
-                        </ToggleButton>
-                    </Grid>
-                </Border>
-
-                <!--  ── 快捷键 ──────────────────────────────────────────────  -->
-                <TextBlock
-                    Margin="0,20,0,0"
-                    FontFamily="{StaticResource MiSansRegular}"
-                    FontSize="11"
-                    Opacity="0.6"
-                    Text="快捷键" />
-
-                <!--  ── 外观 ──────────────────────────────────────────────────  -->
-                <TextBlock
-                    Margin="0,20,0,0"
-                    FontFamily="{StaticResource MiSansRegular}"
-                    FontSize="11"
-                    Opacity="0.6"
-                    Text="外观" />
-
-                <Border
-                    Margin="0,8,0,0"
-                    Padding="16,14"
-                    Background="{DynamicResource SurfaceBrush}"
-                    CornerRadius="8">
-                    <Grid>
-                        <StackPanel VerticalAlignment="Center">
-                            <TextBlock
-                                FontFamily="{StaticResource MiSansRegular}"
-                                FontSize="13"
-                                Text="主题" />
-                            <TextBlock
-                                Margin="0,3,0,0"
-                                FontFamily="{StaticResource MiSansRegular}"
-                                FontSize="11"
-                                Opacity="0.6"
-                                Text="选择应用的外观主题" />
-                        </StackPanel>
-
-                        <ComboBox
-                            Width="100"
-                            HorizontalAlignment="Right"
-                            VerticalAlignment="Center"
-                            SelectedIndex="{Binding SelectedThemeIndex}">
-                            <ComboBoxItem Content="自动" />
-                            <ComboBoxItem Content="深色" />
-                            <ComboBoxItem Content="浅色" />
-                        </ComboBox>
-                    </Grid>
-                </Border>
-
-                <Border
-                    Margin="0,8,0,0"
-                    Padding="16,14"
-                    Background="{DynamicResource SurfaceBrush}"
-                    CornerRadius="8">
-                    <StackPanel>
-                        <TextBlock
-                            FontFamily="{StaticResource MiSansRegular}"
-                            FontSize="13"
-                            Text="截图快捷键" />
-                        <TextBlock
-                            Margin="0,3,0,0"
-                            FontFamily="{StaticResource MiSansRegular}"
-                            FontSize="11"
-                            Opacity="0.6"
-                            Text="点击输入框后按下组合键录制，Esc 取消，可含 Ctrl / Alt / Shift" />
-
-                        <!--  快捷键输入行  -->
-                        <Grid Margin="0,10,0,0">
-                            <Grid.ColumnDefinitions>
-                                <ColumnDefinition Width="*" />
-                                <ColumnDefinition Width="Auto" />
-                            </Grid.ColumnDefinitions>
-
-                            <!--  快捷键显示/录制框  -->
-                            <TextBox
-                                x:Name="HotkeyInputBox"
-                                Grid.Column="0"
-                                Padding="12,8"
-                                Cursor="Hand"
-                                FontSize="13"
-                                GotFocus="HotkeyInputBox_GotFocus"
-                                IsReadOnly="True"
-                                LostFocus="HotkeyInputBox_LostFocus"
-                                PreviewKeyDown="HotkeyInputBox_PreviewKeyDown"
-                                Text="{Binding HotkeyDisplayText, Mode=OneWay}" />
-
-                            <!--  清除按钮  -->
-                            <Button
-                                Grid.Column="1"
-                                Height="38"
-                                Margin="8,0,0,0"
-                                Padding="14,0"
-                                Command="{Binding ClearHotkeyCommand}"
-                                Content="清除"
-                                FontSize="12" />
-                        </Grid>
                     </StackPanel>
                 </Border>
 
-                <!--  ── 操作按钮 ──────────────────────────────────────────────  -->
-                <StackPanel
-                    Margin="0,22,0,0"
-                    HorizontalAlignment="Right"
-                    Orientation="Horizontal">
+                <!--  分隔线  -->
+                <Border
+                    Height="1"
+                    Margin="20,0"
+                    Background="{DynamicResource BorderBrush}" />
 
-                    <Button
-                        Width="80"
-                        Height="38"
-                        Command="{Binding CancelCommand}"
-                        Content="取消" />
+                <!--  内容区  -->
+                <StackPanel Margin="24,16,24,24">
 
-                    <Button
-                        Width="80"
-                        Height="38"
-                        Margin="8,0,0,0"
-                        Command="{Binding SaveCommand}"
-                        Content="保存">
-                        <Button.Style>
-                            <Style BasedOn="{StaticResource {x:Type Button}}" TargetType="Button">
-                                <Setter Property="Background" Value="{DynamicResource AccentBrush}" />
-                                <Setter Property="Foreground" Value="#111111" />
-                                <Setter Property="BorderThickness" Value="0" />
-                            </Style>
-                        </Button.Style>
-                    </Button>
+                    <!--  ═══  系统  ═══  -->
+                    <TextBlock
+                        Margin="4,0,0,8"
+                        FontSize="12"
+                        Opacity="0.4"
+                        Text="系统" />
+
+                    <Border Style="{StaticResource SettingCardStyle}">
+                        <Grid>
+                            <StackPanel Orientation="Horizontal">
+                                <TextBlock
+                                    VerticalAlignment="Center"
+                                    FontFamily="{StaticResource SegoeFluent}"
+                                    FontSize="16"
+                                    Foreground="{DynamicResource AccentBrush}"
+                                    Text="&#xE7E8;" />
+                                <StackPanel Margin="12,0,0,0" VerticalAlignment="Center">
+                                    <TextBlock FontSize="14" Text="开机启动" />
+                                    <TextBlock
+                                        Margin="0,2,0,0"
+                                        FontSize="12"
+                                        Opacity="0.5"
+                                        Text="登录后自动在后台启动" />
+                                </StackPanel>
+                            </StackPanel>
+                            <ToggleButton
+                                HorizontalAlignment="Right"
+                                VerticalAlignment="Center"
+                                IsChecked="{Binding IsStartupEnabled}"
+                                Style="{StaticResource ToggleSwitchStyle}" />
+                        </Grid>
+                    </Border>
+
+                    <!--  ═══  外观  ═══  -->
+                    <TextBlock
+                        Margin="4,18,0,8"
+                        FontSize="12"
+                        Opacity="0.4"
+                        Text="外观" />
+
+                    <Border Style="{StaticResource SettingCardStyle}">
+                        <Grid>
+                            <StackPanel Orientation="Horizontal">
+                                <TextBlock
+                                    VerticalAlignment="Center"
+                                    FontFamily="{StaticResource SegoeFluent}"
+                                    FontSize="16"
+                                    Foreground="{DynamicResource AccentBrush}"
+                                    Text="{StaticResource Glyph_Color}" />
+                                <StackPanel Margin="12,0,0,0" VerticalAlignment="Center">
+                                    <TextBlock FontSize="14" Text="主题" />
+                                    <TextBlock
+                                        Margin="0,2,0,0"
+                                        FontSize="12"
+                                        Opacity="0.5"
+                                        Text="选择应用的外观主题" />
+                                </StackPanel>
+                            </StackPanel>
+                            <ComboBox
+                                Width="100"
+                                HorizontalAlignment="Right"
+                                VerticalAlignment="Center"
+                                SelectedIndex="{Binding SelectedThemeIndex}">
+                                <ComboBoxItem Content="自动" />
+                                <ComboBoxItem Content="深色" />
+                                <ComboBoxItem Content="浅色" />
+                            </ComboBox>
+                        </Grid>
+                    </Border>
+
+                    <!--  ═══  快捷键  ═══  -->
+                    <TextBlock
+                        Margin="4,18,0,8"
+                        FontSize="12"
+                        Opacity="0.4"
+                        Text="快捷键" />
+
+                    <Border Style="{StaticResource SettingCardStyle}">
+                        <StackPanel>
+                            <StackPanel Orientation="Horizontal">
+                                <TextBlock
+                                    VerticalAlignment="Center"
+                                    FontFamily="{StaticResource SegoeFluent}"
+                                    FontSize="16"
+                                    Foreground="{DynamicResource AccentBrush}"
+                                    Text="&#xE765;" />
+                                <StackPanel Margin="12,0,0,0" VerticalAlignment="Center">
+                                    <TextBlock FontSize="14" Text="截图快捷键" />
+                                    <TextBlock
+                                        Margin="0,2,0,0"
+                                        FontSize="12"
+                                        Opacity="0.5"
+                                        Text="点击输入框按下组合键录制，Esc 取消" />
+                                </StackPanel>
+                            </StackPanel>
+                            <Grid Margin="0,12,0,0">
+                                <Grid.ColumnDefinitions>
+                                    <ColumnDefinition Width="*" />
+                                    <ColumnDefinition Width="Auto" />
+                                </Grid.ColumnDefinitions>
+                                <TextBox
+                                    x:Name="HotkeyInputBox"
+                                    Grid.Column="0"
+                                    Padding="12,8"
+                                    Cursor="Hand"
+                                    FontSize="13"
+                                    GotFocus="HotkeyInputBox_GotFocus"
+                                    IsReadOnly="True"
+                                    LostFocus="HotkeyInputBox_LostFocus"
+                                    PreviewKeyDown="HotkeyInputBox_PreviewKeyDown"
+                                    Text="{Binding HotkeyDisplayText, Mode=OneWay}" />
+                                <Button
+                                    Grid.Column="1"
+                                    Height="38"
+                                    Margin="8,0,0,0"
+                                    Padding="14,0"
+                                    Command="{Binding ClearHotkeyCommand}"
+                                    Content="清除"
+                                    FontSize="12" />
+                            </Grid>
+                        </StackPanel>
+                    </Border>
+
+                    <!--  操作按钮  -->
+                    <Grid Margin="0,24,0,0">
+                        <Grid.ColumnDefinitions>
+                            <ColumnDefinition Width="*" />
+                            <ColumnDefinition Width="Auto" />
+                            <ColumnDefinition Width="Auto" />
+                        </Grid.ColumnDefinitions>
+
+                        <Button
+                            Grid.Column="1"
+                            Width="88"
+                            Height="36"
+                            Command="{Binding CancelCommand}"
+                            Content="取消" />
+                        <Button
+                            Grid.Column="2"
+                            Width="88"
+                            Height="36"
+                            Margin="8,0,0,0"
+                            Command="{Binding SaveCommand}"
+                            Content="保存">
+                            <Button.Style>
+                                <Style BasedOn="{StaticResource {x:Type Button}}" TargetType="Button">
+                                    <Setter Property="Background" Value="{DynamicResource AccentBrush}" />
+                                    <Setter Property="Foreground" Value="#111111" />
+                                    <Setter Property="BorderThickness" Value="0" />
+                                </Style>
+                            </Button.Style>
+                        </Button>
+                    </Grid>
                 </StackPanel>
-
             </StackPanel>
         </Grid>
     </Border>

@@ -46,6 +46,7 @@
                             Height="35"
                             Margin="10,5,0,5"
                             Command="{Binding OpenFileCommand}"
+                            Style="{StaticResource OpenFileButtonStyle}"
                             ToolTip="打开文件">
                             <Button.Effect>
                                 <DropShadowEffect
@@ -63,153 +64,59 @@
                                 <TextBlock
                                     Margin="6,0,0,0"
                                     VerticalAlignment="Center"
-                                    FontSize="10"
+                                    FontSize="11"
                                     Text="打开" />
                             </StackPanel>
-                            <Button.Style>
-                                <Style TargetType="Button">
-                                    <Setter Property="BorderThickness" Value="0" />
-                                    <Setter Property="Background" Value="Transparent" />
-                                    <Setter Property="Cursor" Value="Hand" />
-                                    <Setter Property="Template">
-                                        <Setter.Value>
-                                            <ControlTemplate TargetType="Button">
-                                                <Border
-                                                    x:Name="ButtonRoot"
-                                                    Background="{DynamicResource ButtonPrimaryBackgroundBrush}"
-                                                    CornerRadius="5"
-                                                    SnapsToDevicePixels="True">
-                                                    <ContentPresenter
-                                                        HorizontalAlignment="Center"
-                                                        VerticalAlignment="Center"
-                                                        RecognizesAccessKey="True" />
-                                                </Border>
-                                                <ControlTemplate.Triggers>
-                                                    <Trigger Property="IsMouseOver" Value="True">
-                                                        <Setter TargetName="ButtonRoot" Property="Opacity" Value="0.96" />
-                                                    </Trigger>
-                                                    <Trigger Property="IsPressed" Value="True">
-                                                        <Setter TargetName="ButtonRoot" Property="Opacity" Value="0.88" />
-                                                    </Trigger>
-                                                </ControlTemplate.Triggers>
-                                            </ControlTemplate>
-                                        </Setter.Value>
-                                    </Setter>
-                                </Style>
-                            </Button.Style>
                         </Button>
                         <Button
                             Margin="20,0,2,0"
                             Command="{Binding SaveToFileCommand}"
-                            Style="{StaticResource PreviewZoomIconButtonStyle}"
-                            ToolTip="保存">
-                            <TextBlock
-                                FontFamily="{StaticResource SegoeFluent}"
-                                FontSize="14"
-                                Text="{StaticResource Glyph_Save}" />
-                        </Button>
+                            Content="{StaticResource Glyph_Save}"
+                            Style="{StaticResource ToolbarIconButtonStyle}"
+                            ToolTip="保存" />
                         <Button
-                            Margin="2,0"
                             Command="{Binding UndoCommand}"
-                            Style="{StaticResource PreviewZoomIconButtonStyle}"
-                            ToolTip="撤销">
-                            <TextBlock
-                                FontFamily="{StaticResource SegoeFluent}"
-                                FontSize="14"
-                                Text="{StaticResource Glyph_Undo}" />
-                        </Button>
+                            Content="{StaticResource Glyph_Undo}"
+                            Style="{StaticResource ToolbarIconButtonStyle}"
+                            ToolTip="撤销" />
                         <Button
-                            Margin="2,0"
                             Command="{Binding RedoCommand}"
-                            Style="{StaticResource PreviewZoomIconButtonStyle}"
-                            ToolTip="重做">
-                            <TextBlock
-                                FontFamily="{StaticResource SegoeFluent}"
-                                FontSize="14"
-                                Text="{StaticResource Glyph_Redo}" />
-                        </Button>
-                        <!--  分隔符  -->
-                        <Border
-                            Width="1"
-                            Height="18"
-                            Margin="6,0"
-                            VerticalAlignment="Center"
-                            Background="{DynamicResource BorderBrush}" />
+                            Content="{StaticResource Glyph_Redo}"
+                            Style="{StaticResource ToolbarIconButtonStyle}"
+                            ToolTip="重做" />
+                        <Border Style="{StaticResource ToolbarSeparatorStyle}" />
                         <Button
-                            Margin="2,0"
                             Command="{Binding RotateImageCommand}"
-                            Style="{StaticResource PreviewZoomIconButtonStyle}"
-                            ToolTip="旋转">
-                            <TextBlock
-                                FontFamily="{StaticResource SegoeFluent}"
-                                FontSize="14"
-                                Text="{StaticResource Glyph_Rotate}" />
-                        </Button>
+                            Content="{StaticResource Glyph_Rotate}"
+                            Style="{StaticResource ToolbarIconButtonStyle}"
+                            ToolTip="旋转" />
                         <Button
-                            Margin="2,0"
                             Command="{Binding CopyToClipboardCommand}"
-                            Style="{StaticResource PreviewZoomIconButtonStyle}"
-                            ToolTip="复制到剪切板">
-                            <TextBlock
-                                FontFamily="{StaticResource SegoeFluent}"
-                                FontSize="14"
-                                Text="{StaticResource Glyph_Copy}" />
-                        </Button>
-                        <!--  分隔符  -->
-                        <Border
-                            Width="1"
-                            Height="18"
-                            Margin="6,0"
-                            VerticalAlignment="Center"
-                            Background="{DynamicResource BorderBrush}" />
+                            Content="{StaticResource Glyph_Copy}"
+                            Style="{StaticResource ToolbarIconButtonStyle}"
+                            ToolTip="复制到剪切板" />
+                        <Border Style="{StaticResource ToolbarSeparatorStyle}" />
                         <Button
-                            Margin="2,0"
                             Command="{Binding ToggleCropCommand}"
-                            Style="{StaticResource PreviewZoomIconButtonStyle}"
-                            ToolTip="裁剪">
-                            <TextBlock
-                                FontFamily="{StaticResource SegoeFluent}"
-                                FontSize="14"
-                                Text="{StaticResource Glyph_Crop}" />
-                        </Button>
-
+                            Content="{StaticResource Glyph_Crop}"
+                            Style="{StaticResource ToolbarIconButtonStyle}"
+                            ToolTip="裁剪" />
                         <Button
-                            Margin="2,0"
                             Command="{Binding ToggleRoundCornerCommand}"
-                            Style="{StaticResource PreviewZoomIconButtonStyle}"
-                            ToolTip="圆角">
-                            <TextBlock
-                                FontFamily="{StaticResource SegoeFluent}"
-                                FontSize="14"
-                                Text="{StaticResource Glyph_RoundCorner}" />
-                        </Button>
+                            Content="{StaticResource Glyph_RoundCorner}"
+                            Style="{StaticResource ToolbarIconButtonStyle}"
+                            ToolTip="圆角" />
                         <Button
-                            Margin="2,0"
                             Command="{Binding ToggleEraserCommand}"
-                            Style="{StaticResource PreviewZoomIconButtonStyle}"
-                            ToolTip="AI擦除">
-                            <TextBlock
-                                FontFamily="{StaticResource SegoeFluent}"
-                                FontSize="14"
-                                Text="{StaticResource Glyph_Eraser}" />
-                        </Button>
-                        <!--  分隔符  -->
-                        <Border
-                            Width="1"
-                            Height="18"
-                            Margin="6,0"
-                            VerticalAlignment="Center"
-                            Background="{DynamicResource BorderBrush}" />
+                            Content="{StaticResource Glyph_Eraser}"
+                            Style="{StaticResource ToolbarIconButtonStyle}"
+                            ToolTip="AI擦除" />
+                        <Border Style="{StaticResource ToolbarSeparatorStyle}" />
                         <Button
-                            Margin="2,0"
                             Command="{Binding RecaptureCommand}"
-                            Style="{StaticResource PreviewZoomIconButtonStyle}"
-                            ToolTip="重新截图">
-                            <TextBlock
-                                FontFamily="{StaticResource SegoeFluent}"
-                                FontSize="14"
-                                Text="{StaticResource Glyph_Recapture}" />
-                        </Button>
+                            Content="{StaticResource Glyph_Recapture}"
+                            Style="{StaticResource ToolbarIconButtonStyle}"
+                            ToolTip="重新截图" />
                         <Border
                             Height="30"
                             Margin="30,0"
@@ -255,36 +162,21 @@
                         VerticalAlignment="Top"
                         Orientation="Horizontal">
                         <Button
-                            Margin="0,0,0,0"
                             Command="{Binding OpenLogFolderCommand}"
-                            Style="{StaticResource IconButton}"
-                            ToolTip="打开LOG">
-                            <TextBlock
-                                FontFamily="{StaticResource SegoeFluent}"
-                                FontSize="12"
-                                Text="{StaticResource Glyph_Diagnostic}" />
-                        </Button>
+                            Content="{StaticResource Glyph_Diagnostic}"
+                            Style="{StaticResource WindowIconButtonStyle}"
+                            ToolTip="打开LOG" />
                         <Button
-                            Margin="0,0,0,0"
                             Command="{Binding OpenSettingsCommand}"
-                            Style="{StaticResource IconButton}"
-                            ToolTip="设置">
-                            <TextBlock
-                                FontFamily="{StaticResource SegoeFluent}"
-                                FontSize="12"
-                                Text="{StaticResource Glyph_Settings}" />
-                        </Button>
+                            Content="{StaticResource Glyph_Settings}"
+                            Style="{StaticResource WindowIconButtonStyle}"
+                            ToolTip="设置" />
                         <Button
-                            Margin="0,0,0,0"
                             Command="{Binding MinimizeCommand}"
                             CommandParameter="{Binding RelativeSource={RelativeSource AncestorType=Window}}"
-                            Style="{StaticResource IconButton}"
-                            ToolTip="最小化">
-                            <TextBlock
-                                FontFamily="{StaticResource SegoeFluent}"
-                                FontSize="12"
-                                Text="{StaticResource Glyph_Minimize}" />
-                        </Button>
+                            Content="{StaticResource Glyph_Minimize}"
+                            Style="{StaticResource WindowIconButtonStyle}"
+                            ToolTip="最小化" />
                         <Button
                             Command="{Binding MaximizeCommand}"
                             CommandParameter="{Binding RelativeSource={RelativeSource AncestorType=Window}}"
@@ -315,13 +207,9 @@
                         <Button
                             Command="{Binding CloseCommand}"
                             CommandParameter="{Binding RelativeSource={RelativeSource AncestorType=Window}}"
-                            Style="{StaticResource CloseIconButton}"
-                            ToolTip="关闭">
-                            <TextBlock
-                                FontFamily="{StaticResource SegoeFluent}"
-                                FontSize="12"
-                                Text="{StaticResource Glyph_Close}" />
-                        </Button>
+                            Content="{StaticResource Glyph_Close}"
+                            Style="{StaticResource CloseWindowIconButtonStyle}"
+                            ToolTip="关闭" />
                     </StackPanel>
                 </Grid>
 
@@ -790,15 +678,10 @@
                             </ComboBox>
 
                             <Button
-                                Margin="2,0"
                                 Command="{Binding ZoomOutCommand}"
-                                Style="{StaticResource PreviewZoomIconButtonStyle}"
-                                ToolTip="缩小">
-                                <TextBlock
-                                    FontFamily="{StaticResource SegoeFluent}"
-                                    FontSize="14"
-                                    Text="{StaticResource Glyph_ZoomOut}" />
-                            </Button>
+                                Content="{StaticResource Glyph_ZoomOut}"
+                                Style="{StaticResource ToolbarIconButtonStyle}"
+                                ToolTip="缩小" />
 
                             <Slider
                                 Margin="2,0"
@@ -811,15 +694,10 @@
                                 Value="{Binding ZoomSliderValue, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}" />
 
                             <Button
-                                Margin="2,0"
                                 Command="{Binding ZoomInCommand}"
-                                Style="{StaticResource PreviewZoomIconButtonStyle}"
-                                ToolTip="放大">
-                                <TextBlock
-                                    FontFamily="{StaticResource SegoeFluent}"
-                                    FontSize="14"
-                                    Text="{StaticResource Glyph_ZoomIn}" />
-                            </Button>
+                                Content="{StaticResource Glyph_ZoomIn}"
+                                Style="{StaticResource ToolbarIconButtonStyle}"
+                                ToolTip="放大" />
                         </StackPanel>
 
                     </Grid>

@@ -378,8 +378,16 @@ public partial class App : System.Windows.Application, IRecipient<ScreenshotCapt
 
     private void ShowAbout()
     {
+        foreach (Window w in Windows)
+        {
+            if (w is AboutWindow existing)
+            {
+                existing.Activate();
+                return;
+            }
+        }
+
         var window = new AboutWindow();
-        // _mainWindow 启动后始终隐藏，未曾显示时不能作为 Owner
         if (_mainWindow?.IsVisible == true)
             window.Owner = _mainWindow;
         window.ShowDialog();

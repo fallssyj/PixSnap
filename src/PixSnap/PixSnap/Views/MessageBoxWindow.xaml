@@ -40,7 +40,7 @@
                     Margin="16,0,0,0"
                     VerticalAlignment="Center"
                     FontFamily="{StaticResource MiSansRegular}"
-                    FontSize="13"
+                    FontSize="14"
                     Foreground="{DynamicResource TextSecondaryBrush}"
                     Text="{Binding Title}" />
                 <Button
@@ -96,7 +96,7 @@
                     VerticalAlignment="Center"
                     Background="Transparent"
                     FontFamily="{StaticResource MiSansRegular}"
-                    FontSize="13.5"
+                    FontSize="14"
                     Foreground="{DynamicResource TextPrimaryBrush}"
                     ScrollViewer.HorizontalScrollBarVisibility="Disabled"
                     ScrollViewer.VerticalScrollBarVisibility="Auto"
