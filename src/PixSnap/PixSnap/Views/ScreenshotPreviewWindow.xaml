@@ -260,26 +260,39 @@
 
                             <ScrollViewer
                                 x:Name="ActualSizeScrollViewer"
-                                HorizontalScrollBarVisibility="Hidden"
+                                HorizontalScrollBarVisibility="Auto"
                                 MouseLeave="ActualSizeScrollViewer_MouseLeave"
                                 PreviewMouseLeftButtonDown="ActualSizeScrollViewer_PreviewMouseLeftButtonDown"
                                 PreviewMouseLeftButtonUp="ActualSizeScrollViewer_PreviewMouseLeftButtonUp"
                                 PreviewMouseMove="ActualSizeScrollViewer_PreviewMouseMove"
-                                VerticalScrollBarVisibility="Hidden"
+                                VerticalScrollBarVisibility="Auto"
                                 Visibility="Collapsed">
                                 <!--  Padding 在图片四周创建可滑动的空白区，实现拖动到边缘后还能继续拖动  -->
                                 <Border Padding="200">
-                                    <Image
-                                        x:Name="ActualSizeImage"
-                                        HorizontalAlignment="Center"
-                                        VerticalAlignment="Center"
-                                        RenderOptions.BitmapScalingMode="LowQuality"
-                                        Source="{Binding ScreenshotImage}"
-                                        Stretch="None">
-                                        <Image.LayoutTransform>
+                                    <Grid>
+                                        <Grid.LayoutTransform>
                                             <ScaleTransform ScaleX="{Binding ZoomFactor}" ScaleY="{Binding ZoomFactor}" />
-                                        </Image.LayoutTransform>
-                                    </Image>
+                                        </Grid.LayoutTransform>
+                                        <Image
+                                            x:Name="ActualSizeImage"
+                                            HorizontalAlignment="Center"
+                                            VerticalAlignment="Center"
+                                            RenderOptions.BitmapScalingMode="LowQuality"
+                                            Source="{Binding ScreenshotImage}"
+                                            Stretch="None" />
+                                        <!--  标注绘制覆盖层：与图片同大同缩放，坐标为图片像素  -->
+                                        <Canvas
+                                            x:Name="AnnotationCanvas"
+                                            Background="Transparent"
+                                            Focusable="True"
+                                            IsHitTestVisible="False"
+                                            KeyDown="AnnotationCanvas_KeyDown"
+                                            MouseDown="AnnotationCanvas_MouseDown"
+                                            MouseLeftButtonDown="AnnotationCanvas_MouseLeftButtonDown"
+                                            MouseLeftButtonUp="AnnotationCanvas_MouseLeftButtonUp"
+                                            MouseMove="AnnotationCanvas_MouseMove"
+                                            MouseUp="AnnotationCanvas_MouseUp" />
+                                    </Grid>
                                 </Border>
                             </ScrollViewer>
 
@@ -307,15 +320,6 @@
                                     StrokeThickness="2"
                                     Visibility="Collapsed" />
                             </Canvas>
-
-                            <!--  标注绘制覆盖层  -->
-                            <Canvas
-                                x:Name="AnnotationCanvas"
-                                Background="Transparent"
-                                IsHitTestVisible="False"
-                                MouseLeftButtonDown="AnnotationCanvas_MouseLeftButtonDown"
-                                MouseLeftButtonUp="AnnotationCanvas_MouseLeftButtonUp"
-                                MouseMove="AnnotationCanvas_MouseMove" />
                         </Grid>
                     </Border>
 
@@ -618,35 +622,101 @@
                                 Text="工具" />
                             <WrapPanel Margin="0,0,0,8">
                                 <Button
-                                    Margin="0,0,4,4"
+                                    Margin="0,0,2,0"
+                                    Command="{Binding AnnotationPanel.SelectPointerCommand}"
+                                    Content="指针"
+                                    Tag="{StaticResource Glyph_Pointer}"
+                                    ToolTip="选择 / 移动标注">
+                                    <Button.Style>
+                                        <Style BasedOn="{StaticResource RibbonToolButtonStyle}" TargetType="Button">
+                                            <Style.Triggers>
+                                                <DataTrigger Binding="{Binding AnnotationPanel.SelectedTool}" Value="Pointer">
+                                                    <Setter Property="Background" Value="{DynamicResource AccentBrush}" />
+                                                </DataTrigger>
+                                            </Style.Triggers>
+                                        </Style>
+                                    </Button.Style>
+                                </Button>
+                                <Button
+                                    Margin="0,0,2,0"
                                     Command="{Binding AnnotationPanel.SelectArrowCommand}"
                                     Content="箭头"
-                                    Style="{StaticResource PanelCancelButtonStyle}"
-                                    ToolTip="箭头" />
+                                    Tag="{StaticResource Glyph_Arrow}"
+                                    ToolTip="箭头">
+                                    <Button.Style>
+                                        <Style BasedOn="{StaticResource RibbonToolButtonStyle}" TargetType="Button">
+                                            <Style.Triggers>
+                                                <DataTrigger Binding="{Binding AnnotationPanel.SelectedTool}" Value="Arrow">
+                                                    <Setter Property="Background" Value="{DynamicResource AccentBrush}" />
+                                                </DataTrigger>
+                                            </Style.Triggers>
+                                        </Style>
+                                    </Button.Style>
+                                </Button>
                                 <Button
-                                    Margin="0,0,4,4"
+                                    Margin="0,0,2,0"
                                     Command="{Binding AnnotationPanel.SelectRectangleCommand}"
                                     Content="矩形"
-                                    Style="{StaticResource PanelCancelButtonStyle}"
-                                    ToolTip="矩形" />
+                                    Tag="{StaticResource Glyph_Rectangle}"
+                                    ToolTip="矩形">
+                                    <Button.Style>
+                                        <Style BasedOn="{StaticResource RibbonToolButtonStyle}" TargetType="Button">
+                                            <Style.Triggers>
+                                                <DataTrigger Binding="{Binding AnnotationPanel.SelectedTool}" Value="Rectangle">
+                                                    <Setter Property="Background" Value="{DynamicResource AccentBrush}" />
+                                                </DataTrigger>
+                                            </Style.Triggers>
+                                        </Style>
+                                    </Button.Style>
+                                </Button>
                                 <Button
-                                    Margin="0,0,4,4"
+                                    Margin="0,0,2,0"
                                     Command="{Binding AnnotationPanel.SelectEllipseCommand}"
                                     Content="椭圆"
-                                    Style="{StaticResource PanelCancelButtonStyle}"
-                                    ToolTip="椭圆" />
+                                    Tag="{StaticResource Glyph_Ellipse}"
+                                    ToolTip="椭圆">
+                                    <Button.Style>
+                                        <Style BasedOn="{StaticResource RibbonToolButtonStyle}" TargetType="Button">
+                                            <Style.Triggers>
+                                                <DataTrigger Binding="{Binding AnnotationPanel.SelectedTool}" Value="Ellipse">
+                                                    <Setter Property="Background" Value="{DynamicResource AccentBrush}" />
+                                                </DataTrigger>
+                                            </Style.Triggers>
+                                        </Style>
+                                    </Button.Style>
+                                </Button>
                                 <Button
-                                    Margin="0,0,4,4"
+                                    Margin="0,0,2,0"
                                     Command="{Binding AnnotationPanel.SelectTextCommand}"
                                     Content="文本"
-                                    Style="{StaticResource PanelCancelButtonStyle}"
-                                    ToolTip="文本标注" />
+                                    Tag="{StaticResource Glyph_Text}"
+                                    ToolTip="文本标注">
+                                    <Button.Style>
+                                        <Style BasedOn="{StaticResource RibbonToolButtonStyle}" TargetType="Button">
+                                            <Style.Triggers>
+                                                <DataTrigger Binding="{Binding AnnotationPanel.SelectedTool}" Value="Text">
+                                                    <Setter Property="Background" Value="{DynamicResource AccentBrush}" />
+                                                </DataTrigger>
+                                            </Style.Triggers>
+                                        </Style>
+                                    </Button.Style>
+                                </Button>
                                 <Button
-                                    Margin="0,0,4,4"
+                                    Margin="0,0,2,0"
                                     Command="{Binding AnnotationPanel.SelectPenCommand}"
                                     Content="画笔"
-                                    Style="{StaticResource PanelCancelButtonStyle}"
-                                    ToolTip="自由画笔" />
+                                    Tag="{StaticResource Glyph_Pen}"
+                                    ToolTip="自由画笔">
+                                    <Button.Style>
+                                        <Style BasedOn="{StaticResource RibbonToolButtonStyle}" TargetType="Button">
+                                            <Style.Triggers>
+                                                <DataTrigger Binding="{Binding AnnotationPanel.SelectedTool}" Value="Pen">
+                                                    <Setter Property="Background" Value="{DynamicResource AccentBrush}" />
+                                                </DataTrigger>
+                                            </Style.Triggers>
+                                        </Style>
+                                    </Button.Style>
+                                </Button>
                             </WrapPanel>
                             <!--  颜色选择  -->
                             <TextBlock
@@ -731,11 +801,37 @@
                                 HorizontalAlignment="Right"
                                 Orientation="Horizontal">
                                 <Button
-                                    Margin="0,0,6,0"
-                                    Command="{Binding AnnotationPanel.UndoAnnotationCommand}"
-                                    Content="撤销"
+                                    Margin="0,0,4,0"
+                                    Command="{Binding AnnotationPanel.DeleteSelectedAnnotationCommand}"
                                     Style="{StaticResource PanelCancelButtonStyle}"
-                                    ToolTip="撤销上一条标注" />
+                                    ToolTip="删除选中标注 (Delete)">
+                                    <TextBlock
+                                        FontFamily="{StaticResource SegoeFluent}"
+                                        FontSize="14"
+                                        Text="{StaticResource Glyph_Delete}" />
+                                </Button>
+                                <Button
+                                    Margin="0,0,4,0"
+                                    Command="{Binding AnnotationPanel.UndoAnnotationCommand}"
+                                    IsEnabled="{Binding AnnotationPanel.CanUndo}"
+                                    Style="{StaticResource PanelCancelButtonStyle}"
+                                    ToolTip="撤销 (Ctrl+Z)">
+                                    <TextBlock
+                                        FontFamily="{StaticResource SegoeFluent}"
+                                        FontSize="14"
+                                        Text="{StaticResource Glyph_Undo}" />
+                                </Button>
+                                <Button
+                                    Margin="0,0,6,0"
+                                    Command="{Binding AnnotationPanel.RedoAnnotationCommand}"
+                                    IsEnabled="{Binding AnnotationPanel.CanRedo}"
+                                    Style="{StaticResource PanelCancelButtonStyle}"
+                                    ToolTip="重做 (Ctrl+Y)">
+                                    <TextBlock
+                                        FontFamily="{StaticResource SegoeFluent}"
+                                        FontSize="14"
+                                        Text="{StaticResource Glyph_Redo}" />
+                                </Button>
                                 <Button
                                     Margin="0,0,6,0"
                                     Command="{Binding ExitAnnotationModeCommand}"

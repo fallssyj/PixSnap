@@ -46,6 +46,12 @@ public partial class ScreenshotPreviewWindow : MicaWindow
     private TranslateTransform? _draggingTransform;
     private Point _panelDragStart;
     private Point _panelTransformStart;
+    // ── 标注拖拽 / 文本输入 / 中键平移 ───────────────────────
+    private bool _isAnnotationPanning;
+    private AnnotationItem? _dragAnnotation;
+    private Point _dragStartImagePoint;
+    private Vector _dragStartOffset;
+    private System.Windows.Controls.TextBox? _activeTextBox;
 
     public ScreenshotPreviewWindow()
     {
@@ -163,6 +169,8 @@ public partial class ScreenshotPreviewWindow : MicaWindow
 
             case nameof(ScreenshotPreviewViewModel.ScreenshotImage):
                 UpdateFitZoomFactor();
+                if (DataContext is ScreenshotPreviewViewModel vmImg)
+                    UpdateAnnotationCanvasSize(vmImg);
                 break;
 
             case nameof(ScreenshotPreviewViewModel.IsCropMode):
@@ -199,10 +207,14 @@ public partial class ScreenshotPreviewWindow : MicaWindow
             viewModel.RoundCornerPanel.RoundCornerCancelled += OnRoundCornerCancelled;
             viewModel.EraserPanel.StrokesCleared += OnEraserStrokesCleared;
             viewModel.EraserPanel.InpaintApplied += OnEraserInpaintApplied;
+            viewModel.AnnotationPanel.PropertyChanged += OnAnnotationPanelPropertyChanged;
+            viewModel.AnnotationPanel.RequestRedraw += OnAnnotationRequestRedraw;
 
             CropOverlay.CropRectChanged += OnCropOverlayRectChanged;
             CropOverlay.EnterPressed += OnCropOverlayEnter;
             CropOverlay.EscapePressed += OnCropOverlayEscape;
+
+            ActualSizeScrollViewer.ScrollChanged += OnScrollViewerScrollChanged;
         }
     }
 
@@ -219,10 +231,14 @@ public partial class ScreenshotPreviewWindow : MicaWindow
             viewModel.RoundCornerPanel.RoundCornerCancelled -= OnRoundCornerCancelled;
             viewModel.EraserPanel.StrokesCleared -= OnEraserStrokesCleared;
             viewModel.EraserPanel.InpaintApplied -= OnEraserInpaintApplied;
+            viewModel.AnnotationPanel.PropertyChanged -= OnAnnotationPanelPropertyChanged;
+            viewModel.AnnotationPanel.RequestRedraw -= OnAnnotationRequestRedraw;
 
             CropOverlay.CropRectChanged -= OnCropOverlayRectChanged;
             CropOverlay.EnterPressed -= OnCropOverlayEnter;
             CropOverlay.EscapePressed -= OnCropOverlayEscape;
+
+            ActualSizeScrollViewer.ScrollChanged -= OnScrollViewerScrollChanged;
         }
     }
 
@@ -371,6 +387,9 @@ public partial class ScreenshotPreviewWindow : MicaWindow
         {
             return;
         }
+
+        // 标注模式下左键用于绘制，不做平移
+        if (viewModel.IsAnnotateMode) return;
 
         if (IsScrollBarInteraction(e.OriginalSource as DependencyObject))
         {
@@ -546,7 +565,29 @@ public partial class ScreenshotPreviewWindow : MicaWindow
         return new Rect((vpW - dW) / 2, (vpH - dH) / 2, dW, dH);
     }
 
-    // ── 裁剪 / 圆角 ViewModel 事件回调 ────────────────────────────────────────
+    /// <summary>将鼠标在 AnnotationCanvas 的本地坐标（即图片像素坐标）进行边界检查。</summary>
+    private bool TryGetImagePixelPoint(Point canvasPos, out Point imgPixelPoint)
+    {
+        imgPixelPoint = default;
+        if (DataContext is not ScreenshotPreviewViewModel vm || vm.ScreenshotImage is null)
+            return false;
+
+        double pw = vm.ScreenshotImage.PixelWidth;
+        double ph = vm.ScreenshotImage.PixelHeight;
+        double dpiScale = GetAnnotationDpiScale();
+
+        // Canvas 坐标为 DIP 空间，乘以 DPI 缩放转为像素坐标
+        double imgX = canvasPos.X * dpiScale;
+        double imgY = canvasPos.Y * dpiScale;
+
+        const double tolerance = 8;
+        if (imgX < -tolerance || imgY < -tolerance ||
+            imgX > pw + tolerance || imgY > ph + tolerance)
+            return false;
+
+        imgPixelPoint = new Point(Math.Clamp(imgX, 0, pw), Math.Clamp(imgY, 0, ph));
+        return true;
+    }
 
     private void OnCropApplied(BitmapSource newImage)
     {
@@ -596,27 +637,6 @@ public partial class ScreenshotPreviewWindow : MicaWindow
             EraserCursorIndicator.Visibility = Visibility.Collapsed;
             ClearEraserVisualStrokes();
         }
-    }
-
-    /// <summary>将鼠标在 PreviewViewport 的位置换算为图片像素坐标。</summary>
-    private bool TryGetImagePixelPoint(Point canvasPos, out Point imgPixelPoint)
-    {
-        imgPixelPoint = default;
-        if (DataContext is not ScreenshotPreviewViewModel vm || vm.ScreenshotImage is null)
-            return false;
-
-        var imgRect = GetImageDisplayRect();
-        if (imgRect.Width <= 0 || imgRect.Height <= 0)
-            return false;
-
-        // 仅在图片显示区域内有效
-        if (!imgRect.Contains(canvasPos))
-            return false;
-
-        imgPixelPoint = new Point(
-            (canvasPos.X - imgRect.X) / imgRect.Width * vm.ScreenshotImage.PixelWidth,
-            (canvasPos.Y - imgRect.Y) / imgRect.Height * vm.ScreenshotImage.PixelHeight);
-        return true;
     }
 
     private void UpdateEraserCursorIndicator(Point canvasPos)
@@ -780,23 +800,102 @@ public partial class ScreenshotPreviewWindow : MicaWindow
     // 标注画布交互
     // ══════════════════════════════════════════════════════════════════════════
 
+    private void OnAnnotationPanelPropertyChanged(object? sender, PropertyChangedEventArgs e)
+    {
+        if (e.PropertyName == nameof(AnnotationViewModel.SelectedTool))
+        {
+            UpdateAnnotationCursor();
+            // 切换工具时清除选中
+            if (DataContext is ScreenshotPreviewViewModel vm &&
+                vm.AnnotationPanel.SelectedTool != AnnotationTool.Pointer)
+            {
+                vm.AnnotationPanel.SelectedAnnotation = null;
+                RedrawAnnotationOverlay();
+            }
+        }
+    }
+
+    private void OnAnnotationRequestRedraw() => RedrawAnnotationOverlay();
+
+    private void OnScrollViewerScrollChanged(object sender, ScrollChangedEventArgs e)
+    {
+        // 标注画布已在 ScrollViewer 内部，随图片一起滚动，无需额外刷新
+    }
+
+    // ── 标注模式中键平移 ───────────────────────────────────
+
+    private void AnnotationCanvas_MouseDown(object sender, MouseButtonEventArgs e)
+    {
+        if (e.ChangedButton != MouseButton.Middle) return;
+        if (DataContext is not ScreenshotPreviewViewModel vm || !vm.IsAnnotateMode || !vm.IsActualSize) return;
+
+        _isAnnotationPanning = true;
+        _panStartPoint = e.GetPosition(ActualSizeScrollViewer);
+        _panStartHorizontalOffset = ActualSizeScrollViewer.HorizontalOffset;
+        _panStartVerticalOffset = ActualSizeScrollViewer.VerticalOffset;
+        AnnotationCanvas.Cursor = Cursors.SizeAll;
+        AnnotationCanvas.CaptureMouse();
+        e.Handled = true;
+    }
+
+    private void AnnotationCanvas_MouseUp(object sender, MouseButtonEventArgs e)
+    {
+        if (e.ChangedButton != MouseButton.Middle || !_isAnnotationPanning) return;
+        _isAnnotationPanning = false;
+        AnnotationCanvas.ReleaseMouseCapture();
+        UpdateAnnotationCursor();
+        e.Handled = true;
+    }
+
+    private void UpdateAnnotationCursor()
+    {
+        if (DataContext is not ScreenshotPreviewViewModel vm || !vm.IsAnnotateMode)
+        {
+            AnnotationCanvas.Cursor = null;
+            return;
+        }
+        AnnotationCanvas.Cursor = vm.AnnotationPanel.SelectedTool == AnnotationTool.Pointer
+            ? Cursors.Arrow
+            : Cursors.Cross;
+    }
+
     private void UpdateAnnotationCanvasState()
     {
         if (DataContext is not ScreenshotPreviewViewModel vm) return;
         var active = vm.IsAnnotateMode;
 
         AnnotationCanvas.IsHitTestVisible = active;
-        AnnotationCanvas.Cursor = active ? Cursors.Cross : null;
+        UpdateAnnotationCursor();
         AnnotationFloatingPanel.Visibility = active ? Visibility.Visible : Visibility.Collapsed;
 
         if (active)
         {
             AnnotationFloatingPanelTranslate.X = AnnotationFloatingPanelTranslate.Y = 0;
+            UpdateAnnotationCanvasSize(vm);
         }
         else
         {
+            CommitActiveTextBox();
             AnnotationCanvas.Children.Clear();
         }
+    }
+
+    private void UpdateAnnotationCanvasSize(ScreenshotPreviewViewModel vm)
+    {
+        if (vm.ScreenshotImage is not null)
+        {
+            // 使用 DPI 感知的 DIP 尺寸，确保与 Image Stretch="None" 显示完全对齐
+            AnnotationCanvas.Width = vm.ScreenshotImage.Width;   // = PixelWidth * 96 / DpiX
+            AnnotationCanvas.Height = vm.ScreenshotImage.Height; // = PixelHeight * 96 / DpiY
+        }
+    }
+
+    /// <summary>DPI 缩放因子：Canvas DIP → Image Pixel。96 DPI 时为 1.0。</summary>
+    private double GetAnnotationDpiScale()
+    {
+        if (DataContext is ScreenshotPreviewViewModel vm && vm.ScreenshotImage is not null)
+            return vm.ScreenshotImage.DpiX / 96.0;
+        return 1.0;
     }
 
     private void AnnotationCanvas_MouseLeftButtonDown(object sender, MouseButtonEventArgs e)
@@ -804,6 +903,31 @@ public partial class ScreenshotPreviewWindow : MicaWindow
         if (DataContext is not ScreenshotPreviewViewModel vm || !vm.IsAnnotateMode) return;
         var pos = e.GetPosition(AnnotationCanvas);
         if (!TryGetImagePixelPoint(pos, out var imgPoint)) return;
+
+        CommitActiveTextBox();
+
+        if (vm.AnnotationPanel.SelectedTool == AnnotationTool.Pointer)
+        {
+            var hit = vm.AnnotationPanel.HitTest(imgPoint);
+            if (hit is not null)
+            {
+                vm.AnnotationPanel.SelectedAnnotation = hit;
+                _dragAnnotation = hit;
+                _dragStartImagePoint = imgPoint;
+                _dragStartOffset = hit.Offset;
+                AnnotationCanvas.Cursor = Cursors.SizeAll;
+                AnnotationCanvas.CaptureMouse();
+                RedrawAnnotationOverlay();
+            }
+            else
+            {
+                // 点击空白区域取消选中
+                vm.AnnotationPanel.SelectedAnnotation = null;
+                RedrawAnnotationOverlay();
+            }
+            e.Handled = true;
+            return;
+        }
 
         vm.AnnotationPanel.BeginAnnotation(imgPoint);
         AnnotationCanvas.CaptureMouse();
@@ -813,12 +937,32 @@ public partial class ScreenshotPreviewWindow : MicaWindow
     private void AnnotationCanvas_MouseMove(object sender, MouseEventArgs e)
     {
         if (DataContext is not ScreenshotPreviewViewModel vm || !vm.IsAnnotateMode) return;
-        if (vm.AnnotationPanel.CurrentAnnotation is null) return;
+
+        // 中键平移
+        if (_isAnnotationPanning && e.MiddleButton == MouseButtonState.Pressed)
+        {
+            var cur = e.GetPosition(ActualSizeScrollViewer);
+            var delta = cur - _panStartPoint;
+            ActualSizeScrollViewer.ScrollToHorizontalOffset(Math.Max(0, _panStartHorizontalOffset - delta.X));
+            ActualSizeScrollViewer.ScrollToVerticalOffset(Math.Max(0, _panStartVerticalOffset - delta.Y));
+            e.Handled = true;
+            return;
+        }
+
         if (e.LeftButton != MouseButtonState.Pressed) return;
 
         var pos = e.GetPosition(AnnotationCanvas);
         if (!TryGetImagePixelPoint(pos, out var imgPoint)) return;
 
+        if (_dragAnnotation is not null)
+        {
+            var delta = imgPoint - _dragStartImagePoint;
+            _dragAnnotation.Offset = _dragStartOffset + delta;
+            RedrawAnnotationOverlay();
+            return;
+        }
+
+        if (vm.AnnotationPanel.CurrentAnnotation is null) return;
         vm.AnnotationPanel.UpdateAnnotation(imgPoint);
         RedrawAnnotationOverlay();
     }
@@ -826,12 +970,133 @@ public partial class ScreenshotPreviewWindow : MicaWindow
     private void AnnotationCanvas_MouseLeftButtonUp(object sender, MouseButtonEventArgs e)
     {
         if (DataContext is not ScreenshotPreviewViewModel vm || !vm.IsAnnotateMode) return;
+
+        // 拖拽结束 → 提交移动到撤销栈
+        if (_dragAnnotation is not null)
+        {
+            vm.AnnotationPanel.CommitMove(_dragAnnotation, _dragStartOffset);
+            _dragAnnotation = null;
+            UpdateAnnotationCursor();
+            AnnotationCanvas.ReleaseMouseCapture();
+            e.Handled = true;
+            return;
+        }
+
         if (vm.AnnotationPanel.CurrentAnnotation is null) return;
 
+        var isText = vm.AnnotationPanel.CurrentAnnotation.Tool == AnnotationTool.Text;
         vm.AnnotationPanel.EndAnnotation();
         AnnotationCanvas.ReleaseMouseCapture();
-        RedrawAnnotationOverlay();
+
+        if (isText && vm.AnnotationPanel.CurrentAnnotation is { } textItem)
+        {
+            ShowTextInputBox(textItem);
+        }
+        else
+        {
+            RedrawAnnotationOverlay();
+        }
         e.Handled = true;
+    }
+
+    // ── 标注键盘快捷键 ────────────────────────────────────
+
+    private void AnnotationCanvas_KeyDown(object sender, System.Windows.Input.KeyEventArgs e)
+    {
+        if (DataContext is not ScreenshotPreviewViewModel vm || !vm.IsAnnotateMode) return;
+        if (_activeTextBox is not null) return; // 文本输入中不处理
+
+        if (e.Key == Key.Delete || e.Key == Key.Back)
+        {
+            vm.AnnotationPanel.DeleteSelectedAnnotationCommand.Execute(null);
+            e.Handled = true;
+        }
+        else if (e.Key == Key.Z && Keyboard.Modifiers == ModifierKeys.Control)
+        {
+            vm.AnnotationPanel.UndoAnnotationCommand.Execute(null);
+            e.Handled = true;
+        }
+        else if (e.Key == Key.Y && Keyboard.Modifiers == ModifierKeys.Control)
+        {
+            vm.AnnotationPanel.RedoAnnotationCommand.Execute(null);
+            e.Handled = true;
+        }
+        else if (e.Key == Key.Escape)
+        {
+            if (vm.AnnotationPanel.SelectedAnnotation is not null)
+            {
+                vm.AnnotationPanel.SelectedAnnotation = null;
+                RedrawAnnotationOverlay();
+            }
+            e.Handled = true;
+        }
+    }
+
+    // ── 文本输入框管理 ─────────────────────────────────────
+
+    private void ShowTextInputBox(AnnotationItem textItem)
+    {
+        if (DataContext is not ScreenshotPreviewViewModel vm || vm.ScreenshotImage is null) return;
+
+        // 标注坐标为像素空间，Canvas 为 DIP 空间，需转换
+        double d = 1.0 / GetAnnotationDpiScale();
+        double sx = textItem.Start.X * d;
+        double sy = textItem.Start.Y * d;
+
+        var tb = new System.Windows.Controls.TextBox
+        {
+            MinWidth = 80,
+            MaxWidth = Math.Max(120, vm.ScreenshotImage.Width - sx - 8),
+            FontSize = Math.Max(10, textItem.FontSize * d),
+            Foreground = new SolidColorBrush(textItem.StrokeColor),
+            Background = System.Windows.Media.Brushes.Transparent,
+            BorderBrush = new SolidColorBrush(Color.FromArgb(128, textItem.StrokeColor.R, textItem.StrokeColor.G, textItem.StrokeColor.B)),
+            BorderThickness = new Thickness(1),
+            Padding = new Thickness(2),
+            AcceptsReturn = false,
+            CaretBrush = new SolidColorBrush(textItem.StrokeColor),
+            Tag = textItem
+        };
+        Canvas.SetLeft(tb, sx);
+        Canvas.SetTop(tb, sy);
+        AnnotationCanvas.Children.Add(tb);
+
+        tb.LostFocus += OnTextBoxLostFocus;
+        tb.KeyDown += OnTextBoxKeyDown;
+
+        _activeTextBox = tb;
+        tb.Focus();
+    }
+
+    private void OnTextBoxKeyDown(object sender, System.Windows.Input.KeyEventArgs e)
+    {
+        if (e.Key == Key.Enter || e.Key == Key.Escape)
+        {
+            CommitActiveTextBox();
+            e.Handled = true;
+        }
+    }
+
+    private void OnTextBoxLostFocus(object sender, RoutedEventArgs e)
+    {
+        CommitActiveTextBox();
+    }
+
+    private void CommitActiveTextBox()
+    {
+        if (_activeTextBox is null || DataContext is not ScreenshotPreviewViewModel vm) return;
+
+        var tb = _activeTextBox;
+        _activeTextBox = null;
+
+        tb.LostFocus -= OnTextBoxLostFocus;
+        tb.KeyDown -= OnTextBoxKeyDown;
+
+        var text = tb.Text?.Trim() ?? string.Empty;
+        vm.AnnotationPanel.CommitTextAnnotation(text);
+
+        AnnotationCanvas.Children.Remove(tb);
+        RedrawAnnotationOverlay();
     }
 
     /// <summary>重绘所有标注到画布上（使用 WPF Shapes 实时预览）。</summary>
@@ -839,35 +1104,41 @@ public partial class ScreenshotPreviewWindow : MicaWindow
     {
         if (DataContext is not ScreenshotPreviewViewModel vm) return;
 
+        // 保留活跃的文本输入框
+        var keepTextBox = _activeTextBox;
         AnnotationCanvas.Children.Clear();
-        var imgRect = GetImageDisplayRect();
-        if (imgRect.Width <= 0 || imgRect.Height <= 0) return;
+        if (keepTextBox is not null)
+            AnnotationCanvas.Children.Add(keepTextBox);
+
         if (vm.ScreenshotImage is null) return;
 
-        double scaleX = imgRect.Width / vm.ScreenshotImage.PixelWidth;
-        double scaleY = imgRect.Height / vm.ScreenshotImage.PixelHeight;
+        var selected = vm.AnnotationPanel.SelectedAnnotation;
 
         foreach (var ann in vm.AnnotationPanel.Annotations)
-            DrawAnnotationShape(ann, imgRect, scaleX, scaleY);
+            DrawAnnotationShape(ann, ann == selected);
 
         if (vm.AnnotationPanel.CurrentAnnotation is { } cur)
-            DrawAnnotationShape(cur, imgRect, scaleX, scaleY);
+            DrawAnnotationShape(cur, false);
     }
 
-    private void DrawAnnotationShape(AnnotationItem item, Rect imgRect, double scaleX, double scaleY)
+    private void DrawAnnotationShape(AnnotationItem item, bool isSelected)
     {
-        var brush = new SolidColorBrush(item.StrokeColor);
-        double thickness = item.StrokeWidth * Math.Min(scaleX, scaleY);
+        // 标注坐标为像素空间，Canvas 为 DIP 空间，需要缩放
+        double d = 1.0 / GetAnnotationDpiScale(); // pixel → DIP
 
-        double sx = imgRect.X + item.Start.X * scaleX;
-        double sy = imgRect.Y + item.Start.Y * scaleY;
-        double ex = imgRect.X + item.End.X * scaleX;
-        double ey = imgRect.Y + item.End.Y * scaleY;
+        var brush = new SolidColorBrush(item.StrokeColor);
+        double thickness = item.StrokeWidth * d;
+
+        double iox = item.Offset.X * d;
+        double ioy = item.Offset.Y * d;
+        double sx = item.Start.X * d + iox;
+        double sy = item.Start.Y * d + ioy;
+        double ex = item.End.X * d + iox;
+        double ey = item.End.Y * d + ioy;
 
         switch (item.Tool)
         {
             case AnnotationTool.Arrow:
-                // Line
                 var arrowLine = new System.Windows.Shapes.Line
                 {
                     X1 = sx, Y1 = sy, X2 = ex, Y2 = ey,
@@ -875,7 +1146,6 @@ public partial class ScreenshotPreviewWindow : MicaWindow
                 };
                 AnnotationCanvas.Children.Add(arrowLine);
 
-                // Arrowhead
                 double angle = Math.Atan2(ey - sy, ex - sx);
                 double arrowLen = Math.Max(8, thickness * 5);
                 double arrowAngle = Math.PI / 6;
@@ -920,7 +1190,7 @@ public partial class ScreenshotPreviewWindow : MicaWindow
                 {
                     Text = item.Text,
                     Foreground = brush,
-                    FontSize = item.FontSize * Math.Min(scaleX, scaleY)
+                    FontSize = item.FontSize * d
                 };
                 Canvas.SetLeft(tb, sx);
                 Canvas.SetTop(tb, sy);
@@ -937,10 +1207,68 @@ public partial class ScreenshotPreviewWindow : MicaWindow
                         StrokeLineJoin = PenLineJoin.Round
                     };
                     foreach (var pt in item.PenPoints)
-                        polyline.Points.Add(new Point(imgRect.X + pt.X * scaleX, imgRect.Y + pt.Y * scaleY));
+                        polyline.Points.Add(new Point(pt.X * d + iox, pt.Y * d + ioy));
                     AnnotationCanvas.Children.Add(polyline);
                 }
                 break;
+        }
+
+        // 选中标注绘制虚线选框
+        if (isSelected)
+        {
+            var bounds = GetAnnotationScreenBounds(item, d);
+            if (bounds.Width > 0 && bounds.Height > 0)
+            {
+                bounds.Inflate(4, 4);
+                var selRect = new System.Windows.Shapes.Rectangle
+                {
+                    Width = bounds.Width,
+                    Height = bounds.Height,
+                    Stroke = System.Windows.Media.Brushes.DodgerBlue,
+                    StrokeThickness = 1.5,
+                    StrokeDashArray = [4, 2],
+                    Fill = null
+                };
+                Canvas.SetLeft(selRect, bounds.X);
+                Canvas.SetTop(selRect, bounds.Y);
+                AnnotationCanvas.Children.Add(selRect);
+            }
+        }
+    }
+
+    private static Rect GetAnnotationScreenBounds(AnnotationItem item, double d)
+    {
+        double iox = item.Offset.X * d;
+        double ioy = item.Offset.Y * d;
+        double sx = item.Start.X * d + iox;
+        double sy = item.Start.Y * d + ioy;
+        double ex = item.End.X * d + iox;
+        double ey = item.End.Y * d + ioy;
+
+        switch (item.Tool)
+        {
+            case AnnotationTool.Arrow:
+                return new Rect(new Point(Math.Min(sx, ex), Math.Min(sy, ey)), new Point(Math.Max(sx, ex), Math.Max(sy, ey)));
+            case AnnotationTool.Rectangle:
+            case AnnotationTool.Ellipse:
+                return new Rect(new Point(Math.Min(sx, ex), Math.Min(sy, ey)), new Point(Math.Max(sx, ex), Math.Max(sy, ey)));
+            case AnnotationTool.Text:
+                return new Rect(sx, sy, Math.Max(Math.Abs(ex - sx), item.FontSize * d * Math.Max(1, item.Text.Length) * 0.6), item.FontSize * d * 1.4);
+            case AnnotationTool.Pen:
+                if (item.PenPoints.Count == 0) return Rect.Empty;
+                double minX = double.MaxValue, minY = double.MaxValue, maxX = double.MinValue, maxY = double.MinValue;
+                foreach (var pt in item.PenPoints)
+                {
+                    double px = pt.X * d + iox;
+                    double py = pt.Y * d + ioy;
+                    if (px < minX) minX = px;
+                    if (py < minY) minY = py;
+                    if (px > maxX) maxX = px;
+                    if (py > maxY) maxY = py;
+                }
+                return new Rect(minX, minY, maxX - minX, maxY - minY);
+            default:
+                return Rect.Empty;
         }
     }
 

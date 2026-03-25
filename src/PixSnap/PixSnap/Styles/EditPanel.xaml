@@ -142,4 +142,47 @@
         <Setter Property="Background" Value="{DynamicResource ButtonPrimaryBackgroundBrush}" />
     </Style>
 
+    <!--  标注工具 Ribbon 风格按钮：图标在上、文字在下、选中高亮  -->
+    <Style x:Key="RibbonToolButtonStyle" TargetType="Button">
+        <Setter Property="Width" Value="48" />
+        <Setter Property="Height" Value="52" />
+        <Setter Property="Cursor" Value="Hand" />
+        <Setter Property="FontFamily" Value="{StaticResource MiSansRegular}" />
+        <Setter Property="BorderThickness" Value="0" />
+        <Setter Property="Background" Value="Transparent" />
+        <Setter Property="Foreground" Value="{DynamicResource TextPrimaryBrush}" />
+        <Setter Property="Template">
+            <Setter.Value>
+                <ControlTemplate TargetType="Button">
+                    <Border
+                        x:Name="root"
+                        Background="{TemplateBinding Background}"
+                        CornerRadius="6"
+                        SnapsToDevicePixels="True">
+                        <StackPanel HorizontalAlignment="Center" VerticalAlignment="Center">
+                            <TextBlock
+                                HorizontalAlignment="Center"
+                                FontFamily="{StaticResource SegoeFluent}"
+                                FontSize="18"
+                                Foreground="{TemplateBinding Foreground}"
+                                Text="{Binding Tag, RelativeSource={RelativeSource TemplatedParent}}" />
+
+                        </StackPanel>
+                    </Border>
+                    <ControlTemplate.Triggers>
+                        <Trigger Property="IsMouseOver" Value="True">
+                            <Setter TargetName="root" Property="Background" Value="{DynamicResource ButtonPrimaryBackgroundBrush}" />
+                        </Trigger>
+                        <Trigger Property="IsPressed" Value="True">
+                            <Setter TargetName="root" Property="Opacity" Value="0.72" />
+                        </Trigger>
+                        <Trigger Property="IsEnabled" Value="False">
+                            <Setter TargetName="root" Property="Opacity" Value="0.4" />
+                        </Trigger>
+                    </ControlTemplate.Triggers>
+                </ControlTemplate>
+            </Setter.Value>
+        </Setter>
+    </Style>
+
 </ResourceDictionary>

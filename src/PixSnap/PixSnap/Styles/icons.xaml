@@ -27,6 +27,15 @@
     <s:String x:Key="Glyph_Diagnostic">&#xE9D9;</s:String>
     <s:String x:Key="Glyph_Settings">&#xE713;</s:String>
 
+    <!--  标注工具  -->
+    <s:String x:Key="Glyph_Pointer">&#xE8B0;</s:String>
+    <s:String x:Key="Glyph_Arrow">&#xE76C;</s:String>
+    <s:String x:Key="Glyph_Rectangle">&#xE739;</s:String>
+    <s:String x:Key="Glyph_Ellipse">&#xEA3A;</s:String>
+    <s:String x:Key="Glyph_Text">&#xE8D2;</s:String>
+    <s:String x:Key="Glyph_Pen">&#xEE56;</s:String>
+    <s:String x:Key="Glyph_Delete">&#xE74D;</s:String>
+
     <!--  底部栏  -->
     <s:String x:Key="Glyph_Resolution">&#xE799;</s:String>
     <s:String x:Key="Glyph_List">&#xE8FD;</s:String>

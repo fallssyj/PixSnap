@@ -216,9 +216,10 @@ public partial class ScreenshotPreviewViewModel : ObservableRecipient, IRecipien
         _ = ApplyEditedImageAsync(result);
     }
 
-    private void OnAnnotationApplied(BitmapSource result)
+    private async void OnAnnotationApplied(BitmapSource result)
     {
-        _ = ApplyEditedImageAsync(result);
+        // 先应用新图片，再退出标注模式，避免标注层先清空而新图未到导致闪烁
+        await ApplyEditedImageAsync(result, switchToFit: false);
         ActiveEditMode = EditMode.None;
     }
 
@@ -553,7 +554,12 @@ public partial class ScreenshotPreviewViewModel : ObservableRecipient, IRecipien
         }
         else
         {
-            SwitchToFitMode();
+            // 标注层位于 ScrollViewer 内部，须切换到实际大小模式
+            if (!IsActualSize)
+            {
+                ZoomFactor = FitZoomFactor;
+                IsActualSize = true;
+            }
             ActiveEditMode = EditMode.Annotate;
         }
     }
