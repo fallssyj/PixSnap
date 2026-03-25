@@ -1,5 +1,7 @@
 using CommunityToolkit.Mvvm.Messaging;
 using Hardcodet.Wpf.TaskbarNotification;
+using MicaWPF.Core.Events;
+using MicaWPF.Core.Services;
 using Microsoft.Extensions.DependencyInjection;
 using PixSnap.Models;
 using PixSnap.Resources;
@@ -12,8 +14,6 @@ using System.Drawing;
 using System.IO;
 using System.Runtime.InteropServices;
 using System.Text;
-using System.Threading;
-using System.Threading.Tasks;
 using System.Windows;
 using System.Windows.Controls.Primitives;
 using System.Windows.Input;
@@ -28,6 +28,7 @@ public partial class App : System.Windows.Application, IRecipient<ScreenshotCapt
 
     private MainWindow? _mainWindow;
     private TaskbarIcon? _taskbarIcon;
+    private ISubscription? _themeSubscription;
 
     /// <summary>全局 DI 容器，在 OnStartup 中构建。</summary>
     public IServiceProvider Services { get; private set; } = null!;
@@ -94,6 +95,27 @@ public partial class App : System.Windows.Application, IRecipient<ScreenshotCapt
 
         InitializeTrayIcon();
         InitializeHotkey();
+
+        // 订阅 MicaWPF 主题切换，强制刷新桥接字典使颜色跟随
+        _themeSubscription = MicaWPFServiceUtility.ThemeService.ThemeChanged.Subscribe(OnMicaThemeChanged);
+    }
+
+    private void OnMicaThemeChanged(MicaWPF.Core.Enums.WindowsTheme _)
+    {
+        Dispatcher.Invoke(() =>
+        {
+            var dicts = Resources.MergedDictionaries;
+            for (var i = 0; i < dicts.Count; i++)
+            {
+                if (dicts[i].Source?.OriginalString?.Contains("Theme.xaml", StringComparison.Ordinal) == true)
+                {
+                    var source = dicts[i].Source;
+                    dicts.RemoveAt(i);
+                    dicts.Insert(i, new ResourceDictionary { Source = source });
+                    break;
+                }
+            }
+        });
     }
 
     private static ServiceProvider ConfigureServices()
@@ -118,6 +140,9 @@ public partial class App : System.Windows.Application, IRecipient<ScreenshotCapt
         TaskScheduler.UnobservedTaskException -= OnUnobservedTaskException;
 
         WeakReferenceMessenger.Default.UnregisterAll(this);
+
+        _themeSubscription?.Dispose();
+        _themeSubscription = null;
 
         _taskbarIcon?.Dispose();
         _taskbarIcon = null;

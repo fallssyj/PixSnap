@@ -1,11 +1,12 @@
 using PixSnap.ViewModels;
+using MicaWPF.Controls;
 using System.Windows;
 using System.Windows.Input;
 using WpfApp = System.Windows.Application;
 
 namespace PixSnap.Views;
 
-public partial class MessageBoxWindow : Window
+public partial class MessageBoxWindow : MicaWindow
 {
     private MessageBoxWindow(MessageBoxViewModel viewModel)
     {

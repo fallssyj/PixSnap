@@ -42,7 +42,6 @@
     <Style x:Key="PanelTitleStyle" TargetType="TextBlock">
         <Setter Property="FontSize" Value="15" />
         <Setter Property="FontFamily" Value="{StaticResource MiSansRegular}" />
-        <Setter Property="Foreground" Value="{DynamicResource TextPrimaryBrush}" />
         <Setter Property="Margin" Value="0,0,0,10" />
     </Style>
 
@@ -51,7 +50,6 @@
         <Setter Property="FontSize" Value="13" />
         <Setter Property="MinWidth" Value="30" />
         <Setter Property="FontFamily" Value="{StaticResource MiSansRegular}" />
-        <Setter Property="Foreground" Value="{DynamicResource TextSecondaryBrush}" />
         <Setter Property="VerticalAlignment" Value="Center" />
     </Style>
 
@@ -62,9 +60,10 @@
         <Setter Property="Height" Value="26" />
         <Setter Property="FontSize" Value="11" />
         <Setter Property="FontFamily" Value="{StaticResource MiSansRegular}" />
-        <Setter Property="Foreground" Value="{DynamicResource TextPrimaryBrush}" />
         <Setter Property="Background" Value="{DynamicResource InputBackgroundBrush}" />
         <Setter Property="BorderBrush" Value="{DynamicResource InputBorderBrush}" />
+        <Setter Property="Foreground" Value="{DynamicResource TextPrimaryBrush}" />
+
         <Setter Property="BorderThickness" Value="1" />
         <Setter Property="Padding" Value="6,0" />
         <Setter Property="VerticalContentAlignment" Value="Center" />
@@ -135,14 +134,12 @@
         BasedOn="{StaticResource PanelButtonStyle}"
         TargetType="Button">
         <Setter Property="Background" Value="{DynamicResource AccentBrush}" />
-        <Setter Property="Foreground" Value="#000000" />
     </Style>
     <Style
         x:Key="PanelCancelButtonStyle"
         BasedOn="{StaticResource PanelButtonStyle}"
         TargetType="Button">
         <Setter Property="Background" Value="{DynamicResource ButtonPrimaryBackgroundBrush}" />
-        <Setter Property="Foreground" Value="{DynamicResource TextPrimaryBrush}" />
     </Style>
 
 </ResourceDictionary>

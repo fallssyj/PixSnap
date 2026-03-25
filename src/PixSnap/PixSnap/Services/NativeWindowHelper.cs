@@ -166,13 +166,23 @@ internal static class NativeWindowHelper
         return new Point(pt.x, pt.y);
     }
 
-    /// <summary>从顶层窗口开始枚举 Z 序，返回包含指定屏幕坐标点的第一个窗口句柄（排除指定句柄）。</summary>
+    [DllImport("user32.dll")]
+    [return: MarshalAs(UnmanagedType.Bool)]
+    private static extern bool IsWindowVisible(IntPtr hwnd);
+
+    [DllImport("user32.dll")]
+    [return: MarshalAs(UnmanagedType.Bool)]
+    private static extern bool IsIconic(IntPtr hwnd);
+
+    /// <summary>从顶层窗口开始枚举 Z 序，返回包含指定屏幕坐标点的第一个可见窗口句柄（排除指定句柄）。</summary>
     public static IntPtr FindTopWindowAtPoint(Point screenPoint, IntPtr excludeHwnd)
     {
         var hwnd = GetTopWindow(IntPtr.Zero);
         while (hwnd != IntPtr.Zero)
         {
             if (hwnd != excludeHwnd
+                && IsWindowVisible(hwnd)
+                && !IsIconic(hwnd)
                 && TryGetWindowRect(hwnd, out var rect)
                 && rect.Contains(screenPoint))
             {

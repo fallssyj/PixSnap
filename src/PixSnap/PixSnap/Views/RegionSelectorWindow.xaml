@@ -37,15 +37,11 @@
             CornerRadius="14"
             IsHitTestVisible="False">
             <StackPanel>
-                <TextBlock
-                    FontSize="13"
-                    Foreground="{DynamicResource TextPrimaryBrush}"
-                    Text="{Binding SelectionText}" />
+                <TextBlock FontSize="13" Text="{Binding SelectionText}" />
                 <TextBlock
                     MaxWidth="420"
                     Margin="0,6,0,0"
                     FontSize="12"
-                    Foreground="{DynamicResource TextSecondaryBrush}"
                     Text="{Binding InstructionText}"
                     TextWrapping="Wrap" />
             </StackPanel>
@@ -59,7 +55,6 @@
             IsHitTestVisible="False">
             <TextBlock
                 MaxWidth="520"
-                Foreground="{DynamicResource OverlayFooterForegroundBrush}"
                 Text="{StaticResource S_Region_Instruction}"
                 TextWrapping="Wrap" />
         </Border>

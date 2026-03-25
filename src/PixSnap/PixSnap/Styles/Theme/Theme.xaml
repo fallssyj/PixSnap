@@ -1,0 +1,139 @@
+<ResourceDictionary
+    xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+    xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+    xmlns:s="clr-namespace:System;assembly=mscorlib">
+
+    <!--  =================================================================  -->
+    <!--  Theme Bridge  -->
+    <!--  Maps app-specific brush keys → MicaWPF theme-aware Color resources.  -->
+    <!--  MicaWPF ThemeDictionary (Theme="Auto") swaps Colors at runtime;  -->
+    <!--  DynamicResource here picks up changes automatically.  -->
+    <!--  =================================================================  -->
+
+    <!--  ── Background ──  -->
+    <SolidColorBrush x:Key="AppBackgroundBrush" Color="Transparent" />
+    <SolidColorBrush x:Key="AppGradientStartBrush" Color="{DynamicResource MicaWPF.Colors.SolidBackgroundFillColorBase}" />
+    <SolidColorBrush x:Key="AppGradientMidBrush" Color="{DynamicResource MicaWPF.Colors.SolidBackgroundFillColorSecondary}" />
+    <SolidColorBrush x:Key="AppGradientEndBrush" Color="{DynamicResource MicaWPF.Colors.SolidBackgroundFillColorTertiary}" />
+
+    <!--  ── Surface ──  -->
+    <SolidColorBrush x:Key="SurfaceBrush" Color="{DynamicResource MicaWPF.Colors.SolidBackgroundFillColorSecondary}" />
+    <SolidColorBrush x:Key="SurfaceAltBrush" Color="{DynamicResource MicaWPF.Colors.SolidBackgroundFillColorTertiary}" />
+    <SolidColorBrush x:Key="SurfaceElevatedBrush" Color="{DynamicResource MicaWPF.Colors.SolidBackgroundFillColorQuarternary}" />
+    <SolidColorBrush x:Key="SurfaceOverlayBrush" Color="{DynamicResource MicaWPF.Colors.SmokeFillColorDefault}" />
+
+    <!--  ── Border ──  -->
+    <SolidColorBrush x:Key="BorderBrush" Color="{DynamicResource MicaWPF.Colors.DividerStrokeColorDefault}" />
+    <SolidColorBrush x:Key="BorderSubtleBrush" Color="{DynamicResource MicaWPF.Colors.ControlStrokeColorSecondary}" />
+
+    <!--  ── Text ──  -->
+    <SolidColorBrush x:Key="TextPrimaryBrush" Color="{DynamicResource MicaWPF.Colors.TextFillColorPrimary}" />
+    <SolidColorBrush x:Key="TextSecondaryBrush" Color="{DynamicResource MicaWPF.Colors.TextFillColorSecondary}" />
+    <SolidColorBrush x:Key="TextMutedBrush" Color="{DynamicResource MicaWPF.Colors.TextFillColorTertiary}" />
+
+    <!--  ── Button (Primary) ──  -->
+    <SolidColorBrush x:Key="ButtonPrimaryBackgroundBrush" Color="{DynamicResource MicaWPF.Colors.ControlFillColorDefault}" />
+    <SolidColorBrush x:Key="ButtonPrimaryForegroundBrush" Color="{DynamicResource MicaWPF.Colors.TextFillColorPrimary}" />
+    <SolidColorBrush x:Key="ButtonBorderBrush" Color="{DynamicResource MicaWPF.Colors.ControlStrokeColorSecondary}" />
+    <SolidColorBrush x:Key="ButtonHoverBackgroundBrush" Color="{DynamicResource MicaWPF.Colors.ControlFillColorSecondary}" />
+    <SolidColorBrush x:Key="ButtonPressedBackgroundBrush" Color="{DynamicResource MicaWPF.Colors.ControlFillColorTertiary}" />
+
+    <!--  ── Button (Secondary / Ghost) ──  -->
+    <SolidColorBrush x:Key="ButtonSecondaryBackgroundBrush" Color="{DynamicResource MicaWPF.Colors.SubtleFillColorSecondary}" />
+    <SolidColorBrush x:Key="ButtonSecondaryHoverBackgroundBrush" Color="{DynamicResource MicaWPF.Colors.SubtleFillColorTertiary}" />
+    <SolidColorBrush x:Key="ButtonSecondaryPressedBackgroundBrush" Color="{DynamicResource MicaWPF.Colors.SubtleFillColorSecondary}" />
+    <SolidColorBrush x:Key="ButtonSecondaryBorderBrush" Color="{DynamicResource MicaWPF.Colors.ControlStrokeColorDefault}" />
+
+    <!--  ── Focus / Disabled ──  -->
+    <SolidColorBrush x:Key="FocusBrush" Color="{DynamicResource MicaWPF.Colors.FocusStrokeColorOuter}" />
+    <SolidColorBrush x:Key="DisabledBackgroundBrush" Color="{DynamicResource MicaWPF.Colors.ControlFillColorDisabled}" />
+    <SolidColorBrush x:Key="DisabledForegroundBrush" Color="{DynamicResource MicaWPF.Colors.TextFillColorDisabled}" />
+
+    <!--  ── Accent / Status ──  -->
+    <SolidColorBrush x:Key="AccentBrush" Color="{DynamicResource MicaWPF.Colors.SystemAccentColorPrimary}" />
+    <SolidColorBrush x:Key="AccentInfoBrush" Color="{DynamicResource MicaWPF.Colors.SystemAccentColorPrimary}" />
+    <SolidColorBrush x:Key="AccentSuccessBrush" Color="{DynamicResource MicaWPF.Colors.SystemFillColorSuccess}" />
+    <SolidColorBrush x:Key="AccentWarningBrush" Color="{DynamicResource MicaWPF.Colors.SystemFillColorCaution}" />
+    <SolidColorBrush x:Key="AccentDangerBrush" Color="{DynamicResource MicaWPF.Colors.SystemFillColorCritical}" />
+
+    <!--  ── Input ──  -->
+    <SolidColorBrush x:Key="InputBackgroundBrush" Color="{DynamicResource MicaWPF.Colors.ControlFillColorInputActive}" />
+    <SolidColorBrush x:Key="InputHoverBackgroundBrush" Color="{DynamicResource MicaWPF.Colors.ControlFillColorSecondary}" />
+    <SolidColorBrush x:Key="InputFocusBackgroundBrush" Color="{DynamicResource MicaWPF.Colors.ControlFillColorInputActive}" />
+    <SolidColorBrush x:Key="InputBorderBrush" Color="{DynamicResource MicaWPF.Colors.ControlStrokeColorDefault}" />
+    <SolidColorBrush x:Key="InputHoverBorderBrush" Color="{DynamicResource MicaWPF.Colors.ControlStrokeColorSecondary}" />
+    <SolidColorBrush x:Key="InputFocusBorderBrush" Color="{DynamicResource MicaWPF.Colors.ControlStrongStrokeColorDefault}" />
+    <SolidColorBrush x:Key="InputSelectionBrush" Color="{DynamicResource MicaWPF.Colors.SystemAccentColor}" />
+    <SolidColorBrush x:Key="InputPlaceholderBrush" Color="{DynamicResource MicaWPF.Colors.TextFillColorTertiary}" />
+
+    <!--  ── Slider ──  -->
+    <SolidColorBrush x:Key="SliderTrackBrush" Color="{DynamicResource MicaWPF.Colors.ControlStrongFillColorDefault}" />
+    <SolidColorBrush x:Key="SliderTrackBorderBrush" Color="{DynamicResource MicaWPF.Colors.ControlStrokeColorDefault}" />
+    <SolidColorBrush x:Key="SliderActiveTrackBrush" Color="{DynamicResource MicaWPF.Colors.SystemAccentColorPrimary}" />
+    <SolidColorBrush x:Key="SliderThumbBrush" Color="{DynamicResource MicaWPF.Colors.ControlStrongFillColorDefault}" />
+    <SolidColorBrush x:Key="SliderThumbHoverBrush" Color="{DynamicResource MicaWPF.Colors.TextFillColorPrimary}" />
+    <SolidColorBrush x:Key="SliderThumbPressedBrush" Color="{DynamicResource MicaWPF.Colors.TextFillColorSecondary}" />
+    <SolidColorBrush x:Key="SliderThumbBorderBrush" Color="{DynamicResource MicaWPF.Colors.ControlStrongStrokeColorDefault}" />
+
+    <!--  ── HeroBadge (About) ──  -->
+    <SolidColorBrush x:Key="HeroBadgeBackgroundBrush" Color="{DynamicResource MicaWPF.Colors.CardBackgroundFillColorDefault}" />
+    <SolidColorBrush x:Key="HeroBadgeIndicatorBrush" Color="{DynamicResource MicaWPF.Colors.TextFillColorSecondary}" />
+    <SolidColorBrush x:Key="HeroBadgeForegroundBrush" Color="{DynamicResource MicaWPF.Colors.TextFillColorPrimary}" />
+
+    <!--  ── Feature cards (About) ──  -->
+    <SolidColorBrush x:Key="FeatureWindowBackgroundBrush" Color="{DynamicResource MicaWPF.Colors.CardBackgroundFillColorDefault}" />
+    <SolidColorBrush x:Key="FeatureWindowForegroundBrush" Color="{DynamicResource MicaWPF.Colors.TextFillColorPrimary}" />
+    <SolidColorBrush x:Key="FeatureWindowDescriptionBrush" Color="{DynamicResource MicaWPF.Colors.TextFillColorSecondary}" />
+    <SolidColorBrush x:Key="FeatureRegionBackgroundBrush" Color="{DynamicResource MicaWPF.Colors.CardBackgroundFillColorSecondary}" />
+    <SolidColorBrush x:Key="FeatureRegionForegroundBrush" Color="{DynamicResource MicaWPF.Colors.TextFillColorPrimary}" />
+    <SolidColorBrush x:Key="FeatureRegionDescriptionBrush" Color="{DynamicResource MicaWPF.Colors.TextFillColorSecondary}" />
+    <SolidColorBrush x:Key="FeatureMonitorBackgroundBrush" Color="{DynamicResource MicaWPF.Colors.CardBackgroundFillColorDefault}" />
+    <SolidColorBrush x:Key="FeatureMonitorForegroundBrush" Color="{DynamicResource MicaWPF.Colors.TextFillColorPrimary}" />
+    <SolidColorBrush x:Key="FeatureMonitorDescriptionBrush" Color="{DynamicResource MicaWPF.Colors.TextFillColorSecondary}" />
+    <SolidColorBrush x:Key="FeatureExitBackgroundBrush" Color="{DynamicResource MicaWPF.Colors.CardBackgroundFillColorSecondary}" />
+    <SolidColorBrush x:Key="FeatureExitForegroundBrush" Color="{DynamicResource MicaWPF.Colors.TextFillColorPrimary}" />
+    <SolidColorBrush x:Key="FeatureExitDescriptionBrush" Color="{DynamicResource MicaWPF.Colors.TextFillColorSecondary}" />
+
+    <!--  ── Preview (Screenshot) ──  -->
+    <SolidColorBrush x:Key="PreviewCheckerLightBrush" Color="{DynamicResource MicaWPF.Colors.ControlFillColorSecondary}" />
+    <SolidColorBrush x:Key="PreviewCheckerDarkBrush" Color="{DynamicResource MicaWPF.Colors.ControlFillColorTertiary}" />
+    <SolidColorBrush x:Key="PreviewSidebarBackgroundBrush" Color="{DynamicResource MicaWPF.Colors.LayerFillColorDefault}" />
+    <SolidColorBrush x:Key="PreviewCardBackgroundBrush" Color="{DynamicResource MicaWPF.Colors.CardBackgroundFillColorDefault}" />
+    <SolidColorBrush x:Key="PreviewCardLabelBrush" Color="{DynamicResource MicaWPF.Colors.TextFillColorTertiary}" />
+    <SolidColorBrush x:Key="PreviewGhostButtonBackgroundBrush" Color="{DynamicResource MicaWPF.Colors.SubtleFillColorSecondary}" />
+    <SolidColorBrush x:Key="PreviewGhostButtonBorderBrush" Color="{DynamicResource MicaWPF.Colors.ControlStrokeColorDefault}" />
+    <SolidColorBrush x:Key="PreviewGhostButtonForegroundBrush" Color="{DynamicResource MicaWPF.Colors.TextFillColorPrimary}" />
+    <SolidColorBrush x:Key="PreviewCloseButtonForegroundBrush" Color="{DynamicResource MicaWPF.Colors.TextFillColorSecondary}" />
+    <SolidColorBrush x:Key="PreviewSaveButtonBrush" Color="{DynamicResource MicaWPF.Colors.ControlSolidFillColorDefault}" />
+    <SolidColorBrush x:Key="PreviewCopyButtonBrush" Color="{DynamicResource MicaWPF.Colors.ControlSolidFillColorDefault}" />
+    <SolidColorBrush x:Key="PreviewZoomChromeBackgroundBrush" Color="{DynamicResource MicaWPF.Colors.ControlOnImageFillColorDefault}" />
+    <SolidColorBrush x:Key="PreviewZoomChipBackgroundBrush" Color="{DynamicResource MicaWPF.Colors.ControlFillColorDefault}" />
+    <SolidColorBrush x:Key="PreviewZoomChipBorderBrush" Color="{DynamicResource MicaWPF.Colors.ControlStrokeColorDefault}" />
+    <SolidColorBrush x:Key="PreviewZoomTrackInactiveBrush" Color="{DynamicResource MicaWPF.Colors.ControlStrongFillColorDefault}" />
+    <SolidColorBrush x:Key="PreviewZoomTrackActiveBrush" Color="{DynamicResource MicaWPF.Colors.TextFillColorSecondary}" />
+
+    <!--  ── ToolTip ──  -->
+    <SolidColorBrush x:Key="ToolTipBackgroundBrush" Color="{DynamicResource MicaWPF.Colors.SolidBackgroundFillColorSecondary}" />
+    <SolidColorBrush x:Key="ToolTipBorderBrush" Color="{DynamicResource MicaWPF.Colors.CardStrokeColorDefault}" />
+    <SolidColorBrush x:Key="ToolTipForegroundBrush" Color="{DynamicResource MicaWPF.Colors.TextFillColorPrimary}" />
+    <SolidColorBrush x:Key="ToolTipShadowBrush" Color="{DynamicResource MicaWPF.Colors.SmokeFillColorDefault}" />
+
+    <!--  ── Overlay (RegionSelector — theme-adaptive) ──  -->
+    <!--  Mask: fixed semi-dark dim — theme-independent (always darkens desktop content)  -->
+    <SolidColorBrush x:Key="OverlayMaskBrush" Color="#99202020" />
+    <!--  Highlight / Selection: subtle fills + system accent strokes  -->
+    <SolidColorBrush x:Key="OverlayWindowHighlightFillBrush" Color="{DynamicResource MicaWPF.Colors.SubtleFillColorSecondary}" />
+    <SolidColorBrush x:Key="OverlayWindowHighlightStrokeBrush" Color="{DynamicResource MicaWPF.Colors.SystemAccentColorLight2}" />
+    <SolidColorBrush x:Key="OverlaySelectionFillBrush" Color="{DynamicResource MicaWPF.Colors.SubtleFillColorTertiary}" />
+    <SolidColorBrush x:Key="OverlaySelectionStrokeBrush" Color="{DynamicResource MicaWPF.Colors.SystemAccentColorLight2}" />
+    <!--  Info bubble / Footer: WinUI "on image" bg (Dark ≈ 70% dark, Light ≈ 79% white)  -->
+    <SolidColorBrush x:Key="OverlayInfoBubbleBackgroundBrush" Color="{DynamicResource MicaWPF.Colors.ControlOnImageFillColorDefault}" />
+    <SolidColorBrush x:Key="OverlayFooterBackgroundBrush" Color="{DynamicResource MicaWPF.Colors.ControlOnImageFillColorDefault}" />
+    <SolidColorBrush x:Key="OverlayFooterForegroundBrush" Color="{DynamicResource MicaWPF.Colors.TextFillColorPrimary}" />
+
+    <!--  ── Spacing (theme-independent) ──  -->
+    <Thickness x:Key="DialogContentPadding">22,18,22,22</Thickness>
+    <s:Double x:Key="SpacingSmall">8</s:Double>
+    <s:Double x:Key="SpacingMedium">16</s:Double>
+    <s:Double x:Key="SpacingLarge">24</s:Double>
+</ResourceDictionary>

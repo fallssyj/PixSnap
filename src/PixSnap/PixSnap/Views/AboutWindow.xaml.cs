@@ -1,10 +1,11 @@
 using PixSnap.ViewModels;
+using MicaWPF.Controls;
 using System.Windows;
 using System.Windows.Input;
 
 namespace PixSnap.Views;
 
-public partial class AboutWindow : Window
+public partial class AboutWindow : MicaWindow
 {
     private readonly AboutViewModel _viewModel;
 

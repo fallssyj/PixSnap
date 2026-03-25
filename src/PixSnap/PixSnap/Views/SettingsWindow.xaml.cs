@@ -1,10 +1,11 @@
 using PixSnap.ViewModels;
+using MicaWPF.Controls;
 using System.Windows;
 using System.Windows.Input;
 
 namespace PixSnap.Views;
 
-public partial class SettingsWindow : Window
+public partial class SettingsWindow : MicaWindow
 {
     public SettingsViewModel ViewModel { get; }
 

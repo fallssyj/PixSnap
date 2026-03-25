@@ -12,17 +12,18 @@
     <s:String x:Key="Glyph_Close">&#xE8BB;</s:String>
 
     <!--  工具栏  -->
-    <s:String x:Key="Glyph_OpenImage">&#xE8B9;</s:String>
+    <s:String x:Key="Glyph_OpenImage">&#xEB9F;</s:String>
     <s:String x:Key="Glyph_Save">&#xE74E;</s:String>
     <s:String x:Key="Glyph_Undo">&#xE7A7;</s:String>
     <s:String x:Key="Glyph_Redo">&#xE7A6;</s:String>
     <s:String x:Key="Glyph_Rotate">&#xE7AD;</s:String>
     <s:String x:Key="Glyph_Copy">&#xE8C8;</s:String>
-    <s:String x:Key="Glyph_Crop">&#xE7A8;</s:String>
-    <s:String x:Key="Glyph_RoundCorner">&#xE003;</s:String>
-    <s:String x:Key="Glyph_Eraser">&#xED60;</s:String>
-    <s:String x:Key="Glyph_Recapture">&#xe924;</s:String>
-    <s:String x:Key="Glyph_Settings">&#xE713;</s:String>
+    <s:String x:Key="Glyph_Crop">&#xe924;</s:String>
+    <s:String x:Key="Glyph_RoundCorner">&#xF16B;</s:String>
+    <!--  \uEC12  -->
+    <s:String x:Key="Glyph_Eraser">&#xED62;</s:String>
+    <s:String x:Key="Glyph_Recapture">&#xEF20;</s:String>
+    <s:String x:Key="Glyph_Settings">&#xF8B0;</s:String>
 
     <!--  底部栏  -->
     <s:String x:Key="Glyph_Resolution">&#xE799;</s:String>

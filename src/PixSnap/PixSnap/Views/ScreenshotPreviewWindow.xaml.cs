@@ -13,13 +13,14 @@ using System.Windows.Media;
 using System.Windows.Media.Imaging;
 using System.Windows.Shapes;
 using System.Windows.Threading;
+using MicaWPF.Controls;
 using Cursors = System.Windows.Input.Cursors;
 using Point = System.Windows.Point;
 using ScrollBar = System.Windows.Controls.Primitives.ScrollBar;
 
 namespace PixSnap.Views;
 
-public partial class ScreenshotPreviewWindow : Window
+public partial class ScreenshotPreviewWindow : MicaWindow
 {
     // ── 常量 ─────────────────────────────────────────────────────
     private const int ResizeBorderThickness = 5;
@@ -762,12 +763,6 @@ public partial class ScreenshotPreviewWindow : Window
 
     private void OnWindowStateChanged(object? sender, EventArgs e)
     {
-        // 最大化时去掉圆角避免黑角，还原时恢复圆角
-        var radius = WindowState == WindowState.Maximized
-            ? new CornerRadius(0)
-            : new CornerRadius(10);
-        RootBorder.CornerRadius = radius;
-        OverlayBorder.CornerRadius = radius;
         SyncWindowStateToViewModel();
     }
 
