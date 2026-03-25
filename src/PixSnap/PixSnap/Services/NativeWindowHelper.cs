@@ -134,10 +134,6 @@ internal static class NativeWindowHelper
     [DllImport("user32.dll")]
     private static extern IntPtr GetWindow(IntPtr hwnd, uint command);
 
-    [DllImport("user32.dll")]
-    [return: MarshalAs(UnmanagedType.Bool)]
-    private static extern bool NativeGetWindowRect(IntPtr hwnd, out NATIVERECT rect);
-
     [DllImport("user32.dll", EntryPoint = "GetWindowRect")]
     [return: MarshalAs(UnmanagedType.Bool)]
     private static extern bool GetWindowRectNative(IntPtr hwnd, out NATIVERECT rect);

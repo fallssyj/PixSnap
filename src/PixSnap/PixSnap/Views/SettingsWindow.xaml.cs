@@ -38,6 +38,12 @@ public partial class SettingsWindow : Window
         ViewModel.IsRecordingHotkey = false;
     }
 
+    protected override void OnClosed(EventArgs e)
+    {
+        ViewModel.RequestClose -= Close;
+        base.OnClosed(e);
+    }
+
     private void HotkeyInputBox_PreviewKeyDown(object sender, KeyEventArgs e)
     {
         if (!ViewModel.IsRecordingHotkey) return;

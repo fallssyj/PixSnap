@@ -6,13 +6,21 @@ namespace PixSnap.Views;
 
 public partial class AboutWindow : Window
 {
+    private readonly AboutViewModel _viewModel;
+
     public AboutWindow()
     {
-        var viewModel = new AboutViewModel();
-        viewModel.RequestClose += Close;
+        _viewModel = new AboutViewModel();
+        _viewModel.RequestClose += Close;
 
         InitializeComponent();
-        DataContext = viewModel;
+        DataContext = _viewModel;
+    }
+
+    protected override void OnClosed(EventArgs e)
+    {
+        _viewModel.RequestClose -= Close;
+        base.OnClosed(e);
     }
 
     private void OnTitleBarMouseDown(object sender, MouseButtonEventArgs e)

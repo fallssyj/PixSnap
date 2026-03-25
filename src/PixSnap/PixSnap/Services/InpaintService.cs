@@ -171,7 +171,7 @@ public static class InpaintService
             progress.Report((1.0, "完成"));
             Log.Information("AI 修复完成");
             return result;
-        }, token);
+        }, token).ConfigureAwait(false);
     }
 
     private static List<(Point Center, double Radius)> TranslateStrokesToRoi(

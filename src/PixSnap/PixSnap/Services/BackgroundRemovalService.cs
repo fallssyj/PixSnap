@@ -7,7 +7,6 @@ using System.Collections.Generic;
 using System.IO;
 using System.Linq;
 using System.Threading.Tasks;
-using System.Windows;
 using System.Windows.Media.Imaging;
 
 namespace PixSnap.Services;
@@ -83,7 +82,7 @@ public static class BackgroundRemovalService
             progress?.Report((1.0, "去除背景完成"));
             Log.Information("去除背景完成");
             return result;
-        });
+        }).ConfigureAwait(false);
     }
 
     /// <summary>解析模型输入维度，动态值或无效值时使用回退默认值。</summary>
@@ -97,8 +96,11 @@ public static class BackgroundRemovalService
     /// <summary>BGRA SKBitmap → [1, 3, H, W] RGB float32 张量（归一化到 0–1）。</summary>
     private static DenseTensor<float> BitmapToRgbTensor(SKBitmap bmp, int w, int h)
     {
-        var tensor = new DenseTensor<float>(new[] { 1, 3, h, w });
+        var tensor = new DenseTensor<float>([1, 3, h, w]);
         int rowBytes = bmp.RowBytes;
+
+        var buf = tensor.Buffer.Span;
+        int chStride = h * w;
 
         unsafe
         {
@@ -108,13 +110,10 @@ public static class BackgroundRemovalService
                 for (int x = 0; x < w; x++)
                 {
                     int idx = y * rowBytes + x * 4;
-                    float b = ptr[idx] / 255f;
-                    float g = ptr[idx + 1] / 255f;
-                    float r = ptr[idx + 2] / 255f;
-
-                    tensor[0, 0, y, x] = r;
-                    tensor[0, 1, y, x] = g;
-                    tensor[0, 2, y, x] = b;
+                    int pos = y * w + x;
+                    buf[pos]                = ptr[idx + 2] / 255f; // R
+                    buf[chStride + pos]     = ptr[idx + 1] / 255f; // G
+                    buf[chStride * 2 + pos] = ptr[idx]     / 255f; // B
                 }
             }
         }
@@ -158,6 +157,11 @@ public static class BackgroundRemovalService
             if (value > max) max = value;
         }
 
+        // rank >= 3 时，tensor[0, (0,) y, x] 的线性偏移均为 y*w+x
+        var tensorSpan = rank >= 3 && tensor is DenseTensor<float> dense
+            ? dense.Buffer.Span
+            : default;
+
         unsafe
         {
             var ptr = (byte*)mask.GetPixels();
@@ -166,12 +170,7 @@ public static class BackgroundRemovalService
             {
                 for (int x = 0; x < w; x++)
                 {
-                    float v = rank switch
-                    {
-                        >= 4 => tensor[0, 0, y, x],
-                        3 => tensor[0, y, x],
-                        _ => 0f
-                    };
+                    float v = rank >= 3 ? tensorSpan[y * w + x] : 0f;
 
                     float normalized = NormalizeToUnit(v, min, max);
                     byte gray = (byte)Math.Clamp(normalized * 255f, 0f, 255f);

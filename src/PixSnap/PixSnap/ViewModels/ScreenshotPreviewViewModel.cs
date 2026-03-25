@@ -520,7 +520,7 @@ public partial class ScreenshotPreviewViewModel : ObservableRecipient, IRecipien
     {
         if (ScreenshotImage is null || IsAnyAiProcessing) return;
 
-        // 关闭弹出菜单（处理期间遞层将阻断操作）
+        // 关闭弹出菜单（处理期间弹层将阻断操作）
         IsAiPopupOpen = false;
         IsAiModuleProcessing = true;
         AiModuleProgress = 0;
@@ -561,7 +561,7 @@ public partial class ScreenshotPreviewViewModel : ObservableRecipient, IRecipien
     {
         if (ScreenshotImage is null || IsAnyAiProcessing) return;
 
-        // 关闭弹出菜单（处理期间遞层将阻断操作）
+        // 关闭弹出菜单（处理期间弹层将阻断操作）
         IsAiPopupOpen = false;
         IsAiModuleProcessing = true;
         AiModuleProgress = 0;

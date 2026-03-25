@@ -11,7 +11,7 @@ namespace PixSnap.Services;
 /// </summary>
 public static class OnnxSessionFactory
 {
-    private static int? _bestDmlDeviceId;
+    private static readonly Lazy<int> _bestDmlDeviceId = new(DetectBestGpuDeviceId);
 
     // ── Session 缓存（按模型路径），避免每次推理重新加载 DML 权重 ──────────────
     private static readonly Dictionary<string, (InferenceSession Session, string ProviderName)> _sessionCache = new();
@@ -99,7 +99,7 @@ public static class OnnxSessionFactory
         if (int.TryParse(configured, out var fixedId) && fixedId >= 0)
             return new[] { fixedId };
 
-        int best = GetBestGpuDeviceId();
+        int best = _bestDmlDeviceId.Value;
         if (best == 0)
             return new[] { 0, 1, 2, 3 };
 
@@ -107,11 +107,8 @@ public static class OnnxSessionFactory
     }
 
     /// <summary>通过 WMI 查询 Win32_VideoController 找到最适合推理的 GPU 设备索引。</summary>
-    private static int GetBestGpuDeviceId()
+    private static int DetectBestGpuDeviceId()
     {
-        if (_bestDmlDeviceId.HasValue)
-            return _bestDmlDeviceId.Value;
-
         int bestId = 0;
         try
         {
@@ -142,12 +139,12 @@ public static class OnnxSessionFactory
         catch (Exception ex)
         {
             Log.Warning(ex, "WMI GPU 探测失败，回退到默认设备 0");
-            bestId = 0;
         }
 
-        _bestDmlDeviceId = bestId;
         return bestId;
     }
+
+    private const int MaxErrorMessageLength = 64;
 
     private static string Shorten(string? text)
     {
@@ -155,6 +152,6 @@ public static class OnnxSessionFactory
             return "未知";
 
         var oneLine = text.Replace('\r', ' ').Replace('\n', ' ').Trim();
-        return oneLine.Length <= 64 ? oneLine : oneLine[..64] + "...";
+        return oneLine.Length <= MaxErrorMessageLength ? oneLine : oneLine[..MaxErrorMessageLength] + "...";
     }
 }

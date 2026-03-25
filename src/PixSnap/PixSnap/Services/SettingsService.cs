@@ -20,6 +20,11 @@ public static class SettingsService
     private static readonly string ConfigFilePath =
         Path.Combine(AppContext.BaseDirectory, "settings.json");
 
+    // ── JSON 配置键名 ──────────────────────────────────────────────────────────────
+    private const string KeyHotkeyModifiers = "HotkeyModifiers";
+    private const string KeyHotkeyKey = "HotkeyKey";
+    private const string KeyVersion = "Version";
+
     // ── 默认快捷键：Ctrl + Shift + Q ──────────────────────────────────────────
     public static readonly ModifierKeys DefaultHotkeyModifiers = ModifierKeys.Control | ModifierKeys.Shift;
     public static readonly Key DefaultHotkeyKey = Key.Q;
@@ -63,10 +68,10 @@ public static class SettingsService
             var doc = JsonDocument.Parse(json);
             var root = doc.RootElement;
 
-            var modifiers = root.TryGetProperty("HotkeyModifiers", out var m) && m.TryGetInt32(out var mv)
+            var modifiers = root.TryGetProperty(KeyHotkeyModifiers, out var m) && m.TryGetInt32(out var mv)
                 ? (ModifierKeys)mv
                 : DefaultHotkeyModifiers;
-            var key = root.TryGetProperty("HotkeyKey", out var k) && k.TryGetInt32(out var kv)
+            var key = root.TryGetProperty(KeyHotkeyKey, out var k) && k.TryGetInt32(out var kv)
                 ? (Key)kv
                 : DefaultHotkeyKey;
 
@@ -85,25 +90,25 @@ public static class SettingsService
         Log.Information("写入快捷键: {Modifiers}+{Key}", modifiers, key);
         // 读取现有内容，合并写入，避免覆盖其他字段
         var dict = ReadConfigDict();
-        dict["HotkeyModifiers"] = (int)modifiers;
-        dict["HotkeyKey"] = (int)key;
-        dict["Version"] = CurrentSettingsVersion;
+        dict[KeyHotkeyModifiers] = (int)modifiers;
+        dict[KeyHotkeyKey] = (int)key;
+        dict[KeyVersion] = CurrentSettingsVersion;
         WriteConfigDict(dict);
     }
 
     // ── 内部辅助 ──────────────────────────────────────────────────────────────
 
-    private static System.Collections.Generic.Dictionary<string, object> ReadConfigDict()
+    private static Dictionary<string, object> ReadConfigDict()
     {
         try
         {
             if (File.Exists(ConfigFilePath))
             {
                 var json = File.ReadAllText(ConfigFilePath);
-                var result = JsonSerializer.Deserialize<System.Collections.Generic.Dictionary<string, JsonElement>>(json);
+                var result = JsonSerializer.Deserialize<Dictionary<string, JsonElement>>(json);
                 if (result is not null)
                 {
-                    var dict = new System.Collections.Generic.Dictionary<string, object>();
+                    var dict = new Dictionary<string, object>();
                     foreach (var kv in result)
                     {
                         dict[kv.Key] = kv.Value.ValueKind == JsonValueKind.Number
@@ -121,7 +126,7 @@ public static class SettingsService
         return [];
     }
 
-    private static void WriteConfigDict(System.Collections.Generic.Dictionary<string, object> dict)
+    private static void WriteConfigDict(Dictionary<string, object> dict)
     {
         var json = JsonSerializer.Serialize(dict, new JsonSerializerOptions { WriteIndented = true });
         File.WriteAllText(ConfigFilePath, json);
