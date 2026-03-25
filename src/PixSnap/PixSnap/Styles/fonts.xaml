@@ -2,4 +2,7 @@
     <FontFamily x:Key="MiSansRegular">
         pack://application:,,,/PixSnap;component/Assets/fonts/MiSans-Normal.ttf#MiSans
     </FontFamily>
+    <FontFamily x:Key="SegoeMDL2">
+        pack://application:,,,/PixSnap;component/Assets/fonts/Segoe MDL2 Assets.ttf#Segoe MDL2 Assets
+    </FontFamily>
 </ResourceDictionary>

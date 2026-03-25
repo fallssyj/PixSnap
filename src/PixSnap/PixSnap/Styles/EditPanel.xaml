@@ -4,7 +4,7 @@
     xmlns:converters="clr-namespace:PixSnap.Converters"
     xmlns:vm="clr-namespace:PixSnap.ViewModels">
 
-    <!--  浮动面板容器样式：圆角、模糊玻璃感背景、阴影  -->
+    <!--  浮动面板容器样式：圆角、模糊玻璃感背景、阴影、进入动画  -->
     <Style x:Key="FloatingPanelStyle" TargetType="Border">
         <Setter Property="Background" Value="{DynamicResource AppGradientStartBrush}" />
         <Setter Property="CornerRadius" Value="10" />
@@ -19,6 +19,23 @@
                     Color="#000000" />
             </Setter.Value>
         </Setter>
+        <Style.Triggers>
+            <EventTrigger RoutedEvent="Loaded">
+                <BeginStoryboard>
+                    <Storyboard>
+                        <DoubleAnimation
+                            Storyboard.TargetProperty="Opacity"
+                            From="0"
+                            To="1"
+                            Duration="0:0:0.15">
+                            <DoubleAnimation.EasingFunction>
+                                <CubicEase EasingMode="EaseOut" />
+                            </DoubleAnimation.EasingFunction>
+                        </DoubleAnimation>
+                    </Storyboard>
+                </BeginStoryboard>
+            </EventTrigger>
+        </Style.Triggers>
     </Style>
 
     <!--  小标题  -->
@@ -117,7 +134,7 @@
         x:Key="PanelApplyButtonStyle"
         BasedOn="{StaticResource PanelButtonStyle}"
         TargetType="Button">
-        <Setter Property="Background" Value="#4cc2ff" />
+        <Setter Property="Background" Value="{DynamicResource AccentBrush}" />
         <Setter Property="Foreground" Value="#000000" />
     </Style>
     <Style

@@ -1,4 +1,5 @@
 using Microsoft.ML.OnnxRuntime;
+using PixSnap.Resources;
 using Serilog;
 using System.IO;
 using System.Management;
@@ -40,7 +41,7 @@ public static class OnnxSessionFactory
         }
 
         Log.Information("所有 DirectML 尝试失败，回退到 CPU: {Error}", Shorten(dmlError));
-        providerName = $"CPU(DML失败: {Shorten(dmlError)})";
+        providerName = string.Format(S.Onnx_CpuFallback, Shorten(dmlError));
         return new InferenceSession(modelPath, CreateBaseOptions());
     }
 
@@ -149,7 +150,7 @@ public static class OnnxSessionFactory
     private static string Shorten(string? text)
     {
         if (string.IsNullOrWhiteSpace(text))
-            return "未知";
+            return S.Onnx_Unknown;
 
         var oneLine = text.Replace('\r', ' ').Replace('\n', ' ').Trim();
         return oneLine.Length <= MaxErrorMessageLength ? oneLine : oneLine[..MaxErrorMessageLength] + "...";

@@ -1,5 +1,6 @@
 using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
+using PixSnap.Resources;
 using PixSnap.Services;
 using Serilog;
 using System;
@@ -81,7 +82,7 @@ public partial class EraserViewModel : ObservableObject
 
         IsProcessing = true;
         Progress     = 0;
-        ProgressText = "正在准备...";
+        ProgressText = S.Eraser_Preparing;
         _cts         = new CancellationTokenSource();
 
         try
@@ -107,12 +108,12 @@ public partial class EraserViewModel : ObservableObject
         catch (OperationCanceledException)
         {
             Log.Information("AI 擦除已取消");
-            ProgressText = "已取消";
+            ProgressText = S.Eraser_Cancelled;
         }
         catch (Exception ex)
         {
             Log.Error(ex, "AI 擦除失败");
-            ProgressText = $"AI 处理失败：{ex.Message}";
+            ProgressText = string.Format(S.Eraser_Failed, ex.Message);
             await Task.Delay(2000);
         }
         finally

@@ -1,5 +1,6 @@
 using Microsoft.ML.OnnxRuntime;
 using Microsoft.ML.OnnxRuntime.Tensors;
+using PixSnap.Resources;
 using Serilog;
 using SkiaSharp;
 using System;
@@ -47,12 +48,12 @@ public static class InpaintService
         return await Task.Run(() =>
         {
             token.ThrowIfCancellationRequested();
-            progress.Report((0.05, "正在加载模型..."));
+            progress.Report((0.05, S.Inpaint_LoadingModel));
 
             if (!File.Exists(ModelPath))
             {
                 Log.Error("LaMa 模型文件不存在: {ModelPath}", ModelPath);
-                throw new FileNotFoundException($"未找到 ONNX 模型：{ModelPath}");
+                throw new FileNotFoundException(string.Format(S.Onnx_ModelNotFound, ModelPath));
             }
 
             if (strokes.Count == 0)
@@ -76,7 +77,7 @@ public static class InpaintService
 
             using var roiBitmap = new SKBitmap(new SKImageInfo(roiW, roiH, SKColorType.Bgra8888, SKAlphaType.Unpremul));
             if (!srcBitmap.ExtractSubset(roiBitmap, roiRect))
-                throw new InvalidOperationException("无法提取 AI 修复 ROI 区域");
+                throw new InvalidOperationException(S.Inpaint_RoiFailed);
 
             var roiStrokes = TranslateStrokesToRoi(strokes, roiRect.Left, roiRect.Top);
 
@@ -85,7 +86,7 @@ public static class InpaintService
             using var imageScaled = new SKBitmap(new SKImageInfo(ModelSize, ModelSize, SKColorType.Bgra8888, SKAlphaType.Unpremul));
             roiBitmap.ScalePixels(imageScaled, new SKSamplingOptions(SKFilterMode.Linear, SKMipmapMode.Linear));
 
-            progress.Report((0.15, "正在生成修复遮罩..."));
+            progress.Report((0.15, S.Inpaint_GeneratingMask));
             token.ThrowIfCancellationRequested();
 
             // — 第二步：绘制遮罩（白=擦除，黑=保留） —
@@ -94,14 +95,14 @@ public static class InpaintService
             // ROI 合成遮罩（ROI 原始分辨率）
             using var maskOriginal = CreateMaskBitmap(roiStrokes, roiW, roiH, roiW, roiH);
 
-            progress.Report((0.30, "正在初始化推理引擎..."));
+            progress.Report((0.30, S.Onnx_InitEngine));
             token.ThrowIfCancellationRequested();
 
             // — 第三步：构建 ONNX 输入张量 [1, 3, ModelSize, ModelSize] / [1, 1, ModelSize, ModelSize] —
             var imageTensor = BitmapToRgbTensor(imageScaled, ModelSize, ModelSize);
             var maskTensor  = MaskBitmapToTensor(maskBitmap, ModelSize, ModelSize);
 
-            progress.Report((0.40, "AI 处理中，请稍候..."));
+            progress.Report((0.40, S.Inpaint_Processing));
             token.ThrowIfCancellationRequested();
 
             // — 第四步：ONNX 推理 —
@@ -109,7 +110,7 @@ public static class InpaintService
             var session = OnnxSessionFactory.GetOrCreateSession(ModelPath, out var providerName);
             {
                 token.ThrowIfCancellationRequested();
-                progress.Report((0.45, $"当前推理设备：{providerName}"));
+                progress.Report((0.45, string.Format(S.Onnx_DeviceInfo, providerName)));
 
                 // 动态解析模型输入名，兼容不同 LaMa 导出版本
                 var inputNames     = session.InputMetadata.Keys.ToList();
@@ -125,7 +126,7 @@ public static class InpaintService
                     NamedOnnxValue.CreateFromTensor(maskInputName,  maskTensor)
                 };
 
-                progress.Report((0.50, "AI 处理中，请稍候..."));
+                progress.Report((0.50, S.Inpaint_Processing));
                 token.ThrowIfCancellationRequested();
 
                 IDisposableReadOnlyCollection<DisposableNamedOnnxValue> outputs;
@@ -137,7 +138,7 @@ public static class InpaintService
                 {
                     // DML 推理时崩溃（如不支持的算子），回退到 CPU 重试
                     Log.Warning(ex, "DirectML 推理失败，回退到 CPU");
-                    progress.Report((0.50, "DirectML 推理失败，已回退至 CPU..."));
+                    progress.Report((0.50, S.Inpaint_DmlFallback));
                     using var cpuSession = OnnxSessionFactory.CreateCpuSession(ModelPath);
                     outputs = cpuSession.Run(inputs);
                 }
@@ -145,7 +146,7 @@ public static class InpaintService
                 {
                 var outputTensor = outputs.First().AsTensor<float>();
 
-                progress.Report((0.90, "正在生成结果图像..."));
+                progress.Report((0.90, S.Inpaint_GeneratingResult));
                 token.ThrowIfCancellationRequested();
 
                 // — 第五步：张量 → ModelSize SKBitmap —
@@ -168,7 +169,7 @@ public static class InpaintService
                 }
             }
 
-            progress.Report((1.0, "完成"));
+            progress.Report((1.0, S.Done));
             Log.Information("AI 修复完成");
             return result;
         }, token).ConfigureAwait(false);

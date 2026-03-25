@@ -1,0 +1,98 @@
+<ResourceDictionary
+    xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+    xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+    xmlns:s="clr-namespace:System;assembly=mscorlib">
+
+    <!--  ═══ 通用 ═══  -->
+    <s:String x:Key="S_Common_Cancel">取消</s:String>
+    <s:String x:Key="S_Common_Apply">应用</s:String>
+    <s:String x:Key="S_Common_OK">确定</s:String>
+    <s:String x:Key="S_Common_Yes">是</s:String>
+    <s:String x:Key="S_Common_No">否</s:String>
+    <s:String x:Key="S_Common_Close">关闭</s:String>
+    <s:String x:Key="S_Common_Save">保存</s:String>
+    <s:String x:Key="S_Common_Clear">清除</s:String>
+    <s:String x:Key="S_Common_Settings">设置</s:String>
+    <s:String x:Key="S_Common_Open">打开</s:String>
+
+    <!--  ═══ 托盘菜单 ═══  -->
+    <s:String x:Key="S_Tray_Screenshot">截图</s:String>
+    <s:String x:Key="S_Tray_About">关于 PixSnap</s:String>
+    <s:String x:Key="S_Tray_Exit">退出</s:String>
+
+    <!--  ═══ 关于窗口 ═══  -->
+    <s:String x:Key="S_About_Title">关于 PixSnap</s:String>
+    <s:String x:Key="S_About_Subtitle">轻量高质量截图工具</s:String>
+    <s:String x:Key="S_About_ModeGuide">截图模式说明</s:String>
+    <s:String x:Key="S_About_ModeWindow">窗口</s:String>
+    <s:String x:Key="S_About_ModeWindowDesc">鼠标悬停到窗口上时显示边框，单击立即截图。</s:String>
+    <s:String x:Key="S_About_ModeRect">矩形</s:String>
+    <s:String x:Key="S_About_ModeRectDesc">按住鼠标左键拖动，松开后按所选区域截图。</s:String>
+    <s:String x:Key="S_About_ModeScreen">当前屏幕</s:String>
+    <s:String x:Key="S_About_ModeScreenDesc">按 Space 直接截取鼠标所在显示器。</s:String>
+    <s:String x:Key="S_About_ModeExit">退出</s:String>
+    <s:String x:Key="S_About_ModeExitDesc">Esc 或鼠标右键都可以取消本次截图。</s:String>
+
+    <!--  ═══ 设置窗口 ═══  -->
+    <s:String x:Key="S_Settings_Title">设置</s:String>
+    <s:String x:Key="S_Settings_System">系统</s:String>
+    <s:String x:Key="S_Settings_AutoStart">开机启动</s:String>
+    <s:String x:Key="S_Settings_AutoStartDesc">登录后自动在后台启动 PixSnap</s:String>
+    <s:String x:Key="S_Settings_Hotkey">快捷键</s:String>
+    <s:String x:Key="S_Settings_HotkeyCapture">截图快捷键</s:String>
+    <s:String x:Key="S_Settings_HotkeyHint">点击输入框后按下组合键录制，Esc 取消，可含 Ctrl / Alt / Shift</s:String>
+
+    <!--  ═══ 预览窗口 · 工具栏 ═══  -->
+    <s:String x:Key="S_Preview_Title">截图预览</s:String>
+    <s:String x:Key="S_Preview_OpenFile">打开文件</s:String>
+    <s:String x:Key="S_Preview_Undo">撤销</s:String>
+    <s:String x:Key="S_Preview_Redo">重做</s:String>
+    <s:String x:Key="S_Preview_Rotate">旋转</s:String>
+    <s:String x:Key="S_Preview_CopyToClipboard">复制到剪切板</s:String>
+    <s:String x:Key="S_Preview_Crop">裁剪</s:String>
+    <s:String x:Key="S_Preview_RoundCorner">圆角</s:String>
+    <s:String x:Key="S_Preview_AiErase">AI擦除</s:String>
+    <s:String x:Key="S_Preview_Recapture">重新截图</s:String>
+    <s:String x:Key="S_Preview_Minimize">最小化</s:String>
+    <s:String x:Key="S_Preview_Maximize">最大化</s:String>
+    <s:String x:Key="S_Preview_Restore">还原</s:String>
+    <s:String x:Key="S_Preview_RemoveBg">去除背景</s:String>
+    <s:String x:Key="S_Preview_SuperRes">超分四倍</s:String>
+    <s:String x:Key="S_Preview_ZoomOut">缩小</s:String>
+    <s:String x:Key="S_Preview_ZoomIn">放大</s:String>
+
+    <!--  ═══ 裁剪面板 ═══  -->
+    <s:String x:Key="S_Crop_Free">自由</s:String>
+    <s:String x:Key="S_Crop_FreeCrop">自由裁剪</s:String>
+    <s:String x:Key="S_Crop_Square">正方形</s:String>
+    <s:String x:Key="S_Crop_Widescreen">宽屏</s:String>
+    <s:String x:Key="S_Crop_Standard">标准</s:String>
+    <s:String x:Key="S_Crop_Camera">相机</s:String>
+    <s:String x:Key="S_Crop_StartX">裁剪起始 X</s:String>
+    <s:String x:Key="S_Crop_AxisX">X轴</s:String>
+    <s:String x:Key="S_Crop_StartY">裁剪起始 Y</s:String>
+    <s:String x:Key="S_Crop_AxisY">Y轴</s:String>
+    <s:String x:Key="S_Crop_Width">裁剪宽度</s:String>
+    <s:String x:Key="S_Crop_WidthLabel">宽度</s:String>
+    <s:String x:Key="S_Crop_Height">裁剪高度</s:String>
+    <s:String x:Key="S_Crop_HeightLabel">高度</s:String>
+    <s:String x:Key="S_Crop_CancelCrop">取消裁剪</s:String>
+    <s:String x:Key="S_Crop_ApplyCrop">应用裁剪</s:String>
+
+    <!--  ═══ 圆角面板 ═══  -->
+    <s:String x:Key="S_RoundCorner_RadiusLabel">圆角半径(像素)</s:String>
+    <s:String x:Key="S_RoundCorner_Cancel">取消圆角</s:String>
+    <s:String x:Key="S_RoundCorner_Apply">应用圆角</s:String>
+
+    <!--  ═══ 擦除面板 ═══  -->
+    <s:String x:Key="S_Eraser_Title">AI 擦除</s:String>
+    <s:String x:Key="S_Eraser_BrushSize">画刷大小</s:String>
+    <s:String x:Key="S_Eraser_Feather">边缘羽化</s:String>
+    <s:String x:Key="S_Eraser_ClearPaint">清除当前涂抹</s:String>
+    <s:String x:Key="S_Eraser_CancelHint">取消 AI 处理并退出擦除模式</s:String>
+    <s:String x:Key="S_Eraser_ApplyAi">执行 AI 修复</s:String>
+
+    <!--  ═══ 区域选择器 ═══  -->
+    <s:String x:Key="S_Region_Instruction">左键单击高亮窗口截图，左键拖动截矩形，Space 截当前显示器，Esc / 右键退出</s:String>
+
+</ResourceDictionary>

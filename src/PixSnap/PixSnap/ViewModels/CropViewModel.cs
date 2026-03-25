@@ -1,5 +1,6 @@
 using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
+using PixSnap.Resources;
 using Serilog;
 using SkiaSharp;
 using System.Runtime.InteropServices;
@@ -23,7 +24,10 @@ public partial class CropViewModel : ObservableObject
     private double _lockedAspectRatio;
 
     [ObservableProperty]
-    private string _aspectRatioText = "自由";
+    [NotifyPropertyChangedFor(nameof(AspectRatioDisplayText))]
+    private string _aspectRatioText = S.Crop_Free;
+
+    public string AspectRatioDisplayText => string.Format(S.Crop_CurrentRatio, AspectRatioText);
 
     /// <summary>设置固定比例并立即应用到当前裁剪框（以中心为基准）。</summary>
     public void SetAspectRatio(double ratioW, double ratioH, string label)
@@ -39,16 +43,20 @@ public partial class CropViewModel : ObservableObject
     }
 
     /// <summary>
-    /// 命令参数格式: "ratioW:ratioH:label"，例如 "16:9:16:9" 或 "0:0:自由"。
+    /// 命令参数格式: "ratioW:ratioH" 或 "ratioW:ratioH:label"。
+    /// 省略 label 时，0:0 默认使用 S.Crop_Free，其余默认 "W:H"。
     /// </summary>
     [RelayCommand]
     private void SetAspectRatioFromParam(string? param)
     {
         if (string.IsNullOrEmpty(param)) return;
         var parts = param.Split(':', 3);
-        if (parts.Length < 3) return;
+        if (parts.Length < 2) return;
         if (!double.TryParse(parts[0], out var w) || !double.TryParse(parts[1], out var h)) return;
-        SetAspectRatio(w, h, parts[2]);
+        var label = parts.Length >= 3
+            ? parts[2]
+            : (w == 0 && h == 0 ? S.Crop_Free : $"{w}:{h}");
+        SetAspectRatio(w, h, label);
     }
 
     /// <summary>以当前裁剪框中心为基准，按锁定比例计算最大可容纳矩形。</summary>
@@ -144,7 +152,7 @@ public partial class CropViewModel : ObservableObject
 
         // 重置比例锁定
         LockedAspectRatio = 0;
-        AspectRatioText = "自由";
+        AspectRatioText = S.Crop_Free;
 
         // 默认选取整张图片
         CropX = 0;

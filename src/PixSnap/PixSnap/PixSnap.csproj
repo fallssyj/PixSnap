@@ -17,11 +17,13 @@
 
   <ItemGroup>
     <None Remove="Assets\fonts\MiSans-Normal.ttf" />
+    <None Remove="Assets\fonts\Segoe MDL2 Assets.ttf" />
     <None Remove="Assets\icons\app.png" />
     <None Remove="Assets\icons\app.svg" />
   </ItemGroup>
 
   <ItemGroup>
+    <Resource Include="Assets\fonts\Segoe MDL2 Assets.ttf" />
     <Resource Include="Assets\icons\app.ico">
       <CopyToOutputDirectory>Never</CopyToOutputDirectory>
     </Resource>

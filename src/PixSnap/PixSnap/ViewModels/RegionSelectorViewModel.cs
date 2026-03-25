@@ -1,5 +1,6 @@
 using CommunityToolkit.Mvvm.ComponentModel;
 using PixSnap.Models;
+using PixSnap.Resources;
 using System.Windows;
 
 namespace PixSnap.ViewModels;
@@ -14,26 +15,26 @@ public partial class RegionSelectorViewModel : ObservableObject
     private Rect _highlightRect;
 
     [ObservableProperty]
-    private string _selectionText = "移动鼠标以选择截图对象";
+    private string _selectionText = S.Region_MoveToSelect;
 
     [ObservableProperty]
-    private string _instructionText = "悬停窗口后左键单击截窗口，按住左键拖动截矩形，Space 截当前显示器，Esc 或右键退出";
+    private string _instructionText = S.Region_Instruction;
 
     public void UpdateHover(WindowInfo? window, ScreenInfo? screen)
     {
         SelectionText = window is not null
-            ? $"单击截取窗口: {window.Title}"
+            ? string.Format(S.Region_ClickWindow, window.Title)
             : screen is not null
-                ? $"按 Space 截取显示器 {screen.Index + 1}"
-                : "移动鼠标以选择截图对象";
+                ? string.Format(S.Region_SpaceScreen, screen.Index + 1)
+                : S.Region_MoveToSelect;
     }
 
     public void UpdateSelection(Rect selection)
     {
         SelectionRect = selection;
         SelectionText = selection.Width > 0 && selection.Height > 0
-            ? $"区域 X:{selection.X:0} Y:{selection.Y:0} W:{selection.Width:0} H:{selection.Height:0}"
-            : "拖动以选择截图区域";
+            ? string.Format(S.Region_AreaInfo, selection.X, selection.Y, selection.Width, selection.Height)
+            : S.Region_DragToSelect;
     }
 
     // 高亮窗口的语义状态保留在 ViewModel 中，具体怎么画由 View 决定。

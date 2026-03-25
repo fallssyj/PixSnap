@@ -78,8 +78,7 @@ public class CropOverlayControl : Canvas
         _maskLeft = CreateMask(maskBrush);
         _maskRight = CreateMask(maskBrush);
 
-        var strokeBrush = new SolidColorBrush((Color)ColorConverter.ConvertFromString("#4cc2ff"));
-        strokeBrush.Freeze();
+        var strokeBrush = (SolidColorBrush)FindResource("AccentBrush");
         _cropRect = new Rectangle
         {
             Stroke = strokeBrush,

@@ -44,8 +44,13 @@
                     HorizontalAlignment="Right"
                     VerticalAlignment="Top"
                     Command="{Binding CloseDialogCommand}"
-                    Content="{StaticResource close}"
-                    Style="{StaticResource CloseIconButton}" />
+                    Style="{StaticResource CloseIconButton}">
+                    <TextBlock
+                        FontFamily="{StaticResource SegoeMDL2}"
+                        FontSize="10"
+                        Foreground="{DynamicResource TextPrimaryBrush}"
+                        Text="{StaticResource Glyph_Close}" />
+                </Button>
             </Grid>
 
             <!--  分隔线  -->
@@ -56,7 +61,7 @@
                 Background="{DynamicResource BorderBrush}" />
 
             <!--  内容区  -->
-            <Grid Grid.Row="1" Margin="24,20,24,16">
+            <Grid Grid.Row="1" Margin="{DynamicResource DialogContentPadding}">
                 <Grid.ColumnDefinitions>
                     <ColumnDefinition Width="Auto" />
                     <ColumnDefinition Width="*" />
@@ -111,24 +116,24 @@
                     MinWidth="80"
                     Margin="0,0,8,0"
                     Command="{Binding YesCommand}"
-                    Content="是"
+                    Content="{StaticResource S_Common_Yes}"
                     Visibility="{Binding ShowYes, Converter={StaticResource BoolToVis}}" />
                 <Button
                     MinWidth="80"
                     Margin="0,0,8,0"
                     Command="{Binding NoCommand}"
-                    Content="否"
+                    Content="{StaticResource S_Common_No}"
                     Visibility="{Binding ShowNo, Converter={StaticResource BoolToVis}}" />
                 <Button
                     MinWidth="80"
                     Margin="0,0,8,0"
                     Command="{Binding OkCommand}"
-                    Content="确定"
+                    Content="{StaticResource S_Common_OK}"
                     Visibility="{Binding ShowOk, Converter={StaticResource BoolToVis}}" />
                 <Button
                     MinWidth="80"
                     Command="{Binding CancelCommand}"
-                    Content="取消"
+                    Content="{StaticResource S_Common_Cancel}"
                     Visibility="{Binding ShowCancel, Converter={StaticResource BoolToVis}}" />
             </StackPanel>
         </Grid>

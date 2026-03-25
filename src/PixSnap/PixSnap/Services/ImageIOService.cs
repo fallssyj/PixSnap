@@ -1,3 +1,4 @@
+using PixSnap.Resources;
 using System.IO;
 using System.Windows;
 using System.Windows.Media;
@@ -15,9 +16,9 @@ public static class ImageIOService
     {
         return Task.Run(() =>
         {
-            progress?.Report((0.2, "正在读取文件..."));
+            progress?.Report((0.2, S.IO_ReadingFile));
             using var stream = File.OpenRead(filePath);
-            progress?.Report((0.55, "正在解码图片..."));
+            progress?.Report((0.55, S.IO_Decoding));
             var decoder = BitmapDecoder.Create(
                 stream,
                 BitmapCreateOptions.IgnoreColorProfile | BitmapCreateOptions.PreservePixelFormat,
@@ -27,7 +28,7 @@ public static class ImageIOService
             if (!bitmap.IsFrozen)
                 bitmap.Freeze();
 
-            progress?.Report((0.95, "正在准备显示..."));
+            progress?.Report((0.95, S.IO_PreparingDisplay));
             return (BitmapSource)bitmap;
         });
     }
@@ -37,14 +38,14 @@ public static class ImageIOService
     {
         return Task.Run(() =>
         {
-            progress?.Report((0.25, "正在编码图片..."));
+            progress?.Report((0.25, S.IO_Encoding));
             var encoder = new PngBitmapEncoder();
             encoder.Frames.Add(BitmapFrame.Create(bitmap));
 
-            progress?.Report((0.7, "正在写入磁盘..."));
+            progress?.Report((0.7, S.IO_WritingDisk));
             using var stream = File.Create(filePath);
             encoder.Save(stream);
-            progress?.Report((0.95, "正在完成保存..."));
+            progress?.Report((0.95, S.IO_FinishingSave));
         });
     }
 

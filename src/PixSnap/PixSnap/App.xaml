@@ -21,6 +21,7 @@
                 <ResourceDictionary Source="Styles/ScrollViewer.xaml" />
                 <ResourceDictionary Source="Styles/Menu.xaml" />
                 <ResourceDictionary Source="Styles/EditPanel.xaml" />
+                <ResourceDictionary Source="Resources/Strings.xaml" />
             </ResourceDictionary.MergedDictionaries>
 
 
@@ -28,15 +29,15 @@
             <tb:TaskbarIcon x:Key="TrayIcon" ToolTipText="PixSnap">
                 <tb:TaskbarIcon.ContextMenu>
                     <ContextMenu>
-                        <MenuItem Command="{Binding CaptureCommand}" Header="截图" />
+                        <MenuItem Command="{Binding CaptureCommand}" Header="{StaticResource S_Tray_Screenshot}" />
                         <Separator />
-                        <MenuItem Command="{Binding ShowSettingsCommand}" Header="设置" />
-                        <MenuItem Command="{Binding ShowAboutCommand}" Header="关于 PixSnap" />
+                        <MenuItem Command="{Binding ShowSettingsCommand}" Header="{StaticResource S_Common_Settings}" />
+                        <MenuItem Command="{Binding ShowAboutCommand}" Header="{StaticResource S_Tray_About}" />
                         <Separator />
                         <MenuItem
                             Command="{Binding ExitCommand}"
                             Foreground="{DynamicResource TextSecondaryBrush}"
-                            Header="退出" />
+                            Header="{StaticResource S_Tray_Exit}" />
                     </ContextMenu>
                 </tb:TaskbarIcon.ContextMenu>
             </tb:TaskbarIcon>

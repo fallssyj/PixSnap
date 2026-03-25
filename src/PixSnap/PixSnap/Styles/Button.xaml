@@ -21,7 +21,11 @@
                         BorderBrush="{TemplateBinding BorderBrush}"
                         BorderThickness="{TemplateBinding BorderThickness}"
                         CornerRadius="5"
+                        RenderTransformOrigin="0.5,0.5"
                         SnapsToDevicePixels="True">
+                        <Border.RenderTransform>
+                            <ScaleTransform x:Name="ButtonScale" ScaleX="1" ScaleY="1" />
+                        </Border.RenderTransform>
                         <ContentPresenter
                             Margin="{TemplateBinding Padding}"
                             HorizontalAlignment="{TemplateBinding HorizontalContentAlignment}"
@@ -33,6 +37,38 @@
                             <Setter TargetName="ButtonRoot" Property="Opacity" Value="0.96" />
                         </Trigger>
                         <Trigger Property="IsPressed" Value="True">
+                            <Trigger.EnterActions>
+                                <BeginStoryboard>
+                                    <Storyboard>
+                                        <DoubleAnimation
+                                            Storyboard.TargetName="ButtonScale"
+                                            Storyboard.TargetProperty="ScaleX"
+                                            To="0.97"
+                                            Duration="0:0:0.08" />
+                                        <DoubleAnimation
+                                            Storyboard.TargetName="ButtonScale"
+                                            Storyboard.TargetProperty="ScaleY"
+                                            To="0.97"
+                                            Duration="0:0:0.08" />
+                                    </Storyboard>
+                                </BeginStoryboard>
+                            </Trigger.EnterActions>
+                            <Trigger.ExitActions>
+                                <BeginStoryboard>
+                                    <Storyboard>
+                                        <DoubleAnimation
+                                            Storyboard.TargetName="ButtonScale"
+                                            Storyboard.TargetProperty="ScaleX"
+                                            To="1"
+                                            Duration="0:0:0.1" />
+                                        <DoubleAnimation
+                                            Storyboard.TargetName="ButtonScale"
+                                            Storyboard.TargetProperty="ScaleY"
+                                            To="1"
+                                            Duration="0:0:0.1" />
+                                    </Storyboard>
+                                </BeginStoryboard>
+                            </Trigger.ExitActions>
                             <Setter TargetName="ButtonRoot" Property="Opacity" Value="0.88" />
                         </Trigger>
                         <Trigger Property="IsKeyboardFocused" Value="True">
@@ -63,13 +99,10 @@
                 <ControlTemplate TargetType="Button">
                     <Grid>
                         <Border x:Name="ButtonRoot" Background="{TemplateBinding Background}" />
-                        <Path
-                            x:Name="IconPath"
-                            Width="10"
-                            Height="10"
-                            Data="{TemplateBinding Content}"
-                            Fill="{TemplateBinding Foreground}"
-                            Stretch="Uniform" />
+                        <ContentPresenter
+                            x:Name="IconContent"
+                            HorizontalAlignment="Center"
+                            VerticalAlignment="Center" />
                     </Grid>
                     <ControlTemplate.Triggers>
                         <Trigger Property="IsMouseOver" Value="True">
@@ -79,7 +112,7 @@
                             <Setter TargetName="ButtonRoot" Property="Opacity" Value="0.7" />
                         </Trigger>
                         <Trigger Property="IsEnabled" Value="False">
-                            <Setter TargetName="IconPath" Property="Opacity" Value="0.5" />
+                            <Setter TargetName="IconContent" Property="Opacity" Value="0.5" />
                         </Trigger>
                         <DataTrigger Binding="{Binding WindowState, RelativeSource={RelativeSource AncestorType=Window}}" Value="Maximized">
                             <Setter TargetName="ButtonRoot" Property="CornerRadius" Value="0" />
@@ -105,16 +138,11 @@
                             x:Name="ButtonRoot"
                             Background="{TemplateBinding Background}"
                             CornerRadius="0" />
-                        <Path
-                            x:Name="IconPath"
-                            Width="10"
-                            Height="10"
-                            Data="{TemplateBinding Content}"
-                            Fill="{TemplateBinding Foreground}"
-                            Stretch="Uniform" />
-
+                        <ContentPresenter
+                            x:Name="IconContent"
+                            HorizontalAlignment="Center"
+                            VerticalAlignment="Center" />
                     </Grid>
-
                     <ControlTemplate.Triggers>
                         <Trigger Property="IsMouseOver" Value="True">
                             <Setter TargetName="ButtonRoot" Property="Background" Value="#18FFFFFF" />

@@ -1,5 +1,6 @@
 using Microsoft.ML.OnnxRuntime;
 using Microsoft.ML.OnnxRuntime.Tensors;
+using PixSnap.Resources;
 using Serilog;
 using SkiaSharp;
 using System;
@@ -30,11 +31,11 @@ public static class BackgroundRemovalService
         return await Task.Run(() =>
         {
             cancellationToken.ThrowIfCancellationRequested();
-            progress?.Report((0.05, "正在加载去背景模型..."));
+            progress?.Report((0.05, S.Bg_LoadingModel));
             if (!File.Exists(ModelPath))
             {
                 Log.Error("RMBG 模型文件不存在: {ModelPath}", ModelPath);
-                throw new FileNotFoundException($"未找到 ONNX 模型：{ModelPath}");
+                throw new FileNotFoundException(string.Format(S.Onnx_ModelNotFound, ModelPath));
             }
 
             Log.Information("开始去除背景: 图像 {W}×{H}", originalImage.PixelWidth, originalImage.PixelHeight);
@@ -43,9 +44,9 @@ public static class BackgroundRemovalService
             int origW = srcBitmap.Width;
             int origH = srcBitmap.Height;
 
-            progress?.Report((0.20, "正在初始化推理引擎..."));
+            progress?.Report((0.20, S.Onnx_InitEngine));
             var session = OnnxSessionFactory.GetOrCreateSession(ModelPath, out var providerName);
-            progress?.Report((0.28, $"当前推理设备：{providerName}"));
+            progress?.Report((0.28, string.Format(S.Onnx_DeviceInfo, providerName)));
             var inputName = session.InputMetadata.Keys.First();
             var inputMeta = session.InputMetadata[inputName];
             var inputDims = inputMeta.Dimensions;
@@ -56,10 +57,10 @@ public static class BackgroundRemovalService
             using var scaled = new SKBitmap(new SKImageInfo(modelW, modelH, SKColorType.Bgra8888, SKAlphaType.Unpremul));
             srcBitmap.ScalePixels(scaled, new SKSamplingOptions(SKFilterMode.Linear, SKMipmapMode.Linear));
 
-            progress?.Report((0.35, "正在构建输入张量..."));
+            progress?.Report((0.35, S.Bg_BuildingTensor));
             var imageTensor = BitmapToRgbTensor(scaled, modelW, modelH);
 
-            progress?.Report((0.55, "正在执行去背景推理..."));
+            progress?.Report((0.55, S.Bg_RunningInference));
             cancellationToken.ThrowIfCancellationRequested();
             using var outputs = session.Run(new List<NamedOnnxValue>
             {
@@ -69,17 +70,17 @@ public static class BackgroundRemovalService
             var outputTensor = outputs.First().AsTensor<float>();
             using var maskBitmap = OutputToMaskBitmap(outputTensor, modelW, modelH);
 
-            progress?.Report((0.78, "正在还原掩码分辨率..."));
+            progress?.Report((0.78, S.Bg_RestoringMask));
             using var maskAtOriginal = new SKBitmap(new SKImageInfo(origW, origH, SKColorType.Bgra8888, SKAlphaType.Premul));
             maskBitmap.ScalePixels(maskAtOriginal, new SKSamplingOptions(SKFilterMode.Linear, SKMipmapMode.Linear));
 
-            progress?.Report((0.90, "正在合成透明背景..."));
+            progress?.Report((0.90, S.Bg_Compositing));
             cancellationToken.ThrowIfCancellationRequested();
             using var composed = ApplyMaskAsAlpha(srcBitmap, maskAtOriginal);
             var result = SkiaInteropHelper.SKBitmapToBitmapSource(composed);
             result.Freeze();
 
-            progress?.Report((1.0, "去除背景完成"));
+            progress?.Report((1.0, S.Bg_RemovalDone));
             Log.Information("去除背景完成");
             return result;
         }).ConfigureAwait(false);

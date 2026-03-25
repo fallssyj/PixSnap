@@ -1,5 +1,6 @@
 using NativeScreenCapturer;
 using PixSnap.Models;
+using PixSnap.Resources;
 using Serilog;
 using System;
 using System.Collections.Generic;
@@ -56,7 +57,7 @@ public sealed class ScreenCaptureService : IScreenCaptureService, IDisposable
             screens.Add(new ScreenInfo
             {
                 Index = index,
-                DisplayName = $"显示器 {index + 1}  ({bounds.Width} x {bounds.Height})",
+                DisplayName = string.Format(S.Screen_DisplayName, index + 1, bounds.Width, bounds.Height),
                 Bounds = bounds
             });
         }

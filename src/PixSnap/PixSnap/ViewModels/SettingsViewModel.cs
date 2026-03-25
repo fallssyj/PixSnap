@@ -1,5 +1,6 @@
 using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
+using PixSnap.Resources;
 using PixSnap.Services;
 using Serilog;
 using System;
@@ -42,7 +43,7 @@ public partial class SettingsViewModel : ObservableObject
 
     // 进入/退出录制状态时同步显示文本
     partial void OnIsRecordingHotkeyChanged(bool value) =>
-        HotkeyDisplayText = value ? "请按下快捷键..." : BuildDisplayText(_pendingModifiers, _pendingKey);
+        HotkeyDisplayText = value ? S.Settings_PressHotkey : BuildDisplayText(_pendingModifiers, _pendingKey);
 
     /// <summary>
     /// 由 View 在捕获到合法按键时调用，立即更新显示并存储新的快捷键组合。
@@ -82,7 +83,7 @@ public partial class SettingsViewModel : ObservableObject
     private static string BuildDisplayText(int modifiers, int key)
     {
         var k = (Key)key;
-        if (k == Key.None) return "无";
+        if (k == Key.None) return S.Settings_None;
 
         var parts = new List<string>(5);
         var mods = (ModifierKeys)modifiers;
