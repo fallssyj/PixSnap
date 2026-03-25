@@ -840,7 +840,7 @@
                                         HorizontalAlignment="Center"
                                         VerticalAlignment="Center"
                                         FontFamily="{StaticResource SegoeFluent}"
-                                        FontSize="5"
+                                        FontSize="4.5"
                                         Text="{StaticResource Glyph_OriginalSize}">
                                         <TextBlock.Style>
                                             <Style TargetType="TextBlock">

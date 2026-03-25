@@ -4,7 +4,7 @@
         <Setter Property="Foreground" Value="{DynamicResource ButtonPrimaryForegroundBrush}" />
         <Setter Property="BorderBrush" Value="{DynamicResource ButtonBorderBrush}" />
         <Setter Property="BorderThickness" Value="1" />
-        <Setter Property="Padding" Value="18,10" />
+        <Setter Property="Padding" Value="18,0" />
         <Setter Property="FontSize" Value="14" />
         <Setter Property="FontFamily" Value="{StaticResource MiSansRegular}" />
         <Setter Property="HorizontalContentAlignment" Value="Center" />

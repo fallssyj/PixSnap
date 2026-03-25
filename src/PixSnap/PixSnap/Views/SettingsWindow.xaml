@@ -87,9 +87,7 @@
 
             <StackPanel>
                 <!--  标题栏  -->
-                <Border
-                    Padding="24,20,24,16"
-                    MouseLeftButtonDown="OnTitleBarMouseDown">
+                <Border Padding="24,20,24,16" MouseLeftButtonDown="OnTitleBarMouseDown">
                     <StackPanel Orientation="Horizontal">
                         <Border
                             Width="36"
