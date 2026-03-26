@@ -90,6 +90,26 @@ internal sealed class EditBlurRadiusAction(AnnotationItem item, double oldRadius
     public void Redo(ObservableCollection<AnnotationItem> annotations) { item.BlurRadius = newRadius; }
 }
 
+internal sealed class EditTextContentAction(AnnotationItem item, string oldText, string newText) : IAnnotationAction
+{
+    public void Undo(ObservableCollection<AnnotationItem> annotations) { item.Text = oldText; }
+    public void Redo(ObservableCollection<AnnotationItem> annotations) { item.Text = newText; }
+}
+
+internal sealed class ResizePenAction(AnnotationItem item, List<Point> oldPoints, List<Point> newPoints, Point oldStart, Point oldEnd, Point newStart, Point newEnd) : IAnnotationAction
+{
+    public void Undo(ObservableCollection<AnnotationItem> annotations)
+    {
+        item.PenPoints.Clear(); item.PenPoints.AddRange(oldPoints);
+        item.Start = oldStart; item.End = oldEnd;
+    }
+    public void Redo(ObservableCollection<AnnotationItem> annotations)
+    {
+        item.PenPoints.Clear(); item.PenPoints.AddRange(newPoints);
+        item.Start = newStart; item.End = newEnd;
+    }
+}
+
 internal sealed class EditTextStyleAction(
     AnnotationItem item,
     string oldFamily, double oldSize, bool oldBold, bool oldItalic, bool oldUnderline, bool oldStrikethrough,
@@ -539,6 +559,55 @@ public partial class AnnotationViewModel : ObservableObject
         NotifyUndoRedoChanged();
     }
 
+    // ── 双击编辑已有文本 ──────────────────────────────────
+
+    private AnnotationItem? _editingTextItem;
+    private string _editingTextOldText = string.Empty;
+
+    /// <summary>开始编辑已有文本标注的内容（双击触发）。</summary>
+    public AnnotationItem? BeginEditExistingText(AnnotationItem item)
+    {
+        if (item.Tool != AnnotationTool.Text) return null;
+        _editingTextItem = item;
+        _editingTextOldText = item.Text;
+        SelectedAnnotation = null;
+        return item;
+    }
+
+    /// <summary>完成已有文本标注的编辑，提交到撤销栈。</summary>
+    public void CommitEditExistingText(string newText)
+    {
+        if (_editingTextItem is null) return;
+        var item = _editingTextItem;
+        _editingTextItem = null;
+
+        if (string.IsNullOrWhiteSpace(newText))
+        {
+            // 文本清空 → 删除标注
+            var index = Annotations.IndexOf(item);
+            if (index >= 0)
+            {
+                var action = new DeleteAnnotationAction(item, index);
+                _undoStack.Push(action);
+                _redoStack.Clear();
+                Annotations.Remove(item);
+                NotifyUndoRedoChanged();
+            }
+            RequestRedraw?.Invoke();
+            return;
+        }
+
+        if (newText != _editingTextOldText)
+        {
+            item.Text = newText;
+            var action = new EditTextContentAction(item, _editingTextOldText, newText);
+            _undoStack.Push(action);
+            _redoStack.Clear();
+            NotifyUndoRedoChanged();
+        }
+        RequestRedraw?.Invoke();
+    }
+
     /// <summary>拖拽完成后提交移动操作到撤销栈。</summary>
     public void CommitMove(AnnotationItem item, Vector previousOffset)
     {
@@ -554,6 +623,15 @@ public partial class AnnotationViewModel : ObservableObject
     {
         if (item.Start == oldStart && item.End == oldEnd) return;
         var action = new ResizeAnnotationAction(item, oldStart, oldEnd, item.Start, item.End);
+        _undoStack.Push(action);
+        _redoStack.Clear();
+        NotifyUndoRedoChanged();
+    }
+
+    /// <summary>Pen 缩放完成后提交到撤销栈。</summary>
+    public void CommitPenResize(AnnotationItem item, List<Point> oldPoints, Point oldStart, Point oldEnd)
+    {
+        var action = new ResizePenAction(item, oldPoints, [.. item.PenPoints], oldStart, oldEnd, item.Start, item.End);
         _undoStack.Push(action);
         _redoStack.Clear();
         NotifyUndoRedoChanged();
@@ -741,6 +819,14 @@ public partial class AnnotationViewModel : ObservableObject
     private void SetColorWhite() => StrokeColor = Colors.White;
     [RelayCommand]
     private void SetColorBlack() => StrokeColor = Colors.Black;
+    [RelayCommand]
+    private void SetColorOrange() => StrokeColor = Color.FromRgb(0xFF, 0x88, 0x00);
+    [RelayCommand]
+    private void SetColorPurple() => StrokeColor = Color.FromRgb(0xAA, 0x44, 0xFF);
+    [RelayCommand]
+    private void SetColorPink() => StrokeColor = Color.FromRgb(0xFF, 0x66, 0xB2);
+    [RelayCommand]
+    private void SetColorGray() => StrokeColor = Color.FromRgb(0x88, 0x88, 0x88);
 
     // ── 应用标注到图像 ─────────────────────────────────────
 

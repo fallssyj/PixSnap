@@ -183,10 +183,10 @@
         </Setter>
     </Style>
 
-    <!--  标注工具 Ribbon 风格按钮：图标在上、文字在下、选中高亮  -->
+    <!--  标注工具按钮：纯图标、紧凑尺寸  -->
     <Style x:Key="RibbonToolButtonStyle" TargetType="Button">
-        <Setter Property="Width" Value="48" />
-        <Setter Property="Height" Value="52" />
+        <Setter Property="Width" Value="30" />
+        <Setter Property="Height" Value="30" />
         <Setter Property="Cursor" Value="Hand" />
         <Setter Property="FontFamily" Value="{StaticResource MiSansRegular}" />
         <Setter Property="BorderThickness" Value="0" />
@@ -198,17 +198,15 @@
                     <Border
                         x:Name="root"
                         Background="{TemplateBinding Background}"
-                        CornerRadius="6"
+                        CornerRadius="5"
                         SnapsToDevicePixels="True">
-                        <StackPanel HorizontalAlignment="Center" VerticalAlignment="Center">
-                            <TextBlock
-                                HorizontalAlignment="Center"
-                                FontFamily="{StaticResource SegoeFluent}"
-                                FontSize="18"
-                                Foreground="{TemplateBinding Foreground}"
-                                Text="{Binding Tag, RelativeSource={RelativeSource TemplatedParent}}" />
-
-                        </StackPanel>
+                        <TextBlock
+                            HorizontalAlignment="Center"
+                            VerticalAlignment="Center"
+                            FontFamily="{StaticResource SegoeFluent}"
+                            FontSize="15"
+                            Foreground="{TemplateBinding Foreground}"
+                            Text="{Binding Tag, RelativeSource={RelativeSource TemplatedParent}}" />
                     </Border>
                     <ControlTemplate.Triggers>
                         <Trigger Property="IsMouseOver" Value="True">
@@ -219,6 +217,76 @@
                         </Trigger>
                         <Trigger Property="IsEnabled" Value="False">
                             <Setter TargetName="root" Property="Opacity" Value="0.4" />
+                        </Trigger>
+                    </ControlTemplate.Triggers>
+                </ControlTemplate>
+            </Setter.Value>
+        </Setter>
+    </Style>
+
+    <!--  颜色色块按钮：当前所选颜色展示  -->
+    <Style x:Key="ColorSwatchButtonStyle" TargetType="Button">
+        <Setter Property="Width" Value="24" />
+        <Setter Property="Height" Value="24" />
+        <Setter Property="Cursor" Value="Hand" />
+        <Setter Property="BorderThickness" Value="0" />
+        <Setter Property="Template">
+            <Setter.Value>
+                <ControlTemplate TargetType="Button">
+                    <Grid>
+                        <Border
+                            x:Name="root"
+                            Background="{TemplateBinding Background}"
+                            BorderBrush="{DynamicResource InputBorderBrush}"
+                            BorderThickness="1.5"
+                            CornerRadius="4"
+                            SnapsToDevicePixels="True" />
+                        <!--  下拉箭头指示  -->
+                        <TextBlock
+                            Margin="0,0,-3,-3"
+                            HorizontalAlignment="Right"
+                            VerticalAlignment="Bottom"
+                            FontFamily="{StaticResource SegoeFluent}"
+                            FontSize="7"
+                            Foreground="{DynamicResource TextPrimaryBrush}"
+                            Opacity="0.6"
+                            Text="&#xE70D;" />
+                    </Grid>
+                    <ControlTemplate.Triggers>
+                        <Trigger Property="IsMouseOver" Value="True">
+                            <Setter TargetName="root" Property="BorderBrush" Value="{DynamicResource AccentBrush}" />
+                        </Trigger>
+                        <Trigger Property="IsPressed" Value="True">
+                            <Setter TargetName="root" Property="Opacity" Value="0.72" />
+                        </Trigger>
+                    </ControlTemplate.Triggers>
+                </ControlTemplate>
+            </Setter.Value>
+        </Setter>
+    </Style>
+
+    <!--  颜色预设色块  -->
+    <Style x:Key="ColorPresetButtonStyle" TargetType="Button">
+        <Setter Property="Width" Value="22" />
+        <Setter Property="Height" Value="22" />
+        <Setter Property="Cursor" Value="Hand" />
+        <Setter Property="BorderThickness" Value="0" />
+        <Setter Property="Template">
+            <Setter.Value>
+                <ControlTemplate TargetType="Button">
+                    <Border
+                        x:Name="root"
+                        Background="{TemplateBinding Background}"
+                        BorderBrush="Transparent"
+                        BorderThickness="2"
+                        CornerRadius="3"
+                        SnapsToDevicePixels="True" />
+                    <ControlTemplate.Triggers>
+                        <Trigger Property="IsMouseOver" Value="True">
+                            <Setter TargetName="root" Property="BorderBrush" Value="{DynamicResource AccentBrush}" />
+                        </Trigger>
+                        <Trigger Property="IsPressed" Value="True">
+                            <Setter TargetName="root" Property="Opacity" Value="0.72" />
                         </Trigger>
                     </ControlTemplate.Triggers>
                 </ControlTemplate>

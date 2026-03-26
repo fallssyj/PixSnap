@@ -51,12 +51,15 @@ public partial class ScreenshotPreviewWindow : MicaWindow
     private Point _dragStartImagePoint;
     private Vector _dragStartOffset;
     private System.Windows.Controls.TextBox? _activeTextBox;
+    private bool _isEditingExistingText;
+    private List<UIElement>? _dragElements; // 拖拽优化：缓存被拖动标注的 UI 元素
     // ── 标注缩放拖拽 ──────────────────────────────────────────
     private AnnotationItem? _resizeAnnotation;
     private int _resizeHandle = -1; // 0-7: TL,T,TR,R,BR,B,BL,L
     private Point _resizeStartStart;
     private Point _resizeStartEnd;
     private double _resizeStartFontSize;
+    private List<Point>? _resizeStartPenPoints;
 
     public ScreenshotPreviewWindow()
     {
@@ -909,17 +912,35 @@ public partial class ScreenshotPreviewWindow : MicaWindow
 
         if (vm.AnnotationPanel.SelectedTool == AnnotationTool.Pointer)
         {
+            // 双击文本标注 → 重新编辑
+            if (e.ClickCount == 2)
+            {
+                var dblHit = vm.AnnotationPanel.HitTest(imgPoint);
+                if (dblHit is { Tool: AnnotationTool.Text })
+                {
+                    var editItem = vm.AnnotationPanel.BeginEditExistingText(dblHit);
+                    if (editItem is not null)
+                    {
+                        _isEditingExistingText = true;
+                        ShowTextInputBoxForExisting(editItem);
+                    }
+                    e.Handled = true;
+                    return;
+                }
+            }
+
             // 优先检测缩放手柄
             if (vm.AnnotationPanel.SelectedAnnotation is { } sel)
             {
                 int handle = HitTestResizeHandle(sel, pos);
-                if (handle >= 0 && sel.Tool is not AnnotationTool.Pen)
+                if (handle >= 0)
                 {
                     _resizeAnnotation = sel;
                     _resizeHandle = handle;
                     _resizeStartStart = sel.Start;
                     _resizeStartEnd = sel.End;
                     _resizeStartFontSize = sel.FontSize;
+                    _resizeStartPenPoints = sel.Tool == AnnotationTool.Pen ? [.. sel.PenPoints] : null;
                     AnnotationCanvas.Cursor = ResizeHandleCursors[handle];
                     AnnotationCanvas.CaptureMouse();
                     e.Handled = true;
@@ -936,7 +957,14 @@ public partial class ScreenshotPreviewWindow : MicaWindow
                 _dragStartOffset = hit.Offset;
                 AnnotationCanvas.Cursor = Cursors.SizeAll;
                 AnnotationCanvas.CaptureMouse();
+                // 标记被拖动标注及其选中框的所有 UI 元素
                 RedrawAnnotationOverlay();
+                _dragElements = [];
+                foreach (UIElement child in AnnotationCanvas.Children)
+                {
+                    if (child is FrameworkElement fe && fe.Tag == hit)
+                        _dragElements.Add(child);
+                }
             }
             else
             {
@@ -962,8 +990,7 @@ public partial class ScreenshotPreviewWindow : MicaWindow
         // 非拖拽时更新鼠标指针（悬停在手柄上变为缩放光标）
         if (e.LeftButton != MouseButtonState.Pressed && vm.AnnotationPanel.SelectedTool == AnnotationTool.Pointer)
         {
-            if (vm.AnnotationPanel.SelectedAnnotation is { } sel &&
-                sel.Tool is not AnnotationTool.Pen)
+            if (vm.AnnotationPanel.SelectedAnnotation is { } sel)
             {
                 int h = HitTestResizeHandle(sel, pos);
                 AnnotationCanvas.Cursor = h >= 0 ? ResizeHandleCursors[h] : Cursors.Arrow;
@@ -987,7 +1014,33 @@ public partial class ScreenshotPreviewWindow : MicaWindow
         {
             var delta = imgPoint - _dragStartImagePoint;
             _dragAnnotation.Offset = _dragStartOffset + delta;
-            RedrawAnnotationOverlay();
+
+            // 脏区优化：仅平移被拖动标注的 UI 元素，不重建整个画布
+            if (_dragElements is { Count: > 0 })
+            {
+                double d = 1.0 / GetAnnotationDpiScale();
+                double dx = (delta.X - (_dragStartOffset == default ? 0 : 0)) * d;
+                double dy = (delta.Y - 0) * d;
+                // 增量 = 当前 Offset 与初始 Offset 的像素差值转 DIP
+                double tdx = (_dragAnnotation.Offset.X - _dragStartOffset.X) * d;
+                double tdy = (_dragAnnotation.Offset.Y - _dragStartOffset.Y) * d;
+                foreach (var el in _dragElements)
+                {
+                    if (el.RenderTransform is TranslateTransform tt)
+                    {
+                        tt.X = tdx;
+                        tt.Y = tdy;
+                    }
+                    else
+                    {
+                        el.RenderTransform = new TranslateTransform(tdx, tdy);
+                    }
+                }
+            }
+            else
+            {
+                RedrawAnnotationOverlay();
+            }
             return;
         }
 
@@ -1012,12 +1065,17 @@ public partial class ScreenshotPreviewWindow : MicaWindow
                     vm.AnnotationPanel.CommitTextResize(item, _resizeStartFontSize);
                 }
             }
+            else if (_resizeAnnotation.Tool == AnnotationTool.Pen && _resizeStartPenPoints is not null)
+            {
+                vm.AnnotationPanel.CommitPenResize(_resizeAnnotation, _resizeStartPenPoints, _resizeStartStart, _resizeStartEnd);
+            }
             else
             {
                 vm.AnnotationPanel.CommitResize(_resizeAnnotation, _resizeStartStart, _resizeStartEnd);
             }
             _resizeAnnotation = null;
             _resizeHandle = -1;
+            _resizeStartPenPoints = null;
             UpdateAnnotationCursor();
             AnnotationCanvas.ReleaseMouseCapture();
             RedrawAnnotationOverlay();
@@ -1030,8 +1088,10 @@ public partial class ScreenshotPreviewWindow : MicaWindow
         {
             vm.AnnotationPanel.CommitMove(_dragAnnotation, _dragStartOffset);
             _dragAnnotation = null;
+            _dragElements = null;
             UpdateAnnotationCursor();
             AnnotationCanvas.ReleaseMouseCapture();
+            RedrawAnnotationOverlay(); // 最终全量刷新，清除临时 RenderTransform
             e.Handled = true;
             return;
         }
@@ -1065,16 +1125,6 @@ public partial class ScreenshotPreviewWindow : MicaWindow
             vm.AnnotationPanel.DeleteSelectedAnnotationCommand.Execute(null);
             e.Handled = true;
         }
-        else if (e.Key == Key.Z && Keyboard.Modifiers == ModifierKeys.Control)
-        {
-            vm.AnnotationPanel.UndoAnnotationCommand.Execute(null);
-            e.Handled = true;
-        }
-        else if (e.Key == Key.Y && Keyboard.Modifiers == ModifierKeys.Control)
-        {
-            vm.AnnotationPanel.RedoAnnotationCommand.Execute(null);
-            e.Handled = true;
-        }
         else if (e.Key == Key.Escape)
         {
             if (vm.AnnotationPanel.SelectedAnnotation is not null)
@@ -1084,6 +1134,11 @@ public partial class ScreenshotPreviewWindow : MicaWindow
             }
             e.Handled = true;
         }
+    }
+
+    private void ColorSwatchButton_Click(object sender, RoutedEventArgs e)
+    {
+        ColorPickerPopup.IsOpen = !ColorPickerPopup.IsOpen;
     }
 
     // ── 文本输入框管理 ─────────────────────────────────────
@@ -1154,10 +1209,65 @@ public partial class ScreenshotPreviewWindow : MicaWindow
         tb.KeyDown -= OnTextBoxKeyDown;
 
         var text = tb.Text?.Trim() ?? string.Empty;
-        vm.AnnotationPanel.CommitTextAnnotation(text);
+
+        if (_isEditingExistingText)
+        {
+            _isEditingExistingText = false;
+            vm.AnnotationPanel.CommitEditExistingText(text);
+        }
+        else
+        {
+            vm.AnnotationPanel.CommitTextAnnotation(text);
+        }
 
         AnnotationCanvas.Children.Remove(tb);
         RedrawAnnotationOverlay();
+    }
+
+    /// <summary>为双击编辑已有文本标注打开 TextBox（预填内容）。</summary>
+    private void ShowTextInputBoxForExisting(AnnotationItem textItem)
+    {
+        if (DataContext is not ScreenshotPreviewViewModel vm || vm.ScreenshotImage is null) return;
+
+        double d = 1.0 / GetAnnotationDpiScale();
+        double sx = (textItem.Start.X + textItem.Offset.X) * d;
+        double sy = (textItem.Start.Y + textItem.Offset.Y) * d;
+
+        var tb = new System.Windows.Controls.TextBox
+        {
+            Text = textItem.Text,
+            MinWidth = 80,
+            MaxWidth = Math.Max(120, vm.ScreenshotImage.Width - sx - 8),
+            FontSize = Math.Max(10, textItem.FontSize * d),
+            FontFamily = new System.Windows.Media.FontFamily(textItem.FontFamily),
+            FontWeight = textItem.IsBold ? FontWeights.Bold : FontWeights.Normal,
+            FontStyle = textItem.IsItalic ? FontStyles.Italic : FontStyles.Normal,
+            Foreground = new SolidColorBrush(textItem.StrokeColor),
+            Background = System.Windows.Media.Brushes.Transparent,
+            BorderBrush = new SolidColorBrush(Color.FromArgb(128, textItem.StrokeColor.R, textItem.StrokeColor.G, textItem.StrokeColor.B)),
+            BorderThickness = new Thickness(1),
+            Padding = new Thickness(2),
+            AcceptsReturn = false,
+            CaretBrush = new SolidColorBrush(textItem.StrokeColor),
+            Tag = textItem
+        };
+        var inputDecs = new TextDecorationCollection();
+        if (textItem.IsUnderline) inputDecs.Add(TextDecorations.Underline);
+        if (textItem.IsStrikethrough) inputDecs.Add(TextDecorations.Strikethrough);
+        if (inputDecs.Count > 0) tb.TextDecorations = inputDecs;
+        Canvas.SetLeft(tb, sx);
+        Canvas.SetTop(tb, sy);
+
+        // 先刷新 overlay 但去掉被编辑的文本标注的显示
+        RedrawAnnotationOverlay();
+        AnnotationCanvas.Children.Add(tb);
+
+        tb.LostFocus += OnTextBoxLostFocus;
+        tb.KeyDown += OnTextBoxKeyDown;
+
+        _activeTextBox = tb;
+        tb.Focus();
+        tb.SelectAll();
     }
 
     /// <summary>重绘所有标注到画布上（使用 WPF Shapes 实时预览）。</summary>
@@ -1205,7 +1315,7 @@ public partial class ScreenshotPreviewWindow : MicaWindow
                     new Point(sx, sy), new Point(ex, ey), thickness);
                 if (pts.Length == 0) break;
 
-                var arrowPoly = new System.Windows.Shapes.Polygon { Fill = brush };
+                var arrowPoly = new System.Windows.Shapes.Polygon { Fill = brush, Tag = item };
                 foreach (var p in pts)
                     arrowPoly.Points.Add(p);
                 AnnotationCanvas.Children.Add(arrowPoly);
@@ -1220,7 +1330,8 @@ public partial class ScreenshotPreviewWindow : MicaWindow
                     Stroke = brush,
                     StrokeThickness = thickness,
                     RadiusX = item.CornerRadius * d,
-                    RadiusY = item.CornerRadius * d
+                    RadiusY = item.CornerRadius * d,
+                    Tag = item
                 };
                 Canvas.SetLeft(rect, Math.Min(sx, ex));
                 Canvas.SetTop(rect, Math.Min(sy, ey));
@@ -1233,7 +1344,8 @@ public partial class ScreenshotPreviewWindow : MicaWindow
                     Width = Math.Abs(ex - sx),
                     Height = Math.Abs(ey - sy),
                     Stroke = brush,
-                    StrokeThickness = thickness
+                    StrokeThickness = thickness,
+                    Tag = item
                 };
                 Canvas.SetLeft(ell, Math.Min(sx, ex));
                 Canvas.SetTop(ell, Math.Min(sy, ey));
@@ -1248,7 +1360,8 @@ public partial class ScreenshotPreviewWindow : MicaWindow
                     FontSize = item.FontSize * d,
                     FontFamily = new System.Windows.Media.FontFamily(item.FontFamily),
                     FontWeight = item.IsBold ? FontWeights.Bold : FontWeights.Normal,
-                    FontStyle = item.IsItalic ? FontStyles.Italic : FontStyles.Normal
+                    FontStyle = item.IsItalic ? FontStyles.Italic : FontStyles.Normal,
+                    Tag = item
                 };
                 var decs = new TextDecorationCollection();
                 if (item.IsUnderline) decs.Add(TextDecorations.Underline);
@@ -1266,7 +1379,8 @@ public partial class ScreenshotPreviewWindow : MicaWindow
                     {
                         Stroke = brush,
                         StrokeThickness = thickness,
-                        StrokeLineJoin = PenLineJoin.Round
+                        StrokeLineJoin = PenLineJoin.Round,
+                        Tag = item
                     };
                     foreach (var pt in item.PenPoints)
                         polyline.Points.Add(new Point(pt.X * d + iox, pt.Y * d + ioy));
@@ -1298,7 +1412,9 @@ public partial class ScreenshotPreviewWindow : MicaWindow
                             Width = bw,
                             Height = bh,
                             Stretch = System.Windows.Media.Stretch.Fill,
-                            Effect = new System.Windows.Media.Effects.BlurEffect { Radius = item.BlurRadius * d * 2 }
+                            // WPF BlurEffect.Radius ≈ sigma * 3，与 SkiaSharp CreateBlur(sigma) 对齐
+                            Effect = new System.Windows.Media.Effects.BlurEffect { Radius = item.BlurRadius * d * 3 },
+                            Tag = item
                         };
                         Canvas.SetLeft(blurImage, bx);
                         Canvas.SetTop(blurImage, by);
@@ -1314,7 +1430,8 @@ public partial class ScreenshotPreviewWindow : MicaWindow
                     Stroke = System.Windows.Media.Brushes.DodgerBlue,
                     StrokeThickness = 1,
                     StrokeDashArray = [4, 2],
-                    Fill = null
+                    Fill = null,
+                    Tag = item
                 };
                 Canvas.SetLeft(blurBorder, bx);
                 Canvas.SetTop(blurBorder, by);
@@ -1337,16 +1454,15 @@ public partial class ScreenshotPreviewWindow : MicaWindow
                     Stroke = System.Windows.Media.Brushes.DodgerBlue,
                     StrokeThickness = 1.5,
                     StrokeDashArray = [4, 2],
-                    Fill = null
+                    Fill = null,
+                    Tag = item
                 };
                 Canvas.SetLeft(selRect, bounds.X);
                 Canvas.SetTop(selRect, bounds.Y);
                 AnnotationCanvas.Children.Add(selRect);
 
-                // 缩放手柄（Pen 不支持缩放，只显示选框）
-                if (item.Tool is not AnnotationTool.Pen)
+                // 8 个缩放手柄: TL(0), T(1), TR(2), R(3), BR(4), B(5), BL(6), L(7)
                 {
-                    // 8 个缩放手柄: TL(0), T(1), TR(2), R(3), BR(4), B(5), BL(6), L(7)
                     const double hs = 7;
                     double cx = bounds.X + bounds.Width / 2;
                     double cy = bounds.Y + bounds.Height / 2;
@@ -1370,7 +1486,8 @@ public partial class ScreenshotPreviewWindow : MicaWindow
                             Height = hs,
                             Fill = System.Windows.Media.Brushes.White,
                             Stroke = System.Windows.Media.Brushes.DodgerBlue,
-                            StrokeThickness = 1.2
+                            StrokeThickness = 1.2,
+                            Tag = item
                         };
                         Canvas.SetLeft(handle, hp.X - hs / 2);
                         Canvas.SetTop(handle, hp.Y - hs / 2);
@@ -1510,12 +1627,65 @@ public partial class ScreenshotPreviewWindow : MicaWindow
             return;
         }
 
+        // Pen 标注：对所有点做仿射缩放
+        if (item.Tool == AnnotationTool.Pen && _resizeStartPenPoints is not null)
+        {
+            double oox = item.Offset.X, ooy = item.Offset.Y;
+            // 计算原始包围盒（去掉 Offset）
+            double oldMinX = double.MaxValue, oldMinY = double.MaxValue;
+            double oldMaxX = double.MinValue, oldMaxY = double.MinValue;
+            foreach (var pt in _resizeStartPenPoints)
+            {
+                oldMinX = Math.Min(oldMinX, pt.X);
+                oldMinY = Math.Min(oldMinY, pt.Y);
+                oldMaxX = Math.Max(oldMaxX, pt.X);
+                oldMaxY = Math.Max(oldMaxY, pt.Y);
+            }
+            double oldW = Math.Max(1, oldMaxX - oldMinX);
+            double oldH = Math.Max(1, oldMaxY - oldMinY);
+
+            // 加上 Offset 得到屏幕空间的包围盒 LTRB
+            double sl = oldMinX + oox, st = oldMinY + ooy;
+            double sr = oldMaxX + oox, sb = oldMaxY + ooy;
+
+            double nl = sl, nt = st, nr = sr, nb = sb;
+            switch (handle)
+            {
+                case 0: nl = imgPoint.X; nt = imgPoint.Y; break;
+                case 1: nt = imgPoint.Y; break;
+                case 2: nr = imgPoint.X; nt = imgPoint.Y; break;
+                case 3: nr = imgPoint.X; break;
+                case 4: nr = imgPoint.X; nb = imgPoint.Y; break;
+                case 5: nb = imgPoint.Y; break;
+                case 6: nl = imgPoint.X; nb = imgPoint.Y; break;
+                case 7: nl = imgPoint.X; break;
+            }
+
+            double newW = Math.Max(1, Math.Abs(nr - nl));
+            double newH = Math.Max(1, Math.Abs(nb - nt));
+            double newMinX = Math.Min(nl, nr) - oox;
+            double newMinY = Math.Min(nt, nb) - ooy;
+            double scaleX = newW / oldW;
+            double scaleY = newH / oldH;
+
+            item.PenPoints.Clear();
+            foreach (var pt in _resizeStartPenPoints)
+            {
+                double nx = newMinX + (pt.X - oldMinX) * scaleX;
+                double ny = newMinY + (pt.Y - oldMinY) * scaleY;
+                item.PenPoints.Add(new Point(nx, ny));
+            }
+            item.Start = new Point(newMinX, newMinY);
+            item.End = new Point(newMinX + newW, newMinY + newH);
+            return;
+        }
+
         // 非文本标注：修改 Start/End
-        double oox = item.Offset.X, ooy = item.Offset.Y;
-        double l = Math.Min(_resizeStartStart.X, _resizeStartEnd.X) + oox;
-        double t = Math.Min(_resizeStartStart.Y, _resizeStartEnd.Y) + ooy;
-        double r = Math.Max(_resizeStartStart.X, _resizeStartEnd.X) + oox;
-        double b = Math.Max(_resizeStartStart.Y, _resizeStartEnd.Y) + ooy;
+        double oox2 = item.Offset.X, ooy2 = item.Offset.Y;
+        double l = Math.Min(_resizeStartStart.X, _resizeStartEnd.X) + oox2;
+        double t = Math.Min(_resizeStartStart.Y, _resizeStartEnd.Y) + ooy2;
+        double r = Math.Max(_resizeStartStart.X, _resizeStartEnd.X) + oox2;
+        double b = Math.Max(_resizeStartStart.Y, _resizeStartEnd.Y) + ooy2;
 
         switch (handle)
         {
@@ -1529,8 +1699,8 @@ public partial class ScreenshotPreviewWindow : MicaWindow
             case 7: l = imgPoint.X; break;                 // L
         }
 
-        item.Start = new Point(l - oox, t - ooy);
-        item.End = new Point(r - oox, b - ooy);
+        item.Start = new Point(l - oox2, t - ooy2);
+        item.End = new Point(r - oox2, b - ooy2);
     }
 
     private void EditPanel_MouseLeftButtonDown(object sender, MouseButtonEventArgs e)
