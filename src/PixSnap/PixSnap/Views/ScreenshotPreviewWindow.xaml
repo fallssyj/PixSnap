@@ -67,20 +67,9 @@
                         HorizontalAlignment="Left"
                         Orientation="Horizontal">
                         <Button
-                            Width="80"
-                            Height="35"
-                            Margin="10,5,0,5"
                             Command="{Binding OpenFileCommand}"
-                            Style="{StaticResource OpenFileButtonStyle}"
+                            Style="{StaticResource PreviewPrimaryActionButtonStyle}"
                             ToolTip="打开文件">
-                            <Button.Effect>
-                                <DropShadowEffect
-                                    BlurRadius="10"
-                                    Direction="315"
-                                    Opacity="0.3"
-                                    ShadowDepth="5"
-                                    Color="Black" />
-                            </Button.Effect>
                             <StackPanel Orientation="Horizontal">
                                 <TextBlock
                                     VerticalAlignment="Center"
@@ -110,7 +99,7 @@
                             Content="{StaticResource Glyph_Redo}"
                             Style="{StaticResource ToolbarIconButtonStyle}"
                             ToolTip="重做" />
-                        <Border Style="{StaticResource ToolbarSeparatorStyle}" />
+                        <Border Style="{StaticResource PreviewToolbarSeparatorStyle}" />
                         <Button
                             Command="{Binding RotateImageCommand}"
                             Content="{StaticResource Glyph_Rotate}"
@@ -121,7 +110,7 @@
                             Content="{StaticResource Glyph_Copy}"
                             Style="{StaticResource ToolbarIconButtonStyle}"
                             ToolTip="复制到剪切板" />
-                        <Border Style="{StaticResource ToolbarSeparatorStyle}" />
+                        <Border Style="{StaticResource PreviewToolbarSeparatorStyle}" />
                         <Button
                             Command="{Binding ToggleCropCommand}"
                             Content="{StaticResource Glyph_Crop}"
@@ -142,47 +131,19 @@
                             Content="{StaticResource Glyph_Annotate}"
                             Style="{StaticResource ToolbarIconButtonStyle}"
                             ToolTip="标注" />
-                        <Border Style="{StaticResource ToolbarSeparatorStyle}" />
+                        <Border Style="{StaticResource PreviewToolbarSeparatorStyle}" />
                         <Button
                             Command="{Binding RecaptureCommand}"
                             Content="{StaticResource Glyph_Recapture}"
                             Style="{StaticResource ToolbarIconButtonStyle}"
                             ToolTip="重新截图" />
-                        <Border
-                            Height="30"
-                            Margin="30,0"
-                            Padding="10,5"
-                            Background="{DynamicResource AppBackgroundBrush}"
-                            BorderBrush="{DynamicResource AppGradientEndBrush}"
-                            BorderThickness="0.8"
-                            CornerRadius="5">
-                            <Border.Effect>
-                                <DropShadowEffect
-                                    BlurRadius="10"
-                                    Direction="315"
-                                    Opacity="0.3"
-                                    ShadowDepth="5"
-                                    Color="Black" />
-                            </Border.Effect>
-                            <Border.Style>
-                                <Style TargetType="Border">
-                                    <Setter Property="Visibility" Value="Visible" />
-                                    <Style.Triggers>
-                                        <DataTrigger Binding="{Binding CaptureTitleDisplay.Length}" Value="0">
-                                            <Setter Property="Visibility" Value="Collapsed" />
-                                        </DataTrigger>
-                                    </Style.Triggers>
-                                </Style>
-                            </Border.Style>
+                        <Border Style="{StaticResource PreviewTitleChipStyle}">
                             <StackPanel Orientation="Horizontal">
 
                                 <TextBlock
-                                    MaxWidth="420"
-                                    Margin="5,0"
-                                    HorizontalAlignment="Center"
-                                    VerticalAlignment="Center"
+                                    Style="{StaticResource PreviewTitleTextStyle}"
                                     Text="{Binding CaptureTitleDisplay}"
-                                    TextAlignment="Center" />
+                                     />
                             </StackPanel>
                         </Border>
 
@@ -211,29 +172,8 @@
                         <Button
                             Command="{Binding MaximizeCommand}"
                             CommandParameter="{Binding RelativeSource={RelativeSource AncestorType=Window}}"
-                            FontFamily="{StaticResource SegoeFluent}">
-                            <Button.Style>
-                                <Style BasedOn="{StaticResource IconButton}" TargetType="Button">
-                                    <Setter Property="ToolTip" Value="最大化" />
-                                    <Style.Triggers>
-                                        <DataTrigger Binding="{Binding IsMaximized}" Value="True">
-                                            <Setter Property="ToolTip" Value="还原" />
-                                        </DataTrigger>
-                                    </Style.Triggers>
-                                </Style>
-                            </Button.Style>
-                            <TextBlock FontFamily="{StaticResource SegoeFluent}" FontSize="12">
-                                <TextBlock.Style>
-                                    <Style TargetType="TextBlock">
-                                        <Setter Property="Text" Value="{StaticResource Glyph_Maximize}" />
-                                        <Style.Triggers>
-                                            <DataTrigger Binding="{Binding IsMaximized}" Value="True">
-                                                <Setter Property="Text" Value="{StaticResource Glyph_Restore}" />
-                                            </DataTrigger>
-                                        </Style.Triggers>
-                                    </Style>
-                                </TextBlock.Style>
-                            </TextBlock>
+                            Style="{StaticResource PreviewWindowStateButtonStyle}">
+                            <TextBlock Style="{StaticResource PreviewWindowStateGlyphStyle}" />
                         </Button>
                         <Button
                             Command="{Binding CloseCommand}"
@@ -321,60 +261,36 @@
                     <!--  裁剪信息拖动面板  -->
                     <Border
                         x:Name="CropPanel"
-                        HorizontalAlignment="Right"
-                        VerticalAlignment="Top"
                         MouseLeftButtonDown="EditPanel_MouseLeftButtonDown"
                         MouseLeftButtonUp="EditPanel_MouseLeftButtonUp"
                         MouseMove="EditPanel_MouseMove"
                         RenderTransformOrigin="0.5,0.5"
-                        Style="{StaticResource FloatingPanelStyle}"
+                        Style="{StaticResource RightTopFloatingPanelStyle}"
                         Visibility="Collapsed">
                         <Border.RenderTransform>
                             <TranslateTransform x:Name="CropPanelTranslate" />
                         </Border.RenderTransform>
-                        <Border.Margin>
-                            <Thickness Right="20" Top="20" />
-                        </Border.Margin>
                         <StackPanel MinWidth="220">
                             <TextBlock Style="{StaticResource PanelTitleStyle}" Text="裁剪" />
                             <!--  比例预设  -->
-                            <WrapPanel Margin="0,0,0,8">
-                                <Button
-                                    Margin="0,0,4,4"
-                                    Command="{Binding CropPanel.SetAspectRatioFromParamCommand}"
-                                    CommandParameter="0:0"
-                                    Content="自由"
-                                    Style="{StaticResource PanelCancelButtonStyle}"
-                                    ToolTip="自由裁剪" />
-                                <Button
-                                    Margin="0,0,4,4"
-                                    Command="{Binding CropPanel.SetAspectRatioFromParamCommand}"
-                                    CommandParameter="1:1:1:1"
-                                    Content="1:1"
-                                    Style="{StaticResource PanelCancelButtonStyle}"
-                                    ToolTip="正方形" />
-                                <Button
-                                    Margin="0,0,4,4"
-                                    Command="{Binding CropPanel.SetAspectRatioFromParamCommand}"
-                                    CommandParameter="16:9:16:9"
-                                    Content="16:9"
-                                    Style="{StaticResource PanelCancelButtonStyle}"
-                                    ToolTip="宽屏" />
-                                <Button
-                                    Margin="0,0,4,4"
-                                    Command="{Binding CropPanel.SetAspectRatioFromParamCommand}"
-                                    CommandParameter="4:3:4:3"
-                                    Content="4:3"
-                                    Style="{StaticResource PanelCancelButtonStyle}"
-                                    ToolTip="标准" />
-                                <Button
-                                    Margin="0,0,4,4"
-                                    Command="{Binding CropPanel.SetAspectRatioFromParamCommand}"
-                                    CommandParameter="3:2:3:2"
-                                    Content="3:2"
-                                    Style="{StaticResource PanelCancelButtonStyle}"
-                                    ToolTip="相机" />
-                            </WrapPanel>
+                            <ItemsControl ItemsSource="{Binding CropAspectRatioPresets}">
+                                <ItemsControl.ItemsPanel>
+                                    <ItemsPanelTemplate>
+                                        <WrapPanel Margin="0,0,0,8" />
+                                    </ItemsPanelTemplate>
+                                </ItemsControl.ItemsPanel>
+                                <ItemsControl.ItemTemplate>
+                                    <DataTemplate>
+                                        <Button
+                                            Margin="0,0,4,4"
+                                            Command="{Binding DataContext.CropPanel.SetAspectRatioFromParamCommand, RelativeSource={RelativeSource AncestorType=Window}}"
+                                            CommandParameter="{Binding Parameter}"
+                                            Content="{Binding Content}"
+                                            Style="{StaticResource PanelCancelButtonStyle}"
+                                            ToolTip="{Binding ToolTip}" />
+                                    </DataTemplate>
+                                </ItemsControl.ItemTemplate>
+                            </ItemsControl>
                             <TextBlock
                                 Margin="0,0,0,6"
                                 FontSize="13"
@@ -439,10 +355,7 @@
                                         Text="{Binding CropPanel.CropHeight, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}" />
                                 </StackPanel>
                             </Grid>
-                            <StackPanel
-                                Margin="0,12,0,0"
-                                HorizontalAlignment="Right"
-                                Orientation="Horizontal">
+                            <StackPanel Style="{StaticResource PanelActionBarStyle}">
                                 <Button
                                     Margin="0,0,6,0"
                                     Command="{Binding CropPanel.CancelCommand}"
@@ -463,16 +376,11 @@
                     <!--  圆角信息拖动面板  -->
                     <Border
                         x:Name="RoundCornerPanel"
-                        HorizontalAlignment="Right"
-                        VerticalAlignment="Top"
                         MouseLeftButtonDown="EditPanel_MouseLeftButtonDown"
                         MouseLeftButtonUp="EditPanel_MouseLeftButtonUp"
                         MouseMove="EditPanel_MouseMove"
-                        Style="{StaticResource FloatingPanelStyle}"
+                        Style="{StaticResource RightTopFloatingPanelStyle}"
                         Visibility="Collapsed">
-                        <Border.Margin>
-                            <Thickness Right="20" Top="20" />
-                        </Border.Margin>
                         <Border.RenderTransform>
                             <TranslateTransform x:Name="RoundCornerPanelTranslate" />
                         </Border.RenderTransform>
@@ -486,10 +394,7 @@
                                     Text="{Binding RoundCornerPanel.CornerRadius, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}" />
 
                             </StackPanel>
-                            <StackPanel
-                                Margin="0,12,0,0"
-                                HorizontalAlignment="Right"
-                                Orientation="Horizontal">
+                            <StackPanel Style="{StaticResource PanelActionBarStyle}">
                                 <Button
                                     Margin="0,0,6,0"
                                     Command="{Binding RoundCornerPanel.CancelCommand}"
@@ -509,16 +414,11 @@
                     <!--  AI 擦除画刷大小浮动面板  -->
                     <Border
                         x:Name="EraserFloatingPanel"
-                        HorizontalAlignment="Right"
-                        VerticalAlignment="Top"
                         MouseLeftButtonDown="EditPanel_MouseLeftButtonDown"
                         MouseLeftButtonUp="EditPanel_MouseLeftButtonUp"
                         MouseMove="EditPanel_MouseMove"
-                        Style="{StaticResource FloatingPanelStyle}"
+                        Style="{StaticResource RightTopFloatingPanelStyle}"
                         Visibility="Collapsed">
-                        <Border.Margin>
-                            <Thickness Right="20" Top="20" />
-                        </Border.Margin>
                         <Border.RenderTransform>
                             <TranslateTransform x:Name="EraserFloatingPanelTranslate" />
                         </Border.RenderTransform>
@@ -564,10 +464,7 @@
                                 Value="{Binding EraserPanel.EdgeFeatherStrength, Mode=TwoWay}" />
 
                             <!--  操作按钮  -->
-                            <StackPanel
-                                Margin="0,12,0,0"
-                                HorizontalAlignment="Right"
-                                Orientation="Horizontal">
+                            <StackPanel Style="{StaticResource PanelActionBarStyle}">
                                 <Button
                                     Margin="0,0,6,0"
                                     Command="{Binding EraserPanel.ClearStrokesCommand}"
@@ -594,127 +491,33 @@
                     <!--  标注工具浮动面板  -->
                     <Border
                         x:Name="AnnotationFloatingPanel"
-                        HorizontalAlignment="Right"
-                        VerticalAlignment="Top"
                         MouseLeftButtonDown="EditPanel_MouseLeftButtonDown"
                         MouseLeftButtonUp="EditPanel_MouseLeftButtonUp"
                         MouseMove="EditPanel_MouseMove"
-                        Style="{StaticResource FloatingPanelStyle}"
+                        Style="{StaticResource RightTopFloatingPanelStyle}"
                         Visibility="Collapsed">
-                        <Border.Margin>
-                            <Thickness Right="20" Top="20" />
-                        </Border.Margin>
                         <Border.RenderTransform>
                             <TranslateTransform x:Name="AnnotationFloatingPanelTranslate" />
                         </Border.RenderTransform>
                         <StackPanel>
                             <!--  第一行：工具选择 + 分隔 + 颜色色块  -->
                             <StackPanel Orientation="Horizontal">
-                                <Button
-                                    Margin="0,0,2,0"
-                                    Command="{Binding AnnotationPanel.SelectPointerCommand}"
-                                    Tag="{StaticResource Glyph_Pointer}"
-                                    ToolTip="选择 / 移动">
-                                    <Button.Style>
-                                        <Style BasedOn="{StaticResource RibbonToolButtonStyle}" TargetType="Button">
-                                            <Style.Triggers>
-                                                <DataTrigger Binding="{Binding AnnotationPanel.SelectedTool}" Value="Pointer">
-                                                    <Setter Property="Background" Value="{DynamicResource AccentBrush}" />
-                                                </DataTrigger>
-                                            </Style.Triggers>
-                                        </Style>
-                                    </Button.Style>
-                                </Button>
-                                <Button
-                                    Margin="0,0,2,0"
-                                    Command="{Binding AnnotationPanel.SelectArrowCommand}"
-                                    Tag="{StaticResource Glyph_Arrow}"
-                                    ToolTip="箭头">
-                                    <Button.Style>
-                                        <Style BasedOn="{StaticResource RibbonToolButtonStyle}" TargetType="Button">
-                                            <Style.Triggers>
-                                                <DataTrigger Binding="{Binding AnnotationPanel.SelectedTool}" Value="Arrow">
-                                                    <Setter Property="Background" Value="{DynamicResource AccentBrush}" />
-                                                </DataTrigger>
-                                            </Style.Triggers>
-                                        </Style>
-                                    </Button.Style>
-                                </Button>
-                                <Button
-                                    Margin="0,0,2,0"
-                                    Command="{Binding AnnotationPanel.SelectRectangleCommand}"
-                                    Tag="{StaticResource Glyph_Rectangle}"
-                                    ToolTip="矩形">
-                                    <Button.Style>
-                                        <Style BasedOn="{StaticResource RibbonToolButtonStyle}" TargetType="Button">
-                                            <Style.Triggers>
-                                                <DataTrigger Binding="{Binding AnnotationPanel.SelectedTool}" Value="Rectangle">
-                                                    <Setter Property="Background" Value="{DynamicResource AccentBrush}" />
-                                                </DataTrigger>
-                                            </Style.Triggers>
-                                        </Style>
-                                    </Button.Style>
-                                </Button>
-                                <Button
-                                    Margin="0,0,2,0"
-                                    Command="{Binding AnnotationPanel.SelectEllipseCommand}"
-                                    Tag="{StaticResource Glyph_Ellipse}"
-                                    ToolTip="椭圆">
-                                    <Button.Style>
-                                        <Style BasedOn="{StaticResource RibbonToolButtonStyle}" TargetType="Button">
-                                            <Style.Triggers>
-                                                <DataTrigger Binding="{Binding AnnotationPanel.SelectedTool}" Value="Ellipse">
-                                                    <Setter Property="Background" Value="{DynamicResource AccentBrush}" />
-                                                </DataTrigger>
-                                            </Style.Triggers>
-                                        </Style>
-                                    </Button.Style>
-                                </Button>
-                                <Button
-                                    Margin="0,0,2,0"
-                                    Command="{Binding AnnotationPanel.SelectTextCommand}"
-                                    Tag="{StaticResource Glyph_Text}"
-                                    ToolTip="文本">
-                                    <Button.Style>
-                                        <Style BasedOn="{StaticResource RibbonToolButtonStyle}" TargetType="Button">
-                                            <Style.Triggers>
-                                                <DataTrigger Binding="{Binding AnnotationPanel.SelectedTool}" Value="Text">
-                                                    <Setter Property="Background" Value="{DynamicResource AccentBrush}" />
-                                                </DataTrigger>
-                                            </Style.Triggers>
-                                        </Style>
-                                    </Button.Style>
-                                </Button>
-                                <Button
-                                    Margin="0,0,2,0"
-                                    Command="{Binding AnnotationPanel.SelectPenCommand}"
-                                    Tag="{StaticResource Glyph_Pen}"
-                                    ToolTip="画笔">
-                                    <Button.Style>
-                                        <Style BasedOn="{StaticResource RibbonToolButtonStyle}" TargetType="Button">
-                                            <Style.Triggers>
-                                                <DataTrigger Binding="{Binding AnnotationPanel.SelectedTool}" Value="Pen">
-                                                    <Setter Property="Background" Value="{DynamicResource AccentBrush}" />
-                                                </DataTrigger>
-                                            </Style.Triggers>
-                                        </Style>
-                                    </Button.Style>
-                                </Button>
-                                <Button
-                                    Margin="0,0,0,0"
-                                    Command="{Binding AnnotationPanel.SelectBlurCommand}"
-                                    Tag="{StaticResource Glyph_Blur}"
-                                    ToolTip="模糊">
-                                    <Button.Style>
-                                        <Style BasedOn="{StaticResource RibbonToolButtonStyle}" TargetType="Button">
-                                            <Style.Triggers>
-                                                <DataTrigger Binding="{Binding AnnotationPanel.SelectedTool}" Value="Blur">
-                                                    <Setter Property="Background" Value="{DynamicResource AccentBrush}" />
-                                                </DataTrigger>
-                                            </Style.Triggers>
-                                        </Style>
-                                    </Button.Style>
-                                </Button>
+                                <ItemsControl ItemsSource="{Binding AnnotationTools}">
+                                    <ItemsControl.ItemsPanel>
+                                        <ItemsPanelTemplate>
+                                            <StackPanel Orientation="Horizontal" />
+                                        </ItemsPanelTemplate>
+                                    </ItemsControl.ItemsPanel>
+                                    <ItemsControl.ItemTemplate>
+                                        <DataTemplate>
+                                            <Button
+                                                Command="{Binding Command}"
+                                                Style="{StaticResource AnnotationToolbarButtonStyle}"
+                                                Tag="{Binding Glyph}"
+                                                ToolTip="{Binding ToolTip}" />
+                                        </DataTemplate>
+                                    </ItemsControl.ItemTemplate>
+                                </ItemsControl>
                                 <!--  分隔线  -->
                                 <Border
                                     Width="1"
@@ -738,82 +541,24 @@
                                 PopupAnimation="Fade"
                                 StaysOpen="False"
                                 VerticalOffset="4">
-                                <Border
-                                    Padding="8"
-                                    Background="{DynamicResource AppGradientStartBrush}"
-                                    BorderBrush="{DynamicResource InputBorderBrush}"
-                                    BorderThickness="1"
-                                    CornerRadius="6">
-                                    <Border.Effect>
-                                        <DropShadowEffect
-                                            BlurRadius="12"
-                                            Direction="270"
-                                            Opacity="0.35"
-                                            ShadowDepth="3"
-                                            Color="#000000" />
-                                    </Border.Effect>
-                                    <WrapPanel Width="132">
-                                        <Button
-                                            Margin="2"
-                                            Background="#FFFF0000"
-                                            Command="{Binding AnnotationPanel.SetColorRedCommand}"
-                                            Style="{StaticResource ColorPresetButtonStyle}"
-                                            ToolTip="红色" />
-                                        <Button
-                                            Margin="2"
-                                            Background="#FF3399FF"
-                                            Command="{Binding AnnotationPanel.SetColorBlueCommand}"
-                                            Style="{StaticResource ColorPresetButtonStyle}"
-                                            ToolTip="蓝色" />
-                                        <Button
-                                            Margin="2"
-                                            Background="#FF22CC55"
-                                            Command="{Binding AnnotationPanel.SetColorGreenCommand}"
-                                            Style="{StaticResource ColorPresetButtonStyle}"
-                                            ToolTip="绿色" />
-                                        <Button
-                                            Margin="2"
-                                            Background="#FFFFCC00"
-                                            Command="{Binding AnnotationPanel.SetColorYellowCommand}"
-                                            Style="{StaticResource ColorPresetButtonStyle}"
-                                            ToolTip="黄色" />
-                                        <Button
-                                            Margin="2"
-                                            Background="#FFFFFFFF"
-                                            Command="{Binding AnnotationPanel.SetColorWhiteCommand}"
-                                            Style="{StaticResource ColorPresetButtonStyle}"
-                                            ToolTip="白色" />
-                                        <Button
-                                            Margin="2"
-                                            Background="#FF000000"
-                                            Command="{Binding AnnotationPanel.SetColorBlackCommand}"
-                                            Style="{StaticResource ColorPresetButtonStyle}"
-                                            ToolTip="黑色" />
-                                        <Button
-                                            Margin="2"
-                                            Background="#FFFF8800"
-                                            Command="{Binding AnnotationPanel.SetColorOrangeCommand}"
-                                            Style="{StaticResource ColorPresetButtonStyle}"
-                                            ToolTip="橙色" />
-                                        <Button
-                                            Margin="2"
-                                            Background="#FFAA44FF"
-                                            Command="{Binding AnnotationPanel.SetColorPurpleCommand}"
-                                            Style="{StaticResource ColorPresetButtonStyle}"
-                                            ToolTip="紫色" />
-                                        <Button
-                                            Margin="2"
-                                            Background="#FFFF66B2"
-                                            Command="{Binding AnnotationPanel.SetColorPinkCommand}"
-                                            Style="{StaticResource ColorPresetButtonStyle}"
-                                            ToolTip="粉色" />
-                                        <Button
-                                            Margin="2"
-                                            Background="#FF888888"
-                                            Command="{Binding AnnotationPanel.SetColorGrayCommand}"
-                                            Style="{StaticResource ColorPresetButtonStyle}"
-                                            ToolTip="灰色" />
-                                    </WrapPanel>
+                                <Border Style="{StaticResource PopupCardStyle}">
+                                    <ItemsControl ItemsSource="{Binding AnnotationColors}">
+                                        <ItemsControl.ItemsPanel>
+                                            <ItemsPanelTemplate>
+                                                <WrapPanel Width="132" />
+                                            </ItemsPanelTemplate>
+                                        </ItemsControl.ItemsPanel>
+                                        <ItemsControl.ItemTemplate>
+                                            <DataTemplate>
+                                                <Button
+                                                    Margin="2"
+                                                    Background="{Binding ColorValue}"
+                                                    Command="{Binding Command}"
+                                                    Style="{StaticResource ColorPresetButtonStyle}"
+                                                    ToolTip="{Binding ToolTip}" />
+                                            </DataTemplate>
+                                        </ItemsControl.ItemTemplate>
+                                    </ItemsControl>
                                 </Border>
                             </Popup>
 
@@ -836,9 +581,7 @@
                                     </StackPanel.Style>
                                     <StackPanel Orientation="Horizontal">
                                         <TextBlock
-                                            VerticalAlignment="Center"
-                                            FontSize="13"
-                                            Opacity="0.5"
+                                            Style="{StaticResource PanelCompactFieldLabelStyle}"
                                             Text="线宽" />
                                         <TextBox
                                             Width="48"
@@ -862,9 +605,7 @@
                                 <StackPanel Visibility="{Binding AnnotationPanel.IsRectangleSettingsVisible, Converter={StaticResource BooleanToVisibilityConverter}}">
                                     <StackPanel Margin="0,4,0,0" Orientation="Horizontal">
                                         <TextBlock
-                                            VerticalAlignment="Center"
-                                            FontSize="13"
-                                            Opacity="0.5"
+                                            Style="{StaticResource PanelCompactFieldLabelStyle}"
                                             Text="圆角" />
                                         <TextBox
                                             Width="48"
@@ -888,9 +629,7 @@
                                 <StackPanel Visibility="{Binding AnnotationPanel.IsBlurSettingsVisible, Converter={StaticResource BooleanToVisibilityConverter}}">
                                     <StackPanel Orientation="Horizontal">
                                         <TextBlock
-                                            VerticalAlignment="Center"
-                                            FontSize="13"
-                                            Opacity="0.5"
+                                            Style="{StaticResource PanelCompactFieldLabelStyle}"
                                             Text="强度" />
                                         <TextBox
                                             Width="48"
@@ -979,10 +718,7 @@
                             </StackPanel>
 
                             <!--  底部：取消 + 应用  -->
-                            <StackPanel
-                                Margin="0,8,0,0"
-                                HorizontalAlignment="Right"
-                                Orientation="Horizontal">
+                            <StackPanel Style="{StaticResource PanelActionBarStyle}">
                                 <Button
                                     Margin="0,0,6,0"
                                     Command="{Binding ExitAnnotationModeCommand}"
@@ -1008,13 +744,7 @@
                         PopupAnimation="Fade"
                         StaysOpen="False"
                         VerticalOffset="6">
-                        <Border
-                            MinWidth="180"
-                            Padding="8"
-                            Background="#E61A1A1A"
-                            BorderBrush="#333"
-                            BorderThickness="1"
-                            CornerRadius="8">
+                        <Border Style="{StaticResource PopupCardStyle}" MinWidth="180">
                             <StackPanel>
                                 <Button
                                     Margin="0,0,0,6"

@@ -6,9 +6,11 @@ using PixSnap.Services;
 using PixSnap.Views;
 using Serilog;
 using System.ComponentModel;
+using System.Collections.ObjectModel;
 using System.Diagnostics;
 using System.IO;
 using System.Windows;
+using System.Windows.Input;
 using System.Windows.Media;
 using System.Windows.Media.Imaging;
 using Application = System.Windows.Application;
@@ -18,6 +20,31 @@ namespace PixSnap.ViewModels;
 
 /// <summary>截图预览窗口的编辑模式，各模式互斥，同一时刻只有一种可激活。</summary>
 public enum EditMode { None, Crop, RoundCorner, Eraser, Annotate }
+
+public sealed partial class AnnotationToolItem : ObservableObject
+{
+    public required AnnotationTool Tool { get; init; }
+    public required string Glyph { get; init; }
+    public required string ToolTip { get; init; }
+    public required ICommand Command { get; init; }
+
+    [ObservableProperty]
+    private bool _isSelected;
+}
+
+public sealed class AnnotationColorItem
+{
+    public required string ColorValue { get; init; }
+    public required string ToolTip { get; init; }
+    public required ICommand Command { get; init; }
+}
+
+public sealed class CropAspectRatioPresetItem
+{
+    public required string Content { get; init; }
+    public required string Parameter { get; init; }
+    public required string ToolTip { get; init; }
+}
 
 public partial class ScreenshotPreviewViewModel : ObservableRecipient, IRecipient<ScreenshotCapturedMessage>
 {
@@ -131,6 +158,9 @@ public partial class ScreenshotPreviewViewModel : ObservableRecipient, IRecipien
     public RoundCornerViewModel RoundCornerPanel { get; } = new();
     public EraserViewModel EraserPanel { get; } = new();
     public AnnotationViewModel AnnotationPanel { get; } = new();
+    public ObservableCollection<AnnotationToolItem> AnnotationTools { get; } = [];
+    public ObservableCollection<AnnotationColorItem> AnnotationColors { get; } = [];
+    public ObservableCollection<CropAspectRatioPresetItem> CropAspectRatioPresets { get; } = [];
 
     public string PreviewScaleModeText => IsActualSize ? "缩放以适应" : "缩放以原始";
     public string ZoomDisplayText => string.Format("缩放 {0:P0}", IsActualSize ? ZoomFactor : FitZoomFactor);
@@ -167,14 +197,64 @@ public partial class ScreenshotPreviewViewModel : ObservableRecipient, IRecipien
 
     public ScreenshotPreviewViewModel()
     {
+        AnnotationTools =
+        [
+            new() { Tool = AnnotationTool.Pointer, Glyph = "\uE8B0", ToolTip = "选择 / 移动", Command = AnnotationPanel.SelectPointerCommand },
+            new() { Tool = AnnotationTool.Arrow, Glyph = "\uE76C", ToolTip = "箭头", Command = AnnotationPanel.SelectArrowCommand },
+            new() { Tool = AnnotationTool.Rectangle, Glyph = "\uE739", ToolTip = "矩形", Command = AnnotationPanel.SelectRectangleCommand },
+            new() { Tool = AnnotationTool.Ellipse, Glyph = "\uEA3A", ToolTip = "椭圆", Command = AnnotationPanel.SelectEllipseCommand },
+            new() { Tool = AnnotationTool.Text, Glyph = "\uE8D2", ToolTip = "文本", Command = AnnotationPanel.SelectTextCommand },
+            new() { Tool = AnnotationTool.Pen, Glyph = "\uEE56", ToolTip = "画笔", Command = AnnotationPanel.SelectPenCommand },
+            new() { Tool = AnnotationTool.Blur, Glyph = "\uED5B", ToolTip = "模糊", Command = AnnotationPanel.SelectBlurCommand }
+        ];
+        AnnotationColors =
+        [
+            new() { ColorValue = "#FFFF0000", ToolTip = "红色", Command = AnnotationPanel.SetColorRedCommand },
+            new() { ColorValue = "#FF3399FF", ToolTip = "蓝色", Command = AnnotationPanel.SetColorBlueCommand },
+            new() { ColorValue = "#FF22CC55", ToolTip = "绿色", Command = AnnotationPanel.SetColorGreenCommand },
+            new() { ColorValue = "#FFFFCC00", ToolTip = "黄色", Command = AnnotationPanel.SetColorYellowCommand },
+            new() { ColorValue = "#FFFFFFFF", ToolTip = "白色", Command = AnnotationPanel.SetColorWhiteCommand },
+            new() { ColorValue = "#FF000000", ToolTip = "黑色", Command = AnnotationPanel.SetColorBlackCommand },
+            new() { ColorValue = "#FFFF8800", ToolTip = "橙色", Command = AnnotationPanel.SetColorOrangeCommand },
+            new() { ColorValue = "#FFAA44FF", ToolTip = "紫色", Command = AnnotationPanel.SetColorPurpleCommand },
+            new() { ColorValue = "#FFFF66B2", ToolTip = "粉色", Command = AnnotationPanel.SetColorPinkCommand },
+            new() { ColorValue = "#FF888888", ToolTip = "灰色", Command = AnnotationPanel.SetColorGrayCommand }
+        ];
+        CropAspectRatioPresets =
+        [
+            new() { Content = "自由", Parameter = "0:0", ToolTip = "自由裁剪" },
+            new() { Content = "1:1", Parameter = "1:1:1:1", ToolTip = "正方形" },
+            new() { Content = "16:9", Parameter = "16:9:16:9", ToolTip = "宽屏" },
+            new() { Content = "4:3", Parameter = "4:3:4:3", ToolTip = "标准" },
+            new() { Content = "3:2", Parameter = "3:2:3:2", ToolTip = "相机" }
+        ];
+
         // 不向全局 Messenger 注册：每个预览窗口只对应一次截图，
         // 由 App 直接调用 Receive() 初始化，无需监听后续广播。
         EraserPanel.InpaintApplied += OnEraserApplied;
         EraserPanel.PropertyChanged += OnEraserPanelPropertyChanged;
         CropPanel.PropertyChanged += OnCropPanelPropertyChanged;
         RoundCornerPanel.PropertyChanged += OnRoundCornerPanelPropertyChanged;
+        AnnotationPanel.PropertyChanged += OnAnnotationPanelPropertyChanged;
         AnnotationPanel.AnnotationApplied += OnAnnotationApplied;
         AnnotationPanel.AnnotationCancelled += () => ExitEditMode();
+        UpdateAnnotationToolSelection();
+    }
+
+    private void OnAnnotationPanelPropertyChanged(object? sender, PropertyChangedEventArgs e)
+    {
+        if (e.PropertyName == nameof(AnnotationViewModel.SelectedTool))
+        {
+            UpdateAnnotationToolSelection();
+        }
+    }
+
+    private void UpdateAnnotationToolSelection()
+    {
+        foreach (var tool in AnnotationTools)
+        {
+            tool.IsSelected = tool.Tool == AnnotationPanel.SelectedTool;
+        }
     }
 
     private void OnEraserPanelPropertyChanged(object? sender, PropertyChangedEventArgs e)

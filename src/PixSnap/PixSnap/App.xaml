@@ -12,6 +12,9 @@
                 <ResourceDictionary Source="Styles/fonts.xaml" />
                 <ResourceDictionary Source="Styles/icons.xaml" />
                 <ResourceDictionary Source="Styles/Theme/Theme.xaml" />
+                <ResourceDictionary Source="Styles/AboutWindow.xaml" />
+                <ResourceDictionary Source="Styles/PreviewResources.xaml" />
+                <ResourceDictionary Source="Styles/Overlay.xaml" />
                 <ResourceDictionary Source="Styles/Controls.xaml" />
                 <ResourceDictionary Source="Styles/TextBlock.xaml" />
                 <ResourceDictionary Source="Styles/Button.xaml" />
@@ -23,6 +26,7 @@
                 <ResourceDictionary Source="Styles/ScrollViewer.xaml" />
                 <ResourceDictionary Source="Styles/Menu.xaml" />
                 <ResourceDictionary Source="Styles/EditPanel.xaml" />
+                <ResourceDictionary Source="Styles/PreviewWindow.xaml" />
             </ResourceDictionary.MergedDictionaries>
 
 
