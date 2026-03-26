@@ -56,9 +56,9 @@
     <!--  数字输入框  -->
     <Style x:Key="FieldInputStyle" TargetType="TextBox">
         <Setter Property="converters:NumericInputBehavior.IsEnabled" Value="True" />
-        <Setter Property="Width" Value="64" />
-        <Setter Property="Height" Value="26" />
-        <Setter Property="FontSize" Value="11" />
+        <Setter Property="MinWidth" Value="64" />
+        <Setter Property="Height" Value="30" />
+        <Setter Property="FontSize" Value="13" />
         <Setter Property="FontFamily" Value="{StaticResource MiSansRegular}" />
         <Setter Property="Background" Value="{DynamicResource InputBackgroundBrush}" />
         <Setter Property="BorderBrush" Value="{DynamicResource InputBorderBrush}" />

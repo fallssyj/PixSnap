@@ -126,11 +126,12 @@ public partial class AnnotationViewModel : ObservableObject
 
     partial void OnSelectedToolChanged(AnnotationTool value)
     {
-        CommitTextStyleEdit();
-        CommitColorEdit();
-        CommitStrokeWidthEdit();
-        CommitCornerRadiusEdit();
-        CommitBlurRadiusEdit();
+        var item = SelectedAnnotation;
+        CommitTextStyleEdit(item);
+        CommitColorEdit(item);
+        CommitStrokeWidthEdit(item);
+        CommitCornerRadiusEdit(item);
+        CommitBlurRadiusEdit(item);
     }
 
     [ObservableProperty]
@@ -190,79 +191,51 @@ public partial class AnnotationViewModel : ObservableObject
         SelectedTool == AnnotationTool.Blur ||
         (SelectedAnnotation is not null && SelectedAnnotation.Tool == AnnotationTool.Blur);
 
-    private bool _syncingTextProps;
+    private bool _syncingProperties;
 
-    // ── 选中文本标注时同步属性到面板 ──────────────────────
+    // ── 选中标注时同步属性到面板 ──────────────────────────
 
     partial void OnSelectedAnnotationChanged(AnnotationItem? oldValue, AnnotationItem? newValue)
     {
         // 先提交旧选中标注的编辑
         if (oldValue is not null)
         {
-            if (oldValue.Tool == AnnotationTool.Text && _hasTextStyleSnapshot)
-            {
-                var saved = SelectedAnnotation;
-                _selectedAnnotation = oldValue;
-                CommitTextStyleEdit();
-                _selectedAnnotation = saved;
-            }
-            if (_hasColorSnapshot)
-            {
-                var saved = SelectedAnnotation;
-                _selectedAnnotation = oldValue;
-                CommitColorEdit();
-                _selectedAnnotation = saved;
-            }
-            if (_hasStrokeWidthSnapshot)
-            {
-                var saved = SelectedAnnotation;
-                _selectedAnnotation = oldValue;
-                CommitStrokeWidthEdit();
-                _selectedAnnotation = saved;
-            }
-            if (_hasCornerRadiusSnapshot)
-            {
-                var saved = SelectedAnnotation;
-                _selectedAnnotation = oldValue;
-                CommitCornerRadiusEdit();
-                _selectedAnnotation = saved;
-            }
-            if (_hasBlurRadiusSnapshot)
-            {
-                var saved = SelectedAnnotation;
-                _selectedAnnotation = oldValue;
-                CommitBlurRadiusEdit();
-                _selectedAnnotation = saved;
-            }
+            CommitTextStyleEdit(oldValue);
+            CommitColorEdit(oldValue);
+            CommitStrokeWidthEdit(oldValue);
+            CommitCornerRadiusEdit(oldValue);
+            CommitBlurRadiusEdit(oldValue);
         }
 
-        _syncingTextProps = true;
-        if (newValue is not null)
-        {
-            StrokeColor = newValue.StrokeColor;
-            StrokeWidth = newValue.StrokeWidth;
-            if (newValue.Tool == AnnotationTool.Rectangle)
-            {
-                CornerRadius = newValue.CornerRadius;
-            }
-            if (newValue.Tool == AnnotationTool.Blur)
-            {
-                BlurRadius = newValue.BlurRadius;
-            }
-            if (newValue.Tool == AnnotationTool.Text)
-            {
-                FontFamily = newValue.FontFamily;
-                FontSize = newValue.FontSize;
-                IsBold = newValue.IsBold;
-                IsItalic = newValue.IsItalic;
-                IsUnderline = newValue.IsUnderline;
-                IsStrikethrough = newValue.IsStrikethrough;
-            }
-        }
-        _syncingTextProps = false;
+        SyncPanelFromAnnotation(newValue);
         OnPropertyChanged(nameof(IsTextSettingsVisible));
         OnPropertyChanged(nameof(IsRectangleSettingsVisible));
         OnPropertyChanged(nameof(IsBlurSettingsVisible));
+    }
+
+    /// <summary>将标注属性同步到面板（不触发 Apply 回写）。</summary>
+    private void SyncPanelFromAnnotation(AnnotationItem? item)
+    {
+        _syncingProperties = true;
+        if (item is not null)
+        {
+            StrokeColor = item.StrokeColor;
+            StrokeWidth = item.StrokeWidth;
+            if (item.Tool == AnnotationTool.Rectangle)
+                CornerRadius = item.CornerRadius;
+            if (item.Tool == AnnotationTool.Blur)
+                BlurRadius = item.BlurRadius;
+            if (item.Tool == AnnotationTool.Text)
+            {
+                FontFamily = item.FontFamily;
+                FontSize = item.FontSize;
+                IsBold = item.IsBold;
+                IsItalic = item.IsItalic;
+                IsUnderline = item.IsUnderline;
+                IsStrikethrough = item.IsStrikethrough;
+            }
+        }
+        _syncingProperties = false;
     }
 
     // ── 保存编辑前的文本样式用于撤销 ──────────────────────
@@ -290,7 +263,7 @@ public partial class AnnotationViewModel : ObservableObject
     /// <summary>面板属性发生变化后应用到选中的文本标注。</summary>
     private void ApplyTextPropertyToSelected()
     {
-        if (_syncingTextProps || SelectedAnnotation is not { Tool: AnnotationTool.Text } item) return;
+        if (_syncingProperties || SelectedAnnotation is not { Tool: AnnotationTool.Text } item) return;
         SnapshotTextStyleIfNeeded();
         item.FontFamily = FontFamily;
         item.FontSize = FontSize;
@@ -302,9 +275,10 @@ public partial class AnnotationViewModel : ObservableObject
     }
 
     /// <summary>提交文本样式编辑到撤销栈（在取消选中 / 切换工具时调用）。</summary>
-    public void CommitTextStyleEdit()
+    public void CommitTextStyleEdit(AnnotationItem? target = null)
     {
-        if (!_hasTextStyleSnapshot || SelectedAnnotation is not { Tool: AnnotationTool.Text } item) { _hasTextStyleSnapshot = false; return; }
+        target ??= SelectedAnnotation;
+        if (!_hasTextStyleSnapshot || target is not { Tool: AnnotationTool.Text } item) { _hasTextStyleSnapshot = false; return; }
         if (item.FontFamily == _editOldFamily && item.FontSize == _editOldSize &&
             item.IsBold == _editOldBold && item.IsItalic == _editOldItalic &&
             item.IsUnderline == _editOldUnderline && item.IsStrikethrough == _editOldStrikethrough)
@@ -335,15 +309,16 @@ public partial class AnnotationViewModel : ObservableObject
 
     private void ApplyColorToSelected()
     {
-        if (_syncingTextProps || SelectedAnnotation is not { } item) return;
+        if (_syncingProperties || SelectedAnnotation is not { } item) return;
         SnapshotColorIfNeeded();
         item.StrokeColor = StrokeColor;
         RequestRedraw?.Invoke();
     }
 
-    public void CommitColorEdit()
+    public void CommitColorEdit(AnnotationItem? target = null)
     {
-        if (!_hasColorSnapshot || SelectedAnnotation is not { } item) { _hasColorSnapshot = false; return; }
+        target ??= SelectedAnnotation;
+        if (!_hasColorSnapshot || target is not { } item) { _hasColorSnapshot = false; return; }
         if (item.StrokeColor == _editOldColor) { _hasColorSnapshot = false; return; }
         var action = new EditColorAction(item, _editOldColor, item.StrokeColor);
         _undoStack.Push(action);
@@ -366,15 +341,16 @@ public partial class AnnotationViewModel : ObservableObject
 
     private void ApplyStrokeWidthToSelected()
     {
-        if (_syncingTextProps || SelectedAnnotation is not { } item) return;
+        if (_syncingProperties || SelectedAnnotation is not { } item) return;
         SnapshotStrokeWidthIfNeeded();
         item.StrokeWidth = StrokeWidth;
         RequestRedraw?.Invoke();
     }
 
-    public void CommitStrokeWidthEdit()
+    public void CommitStrokeWidthEdit(AnnotationItem? target = null)
     {
-        if (!_hasStrokeWidthSnapshot || SelectedAnnotation is not { } item) { _hasStrokeWidthSnapshot = false; return; }
+        target ??= SelectedAnnotation;
+        if (!_hasStrokeWidthSnapshot || target is not { } item) { _hasStrokeWidthSnapshot = false; return; }
         if (item.StrokeWidth == _editOldStrokeWidth) { _hasStrokeWidthSnapshot = false; return; }
         var action = new EditStrokeWidthAction(item, _editOldStrokeWidth, item.StrokeWidth);
         _undoStack.Push(action);
@@ -397,15 +373,16 @@ public partial class AnnotationViewModel : ObservableObject
 
     private void ApplyCornerRadiusToSelected()
     {
-        if (_syncingTextProps || SelectedAnnotation is not { Tool: AnnotationTool.Rectangle } item) return;
+        if (_syncingProperties || SelectedAnnotation is not { Tool: AnnotationTool.Rectangle } item) return;
         SnapshotCornerRadiusIfNeeded();
         item.CornerRadius = CornerRadius;
         RequestRedraw?.Invoke();
     }
 
-    public void CommitCornerRadiusEdit()
+    public void CommitCornerRadiusEdit(AnnotationItem? target = null)
     {
-        if (!_hasCornerRadiusSnapshot || SelectedAnnotation is not { Tool: AnnotationTool.Rectangle } item) { _hasCornerRadiusSnapshot = false; return; }
+        target ??= SelectedAnnotation;
+        if (!_hasCornerRadiusSnapshot || target is not { Tool: AnnotationTool.Rectangle } item) { _hasCornerRadiusSnapshot = false; return; }
         if (item.CornerRadius == _editOldCornerRadius) { _hasCornerRadiusSnapshot = false; return; }
         var action = new EditCornerRadiusAction(item, _editOldCornerRadius, item.CornerRadius);
         _undoStack.Push(action);
@@ -428,15 +405,16 @@ public partial class AnnotationViewModel : ObservableObject
 
     private void ApplyBlurRadiusToSelected()
     {
-        if (_syncingTextProps || SelectedAnnotation is not { Tool: AnnotationTool.Blur } item) return;
+        if (_syncingProperties || SelectedAnnotation is not { Tool: AnnotationTool.Blur } item) return;
         SnapshotBlurRadiusIfNeeded();
         item.BlurRadius = BlurRadius;
         RequestRedraw?.Invoke();
     }
 
-    public void CommitBlurRadiusEdit()
+    public void CommitBlurRadiusEdit(AnnotationItem? target = null)
     {
-        if (!_hasBlurRadiusSnapshot || SelectedAnnotation is not { Tool: AnnotationTool.Blur } item) { _hasBlurRadiusSnapshot = false; return; }
+        target ??= SelectedAnnotation;
+        if (!_hasBlurRadiusSnapshot || target is not { Tool: AnnotationTool.Blur } item) { _hasBlurRadiusSnapshot = false; return; }
         if (item.BlurRadius == _editOldBlurRadius) { _hasBlurRadiusSnapshot = false; return; }
         var action = new EditBlurRadiusAction(item, _editOldBlurRadius, item.BlurRadius);
         _undoStack.Push(action);
@@ -584,6 +562,7 @@ public partial class AnnotationViewModel : ObservableObject
     /// <summary>文本标注缩放字号后提交到撤销栈。</summary>
     public void CommitTextResize(AnnotationItem item, double oldFontSize)
     {
+        if (Math.Abs(item.FontSize - oldFontSize) < 0.1) return;
         var action = new EditTextStyleAction(item,
             item.FontFamily, oldFontSize, item.IsBold, item.IsItalic, item.IsUnderline, item.IsStrikethrough,
             item.FontFamily, item.FontSize, item.IsBold, item.IsItalic, item.IsUnderline, item.IsStrikethrough);
@@ -616,12 +595,17 @@ public partial class AnnotationViewModel : ObservableObject
             case AnnotationTool.Arrow:
                 return DistanceToSegment(pt, new Point(sx, sy), new Point(ex, ey)) <= tol + item.StrokeWidth;
             case AnnotationTool.Rectangle:
-            case AnnotationTool.Ellipse:
             case AnnotationTool.Blur:
                 var bounds = new Rect(new Point(Math.Min(sx, ex), Math.Min(sy, ey)),
                                      new Point(Math.Max(sx, ex), Math.Max(sy, ey)));
                 bounds.Inflate(tol, tol);
                 return bounds.Contains(pt);
+            case AnnotationTool.Ellipse:
+                double ecx = (sx + ex) / 2, ecy = (sy + ey) / 2;
+                double erx = Math.Abs(ex - sx) / 2 + tol, ery = Math.Abs(ey - sy) / 2 + tol;
+                if (erx < 1 || ery < 1) return false;
+                double edx = pt.X - ecx, edy = pt.Y - ecy;
+                return (edx * edx) / (erx * erx) + (edy * edy) / (ery * ery) <= 1.0;
             case AnnotationTool.Text:
                 var textSize = MeasureTextSize(item);
                 var textBounds = new Rect(sx, sy, textSize.Width, textSize.Height);
@@ -678,9 +662,11 @@ public partial class AnnotationViewModel : ObservableObject
         action.Undo(Annotations);
         _redoStack.Push(action);
 
-        // 选中如果被撤销则清空
+        // 选中如果被撤销则清空，否则同步面板属性
         if (SelectedAnnotation is not null && !Annotations.Contains(SelectedAnnotation))
             SelectedAnnotation = null;
+        else if (SelectedAnnotation is not null)
+            SyncPanelFromAnnotation(SelectedAnnotation);
 
         NotifyUndoRedoChanged();
         RequestRedraw?.Invoke();
@@ -693,6 +679,10 @@ public partial class AnnotationViewModel : ObservableObject
         var action = _redoStack.Pop();
         action.Redo(Annotations);
         _undoStack.Push(action);
+
+        if (SelectedAnnotation is not null)
+            SyncPanelFromAnnotation(SelectedAnnotation);
+
         NotifyUndoRedoChanged();
         RequestRedraw?.Invoke();
     }
@@ -926,64 +916,47 @@ public partial class AnnotationViewModel : ObservableObject
         canvas.Restore();
     }
 
-    private static void DrawArrow(SKCanvas canvas, SKPaint paint, Point start, Point end)
+    /// <summary>计算箭头七边形顶点（WPF 预览与 SkiaSharp 渲染共用）。</summary>
+    internal static Point[] CalculateArrowPoints(Point start, Point end, double strokeWidth)
     {
         double dx = end.X - start.X;
         double dy = end.Y - start.Y;
         double lineLen = Math.Sqrt(dx * dx + dy * dy);
-        if (lineLen < 1) return;
+        if (lineLen < 1) return [];
 
         double angle = Math.Atan2(dy, dx);
-        double sw = paint.StrokeWidth;
-
-        // 箭头头部尺寸：宽度为线宽的 3 倍，长度为宽度的 1.6 倍
-        double headHalfW = sw * 1.5;
+        double headHalfW = strokeWidth * 1.5;
         double headLen = headHalfW * 1.6;
-        headLen = Math.Min(headLen, lineLen * 0.45);  // 头部最多占线段 45%
+        headLen = Math.Min(headLen, lineLen * 0.45);
         headHalfW = headLen / 1.6;
+        double shaftHalfW = strokeWidth / 2.0;
 
-        double shaftHalfW = sw / 2.0;
+        double nx = -Math.Sin(angle), ny = Math.Cos(angle);
+        double ax = Math.Cos(angle), ay = Math.Sin(angle);
+        double jx = end.X - ax * headLen, jy = end.Y - ay * headLen;
 
-        // 法线方向（垂直于箭头方向）
-        double nx = -Math.Sin(angle);
-        double ny = Math.Cos(angle);
-        // 箭头方向
-        double ax = Math.Cos(angle);
-        double ay = Math.Sin(angle);
+        return
+        [
+            new(start.X + nx * shaftHalfW, start.Y + ny * shaftHalfW),
+            new(jx + nx * shaftHalfW, jy + ny * shaftHalfW),
+            new(jx + nx * headHalfW, jy + ny * headHalfW),
+            new(end.X, end.Y),
+            new(jx - nx * headHalfW, jy - ny * headHalfW),
+            new(jx - nx * shaftHalfW, jy - ny * shaftHalfW),
+            new(start.X - nx * shaftHalfW, start.Y - ny * shaftHalfW),
+        ];
+    }
 
-        // 线尾的左右点
-        float s1x = (float)(start.X + nx * shaftHalfW);
-        float s1y = (float)(start.Y + ny * shaftHalfW);
-        float s2x = (float)(start.X - nx * shaftHalfW);
-        float s2y = (float)(start.Y - ny * shaftHalfW);
-
-        // 箭杆与头部交界处
-        double jx = end.X - ax * headLen;
-        double jy = end.Y - ay * headLen;
-        float j1x = (float)(jx + nx * shaftHalfW);
-        float j1y = (float)(jy + ny * shaftHalfW);
-        float j2x = (float)(jx - nx * shaftHalfW);
-        float j2y = (float)(jy - ny * shaftHalfW);
-
-        // 箭头两翼
-        float w1x = (float)(jx + nx * headHalfW);
-        float w1y = (float)(jy + ny * headHalfW);
-        float w2x = (float)(jx - nx * headHalfW);
-        float w2y = (float)(jy - ny * headHalfW);
-
-        // 箭头尖端
-        float tx = (float)end.X;
-        float ty = (float)end.Y;
+    private static void DrawArrow(SKCanvas canvas, SKPaint paint, Point start, Point end)
+    {
+        var pts = CalculateArrowPoints(start, end, paint.StrokeWidth);
+        if (pts.Length == 0) return;
 
         using var fillPaint = new SKPaint { Color = paint.Color, Style = SKPaintStyle.Fill, IsAntialias = true };
         using var path = new SKPath();
-        path.MoveTo(s1x, s1y);
-        path.LineTo(j1x, j1y);
-        path.LineTo(w1x, w1y);
-        path.LineTo(tx, ty);
-        path.LineTo(w2x, w2y);
-        path.LineTo(j2x, j2y);
-        path.LineTo(s2x, s2y);
+        path.MoveTo((float)pts[0].X, (float)pts[0].Y);
+        for (int i = 1; i < pts.Length; i++)
+            path.LineTo((float)pts[i].X, (float)pts[i].Y);
         path.Close();
         canvas.DrawPath(path, fillPaint);
     }

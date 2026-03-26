@@ -219,6 +219,7 @@
         BasedOn="{StaticResource IconButton}"
         TargetType="Button">
         <Setter Property="ContentTemplate">
+
             <Setter.Value>
                 <DataTemplate>
                     <TextBlock

@@ -8,6 +8,8 @@
     ResizeMode="NoResize"
     ShowInTaskbar="False"
     SizeToContent="Height"
+    TextOptions.TextFormattingMode="Display"
+    UseLayoutRounding="True"
     WindowStartupLocation="CenterScreen"
     WindowStyle="None">
     <WindowChrome.WindowChrome>
@@ -23,11 +25,7 @@
         <BooleanToVisibilityConverter x:Key="BoolToVis" />
     </mica:MicaWindow.Resources>
 
-    <Border
-        Background="{DynamicResource AppBackgroundBrush}"
-        BorderBrush="{DynamicResource BorderBrush}"
-        BorderThickness="1"
-        RenderTransformOrigin="0.5,0.5">
+    <Border RenderTransformOrigin="0.5,0.5">
         <Border.RenderTransform>
             <ScaleTransform x:Name="ContentScale" ScaleX="1" ScaleY="1" />
         </Border.RenderTransform>
@@ -88,7 +86,7 @@
                     Command="{Binding CloseDialogCommand}"
                     Style="{StaticResource CloseIconButton}">
                     <TextBlock
-                        FontFamily="{StaticResource SegoeMDL2}"
+                        FontFamily="{StaticResource SegoeFluent}"
                         FontSize="10"
                         Foreground="{DynamicResource TextPrimaryBrush}"
                         Text="{StaticResource Glyph_Close}" />

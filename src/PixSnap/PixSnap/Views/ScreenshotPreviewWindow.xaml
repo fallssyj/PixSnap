@@ -9,6 +9,8 @@
     Height="760"
     MinWidth="1000"
     MinHeight="520"
+    TextOptions.TextFormattingMode="Display"
+    UseLayoutRounding="True"
     WindowStartupLocation="CenterScreen"
     WindowStyle="None">
     <WindowChrome.WindowChrome>
@@ -81,13 +83,14 @@
                             </Button.Effect>
                             <StackPanel Orientation="Horizontal">
                                 <TextBlock
+                                    VerticalAlignment="Center"
                                     FontFamily="{StaticResource SegoeFluent}"
                                     FontSize="14"
                                     Text="{StaticResource Glyph_OpenImage}" />
                                 <TextBlock
                                     Margin="6,0,0,0"
                                     VerticalAlignment="Center"
-                                    FontSize="11"
+                                    FontSize="13"
                                     Text="打开" />
                             </StackPanel>
                         </Button>
@@ -256,8 +259,8 @@
                                 HorizontalScrollBarVisibility="Hidden"
                                 MouseLeave="ActualSizeScrollViewer_MouseLeave"
                                 PreviewMouseDown="ActualSizeScrollViewer_PreviewMouseDown"
-                                PreviewMouseUp="ActualSizeScrollViewer_PreviewMouseUp"
                                 PreviewMouseMove="ActualSizeScrollViewer_PreviewMouseMove"
+                                PreviewMouseUp="ActualSizeScrollViewer_PreviewMouseUp"
                                 VerticalScrollBarVisibility="Hidden">
                                 <!--  Padding 在图片四周创建可滑动的空白区，实现拖动到边缘后还能继续拖动  -->
                                 <Border Padding="200">
@@ -279,11 +282,31 @@
                                             Focusable="True"
                                             IsHitTestVisible="False"
                                             KeyDown="AnnotationCanvas_KeyDown"
-                                            MouseDown="AnnotationCanvas_MouseDown"
                                             MouseLeftButtonDown="AnnotationCanvas_MouseLeftButtonDown"
                                             MouseLeftButtonUp="AnnotationCanvas_MouseLeftButtonUp"
-                                            MouseMove="AnnotationCanvas_MouseMove"
-                                            MouseUp="AnnotationCanvas_MouseUp" />
+                                            MouseMove="AnnotationCanvas_MouseMove" />
+
+                                        <!--  AI 擦除涂抹覆盖层：与图片同大同缩放，Cursor=None 配合代码后置圆形光标指示器  -->
+                                        <Canvas
+                                            x:Name="EraserCanvas"
+                                            Background="Transparent"
+                                            Cursor="None"
+                                            IsHitTestVisible="False"
+                                            MouseEnter="EraserCanvas_MouseEnter"
+                                            MouseLeave="EraserCanvas_MouseLeave"
+                                            MouseLeftButtonDown="EraserCanvas_MouseLeftButtonDown"
+                                            MouseLeftButtonUp="EraserCanvas_MouseLeftButtonUp"
+                                            MouseMove="EraserCanvas_MouseMove">
+                                            <!--  跟随鼠标的画刷轮廓（由代码后置动态定位和缩放）  -->
+                                            <Ellipse
+                                                x:Name="EraserCursorIndicator"
+                                                Fill="{DynamicResource AccentBrush}"
+                                                IsHitTestVisible="False"
+                                                Opacity="0.13"
+                                                Stroke="{DynamicResource AccentBrush}"
+                                                StrokeThickness="2"
+                                                Visibility="Collapsed" />
+                                        </Canvas>
                                     </Grid>
                                 </Border>
                             </ScrollViewer>
@@ -291,27 +314,7 @@
                             <!--  裁剪框覆盖层：只在裁剪模式下显示  -->
                             <controls:CropOverlayControl x:Name="CropOverlay" Visibility="Collapsed" />
 
-                            <!--  AI 擦除涂抹覆盖层：Cursor=None 配合代码后置圆形光标指示器  -->
-                            <Canvas
-                                x:Name="EraserCanvas"
-                                Background="Transparent"
-                                Cursor="None"
-                                IsHitTestVisible="False"
-                                MouseEnter="EraserCanvas_MouseEnter"
-                                MouseLeave="EraserCanvas_MouseLeave"
-                                MouseLeftButtonDown="EraserCanvas_MouseLeftButtonDown"
-                                MouseLeftButtonUp="EraserCanvas_MouseLeftButtonUp"
-                                MouseMove="EraserCanvas_MouseMove">
-                                <!--  跟随鼠标的画刷轮廓（由代码后置动态定位和缩放）  -->
-                                <Ellipse
-                                    x:Name="EraserCursorIndicator"
-                                    Fill="{DynamicResource AccentBrush}"
-                                    IsHitTestVisible="False"
-                                    Opacity="0.13"
-                                    Stroke="{DynamicResource AccentBrush}"
-                                    StrokeThickness="2"
-                                    Visibility="Collapsed" />
-                            </Canvas>
+
                         </Grid>
                     </Border>
 
@@ -609,10 +612,10 @@
                             <!--  工具选择  -->
                             <TextBlock
                                 Margin="0,0,0,4"
-                                FontSize="11"
+                                FontSize="13"
                                 Opacity="0.6"
                                 Text="工具" />
-                            <WrapPanel Margin="0,0,0,8">
+                            <WrapPanel Margin="0,2,0,8">
                                 <Button
                                     Margin="0,0,2,0"
                                     Command="{Binding AnnotationPanel.SelectPointerCommand}"
@@ -729,10 +732,10 @@
                             <!--  颜色选择  -->
                             <TextBlock
                                 Margin="0,0,0,4"
-                                FontSize="11"
+                                FontSize="13"
                                 Opacity="0.6"
                                 Text="颜色" />
-                            <WrapPanel Margin="0,0,0,8">
+                            <WrapPanel Margin="0,2,0,8">
                                 <Button
                                     Width="24"
                                     Height="24"
@@ -849,7 +852,7 @@
                             <StackPanel Visibility="{Binding AnnotationPanel.IsTextSettingsVisible, Converter={StaticResource BooleanToVisibilityConverter}}">
                                 <TextBlock
                                     Margin="0,8,0,4"
-                                    FontSize="11"
+                                    FontSize="15"
                                     Opacity="0.6"
                                     Text="文字设置" />
                                 <ComboBox
@@ -907,7 +910,10 @@
                                         IsChecked="{Binding AnnotationPanel.IsUnderline, Mode=TwoWay}"
                                         Style="{StaticResource PanelToggleButtonStyle}"
                                         ToolTip="下划线">
-                                        <TextBlock FontSize="14" TextDecorations="Underline" Text="U" />
+                                        <TextBlock
+                                            FontSize="14"
+                                            Text="U"
+                                            TextDecorations="Underline" />
                                     </ToggleButton>
                                     <ToggleButton
                                         Width="32"
@@ -916,7 +922,10 @@
                                         IsChecked="{Binding AnnotationPanel.IsStrikethrough, Mode=TwoWay}"
                                         Style="{StaticResource PanelToggleButtonStyle}"
                                         ToolTip="删除线">
-                                        <TextBlock FontSize="14" TextDecorations="Strikethrough" Text="S" />
+                                        <TextBlock
+                                            FontSize="14"
+                                            Text="S"
+                                            TextDecorations="Strikethrough" />
                                     </ToggleButton>
                                 </StackPanel>
                             </StackPanel>
@@ -1146,7 +1155,7 @@
                         <TextBlock
                             Margin="0,0,0,8"
                             HorizontalAlignment="Center"
-                            FontSize="12"
+                            FontSize="15"
                             Text="{Binding ActiveAiProgressText}" />
                         <ProgressBar
                             Height="6"

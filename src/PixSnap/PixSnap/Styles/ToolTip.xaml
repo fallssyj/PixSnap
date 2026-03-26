@@ -15,12 +15,7 @@
             <Setter.Value>
                 <ControlTemplate TargetType="ToolTip">
                     <Grid SnapsToDevicePixels="True">
-                        <Border
-                            Margin="0,6,0,0"
-                            Padding="5"
-                            Background="{DynamicResource ToolTipShadowBrush}"
-                            CornerRadius="5"
-                            Opacity="0.9" />
+
                         <Border
                             Background="{TemplateBinding Background}"
                             BorderBrush="{TemplateBinding BorderBrush}"

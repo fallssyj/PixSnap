@@ -3,6 +3,7 @@
     <Style TargetType="Slider">
         <Setter Property="Width" Value="300" />
         <Setter Property="Height" Value="34" />
+
         <Setter Property="Background" Value="{DynamicResource PreviewZoomTrackInactiveBrush}" />
         <Setter Property="Foreground" Value="{DynamicResource SliderActiveTrackBrush}" />
         <Setter Property="BorderBrush" Value="Transparent" />

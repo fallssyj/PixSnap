@@ -173,7 +173,10 @@ public partial class ScreenshotPreviewWindow : MicaWindow
             case nameof(ScreenshotPreviewViewModel.ScreenshotImage):
                 UpdateFitZoomFactor();
                 if (DataContext is ScreenshotPreviewViewModel vmImg)
+                {
                     UpdateAnnotationCanvasSize(vmImg);
+                    UpdateEraserCanvasSize(vmImg);
+                }
                 break;
 
             case nameof(ScreenshotPreviewViewModel.IsCropMode):
@@ -560,12 +563,25 @@ public partial class ScreenshotPreviewWindow : MicaWindow
         if (DataContext is not ScreenshotPreviewViewModel vm || vm.ScreenshotImage is null)
             return new Rect(0, 0, PreviewViewport.ActualWidth, PreviewViewport.ActualHeight);
 
-        double zoom = vm.ZoomFactor;
-        double displayW = vm.ScreenshotImage.Width * zoom;  // DIP width * zoom
-        double displayH = vm.ScreenshotImage.Height * zoom;
-        double left = OverscrollPadding - ActualSizeScrollViewer.HorizontalOffset;
-        double top = OverscrollPadding - ActualSizeScrollViewer.VerticalOffset;
-        return new Rect(left, top, displayW, displayH);
+        try
+        {
+            // 利用 WPF 视觉树变换，精确计算图片经 LayoutTransform + ScrollViewer 偏移后的实际显示位置
+            var transform = ActualSizeImage.TransformToAncestor(PreviewViewport);
+            var topLeft = transform.Transform(new Point(0, 0));
+            var bottomRight = transform.Transform(
+                new Point(ActualSizeImage.ActualWidth, ActualSizeImage.ActualHeight));
+            return new Rect(topLeft, bottomRight);
+        }
+        catch
+        {
+            // 降级：手动计算
+            double zoom = vm.ZoomFactor;
+            double displayW = vm.ScreenshotImage.Width * zoom;
+            double displayH = vm.ScreenshotImage.Height * zoom;
+            double left = OverscrollPadding - ActualSizeScrollViewer.HorizontalOffset;
+            double top = OverscrollPadding - ActualSizeScrollViewer.VerticalOffset;
+            return new Rect(left, top, displayW, displayH);
+        }
     }
 
     /// <summary>将鼠标在 AnnotationCanvas 的本地坐标（即图片像素坐标）进行边界检查。</summary>
@@ -632,6 +648,7 @@ public partial class ScreenshotPreviewWindow : MicaWindow
 
         if (active)
         {
+            UpdateEraserCanvasSize(vm);
             EraserFloatingPanelTranslate.X = EraserFloatingPanelTranslate.Y = 0;
         }
         else
@@ -661,14 +678,11 @@ public partial class ScreenshotPreviewWindow : MicaWindow
         if (DataContext is not ScreenshotPreviewViewModel vm) return;
         if (!TryGetImagePixelPoint(canvasPos, out var imgPt)) return;
 
-        // BrushSize 是屏幕显示像素的半径，需换算为图片像素空间的半径再存入 Strokes
-        var imgRect = GetImageDisplayRect();
-        double imgPixelRadius = imgRect.Width > 0 && vm.ScreenshotImage is not null
-            ? vm.EraserPanel.BrushSize * vm.ScreenshotImage.PixelWidth / imgRect.Width
-            : vm.EraserPanel.BrushSize;
+        // EraserCanvas 在缩放变换 Grid 内，与图片同处 DIP 空间
+        // BrushSize 即 DIP 半径，乘 DPI 缩放转为图片像素半径
+        double imgPixelRadius = vm.EraserPanel.BrushSize * GetAnnotationDpiScale();
 
         vm.EraserPanel.Strokes.Add((imgPt, imgPixelRadius));
-
     }
 
     private void BeginEraserStrokeVisual(Point startPoint)
@@ -825,17 +839,6 @@ public partial class ScreenshotPreviewWindow : MicaWindow
         // 标注画布已在 ScrollViewer 内部，随图片一起滚动，无需额外刷新
     }
 
-    // ── 标注模式中键平移 ───────────────────────────────────
-
-    private void AnnotationCanvas_MouseDown(object sender, MouseButtonEventArgs e)
-    {
-        // 中键平移已统一为 Space+左键，此处不再处理
-    }
-
-    private void AnnotationCanvas_MouseUp(object sender, MouseButtonEventArgs e)
-    {
-    }
-
     private void UpdateAnnotationCursor()
     {
         if (DataContext is not ScreenshotPreviewViewModel vm || !vm.IsAnnotateMode)
@@ -876,6 +879,15 @@ public partial class ScreenshotPreviewWindow : MicaWindow
             // 使用 DPI 感知的 DIP 尺寸，确保与 Image Stretch="None" 显示完全对齐
             AnnotationCanvas.Width = vm.ScreenshotImage.Width;   // = PixelWidth * 96 / DpiX
             AnnotationCanvas.Height = vm.ScreenshotImage.Height; // = PixelHeight * 96 / DpiY
+        }
+    }
+
+    private void UpdateEraserCanvasSize(ScreenshotPreviewViewModel vm)
+    {
+        if (vm.ScreenshotImage is not null)
+        {
+            EraserCanvas.Width = vm.ScreenshotImage.Width;
+            EraserCanvas.Height = vm.ScreenshotImage.Height;
         }
     }
 
@@ -944,8 +956,6 @@ public partial class ScreenshotPreviewWindow : MicaWindow
     private void AnnotationCanvas_MouseMove(object sender, MouseEventArgs e)
     {
         if (DataContext is not ScreenshotPreviewViewModel vm || !vm.IsAnnotateMode) return;
-
-        // 中键平移已移除，改用 Space+左键
 
         var pos = e.GetPosition(AnnotationCanvas);
 
@@ -1191,36 +1201,13 @@ public partial class ScreenshotPreviewWindow : MicaWindow
         {
             case AnnotationTool.Arrow:
             {
-                double adx = ex - sx, ady = ey - sy;
-                double aLineLen = Math.Sqrt(adx * adx + ady * ady);
-                if (aLineLen < 0.5) break;
+                var pts = AnnotationViewModel.CalculateArrowPoints(
+                    new Point(sx, sy), new Point(ex, ey), thickness);
+                if (pts.Length == 0) break;
 
-                double aAngle = Math.Atan2(ady, adx);
-                double headHalfW = thickness * 1.5;
-                double headLen = headHalfW * 1.6;
-                headLen = Math.Min(headLen, aLineLen * 0.45);
-                headHalfW = headLen / 1.6;
-                double shaftHalfW = thickness / 2.0;
-
-                double anx = -Math.Sin(aAngle), any = Math.Cos(aAngle);
-                double aax = Math.Cos(aAngle), aay = Math.Sin(aAngle);
-
-                double jx = ex - aax * headLen, jy = ey - aay * headLen;
-
-                var arrowPoly = new System.Windows.Shapes.Polygon
-                {
-                    Fill = brush,
-                    Points =
-                    [
-                        new Point(sx + anx * shaftHalfW, sy + any * shaftHalfW),
-                        new Point(jx + anx * shaftHalfW, jy + any * shaftHalfW),
-                        new Point(jx + anx * headHalfW,  jy + any * headHalfW),
-                        new Point(ex, ey),
-                        new Point(jx - anx * headHalfW,  jy - any * headHalfW),
-                        new Point(jx - anx * shaftHalfW, jy - any * shaftHalfW),
-                        new Point(sx - anx * shaftHalfW, sy - any * shaftHalfW),
-                    ]
-                };
+                var arrowPoly = new System.Windows.Shapes.Polygon { Fill = brush };
+                foreach (var p in pts)
+                    arrowPoly.Points.Add(p);
                 AnnotationCanvas.Children.Add(arrowPoly);
                 break;
             }
@@ -1356,35 +1343,39 @@ public partial class ScreenshotPreviewWindow : MicaWindow
                 Canvas.SetTop(selRect, bounds.Y);
                 AnnotationCanvas.Children.Add(selRect);
 
-                // 8 个缩放手柄: TL(0), T(1), TR(2), R(3), BR(4), B(5), BL(6), L(7)
-                const double hs = 7;
-                double cx = bounds.X + bounds.Width / 2;
-                double cy = bounds.Y + bounds.Height / 2;
-                Point[] handlePositions =
-                [
-                    new(bounds.X, bounds.Y),                         // TL
-                    new(cx, bounds.Y),                               // T
-                    new(bounds.X + bounds.Width, bounds.Y),          // TR
-                    new(bounds.X + bounds.Width, cy),                // R
-                    new(bounds.X + bounds.Width, bounds.Y + bounds.Height), // BR
-                    new(cx, bounds.Y + bounds.Height),               // B
-                    new(bounds.X, bounds.Y + bounds.Height),         // BL
-                    new(bounds.X, cy),                               // L
-                ];
-
-                foreach (var hp in handlePositions)
+                // 缩放手柄（Pen 不支持缩放，只显示选框）
+                if (item.Tool is not AnnotationTool.Pen)
                 {
-                    var handle = new System.Windows.Shapes.Rectangle
+                    // 8 个缩放手柄: TL(0), T(1), TR(2), R(3), BR(4), B(5), BL(6), L(7)
+                    const double hs = 7;
+                    double cx = bounds.X + bounds.Width / 2;
+                    double cy = bounds.Y + bounds.Height / 2;
+                    Point[] handlePositions =
+                    [
+                        new(bounds.X, bounds.Y),                         // TL
+                        new(cx, bounds.Y),                               // T
+                        new(bounds.X + bounds.Width, bounds.Y),          // TR
+                        new(bounds.X + bounds.Width, cy),                // R
+                        new(bounds.X + bounds.Width, bounds.Y + bounds.Height), // BR
+                        new(cx, bounds.Y + bounds.Height),               // B
+                        new(bounds.X, bounds.Y + bounds.Height),         // BL
+                        new(bounds.X, cy),                               // L
+                    ];
+
+                    foreach (var hp in handlePositions)
                     {
-                        Width = hs,
-                        Height = hs,
-                        Fill = System.Windows.Media.Brushes.White,
-                        Stroke = System.Windows.Media.Brushes.DodgerBlue,
-                        StrokeThickness = 1.2
-                    };
-                    Canvas.SetLeft(handle, hp.X - hs / 2);
-                    Canvas.SetTop(handle, hp.Y - hs / 2);
-                    AnnotationCanvas.Children.Add(handle);
+                        var handle = new System.Windows.Shapes.Rectangle
+                        {
+                            Width = hs,
+                            Height = hs,
+                            Fill = System.Windows.Media.Brushes.White,
+                            Stroke = System.Windows.Media.Brushes.DodgerBlue,
+                            StrokeThickness = 1.2
+                        };
+                        Canvas.SetLeft(handle, hp.X - hs / 2);
+                        Canvas.SetTop(handle, hp.Y - hs / 2);
+                        AnnotationCanvas.Children.Add(handle);
+                    }
                 }
             }
         }
