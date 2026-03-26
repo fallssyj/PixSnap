@@ -818,9 +818,9 @@
                             </Popup>
 
                             <!--  第二行：上下文属性（仅当前工具需要的属性）  -->
-                            <StackPanel Margin="0,6,0,0" Orientation="Horizontal">
+                            <StackPanel Margin="0,6,0,0">
                                 <!--  线宽（非文本、非模糊工具时显示）  -->
-                                <StackPanel Orientation="Horizontal">
+                                <StackPanel>
                                     <StackPanel.Style>
                                         <Style TargetType="StackPanel">
                                             <Setter Property="Visibility" Value="Visible" />
@@ -834,52 +834,81 @@
                                             </Style.Triggers>
                                         </Style>
                                     </StackPanel.Style>
-                                    <TextBlock
-                                        VerticalAlignment="Center"
-                                        FontSize="13"
-                                        Opacity="0.5"
-                                        Text="线宽" />
-                                    <TextBox
-                                        Width="48"
-                                        Height="26"
-                                        Margin="4,0,0,0"
-                                        FontSize="13"
-                                        Style="{StaticResource FieldInputStyle}"
-                                        Text="{Binding AnnotationPanel.StrokeWidth, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}" />
+                                    <StackPanel Orientation="Horizontal">
+                                        <TextBlock
+                                            VerticalAlignment="Center"
+                                            FontSize="13"
+                                            Opacity="0.5"
+                                            Text="线宽" />
+                                        <TextBox
+                                            Width="48"
+                                            Height="26"
+                                            Margin="4,0,0,0"
+                                            FontSize="13"
+                                            Style="{StaticResource FieldInputStyle}"
+                                            Text="{Binding AnnotationPanel.StrokeWidth, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}" />
+                                    </StackPanel>
+                                    <Slider
+                                        Margin="0,4,0,0"
+                                        IsSnapToTickEnabled="True"
+                                        LargeChange="2"
+                                        Maximum="20"
+                                        Minimum="1"
+                                        SmallChange="1"
+                                        TickFrequency="1"
+                                        Value="{Binding AnnotationPanel.StrokeWidth, Mode=TwoWay}" />
                                 </StackPanel>
                                 <!--  圆角（矩形工具时附加显示）  -->
-                                <StackPanel Orientation="Horizontal" Visibility="{Binding AnnotationPanel.IsRectangleSettingsVisible, Converter={StaticResource BooleanToVisibilityConverter}}">
-                                    <Border
-                                        Width="1"
-                                        Margin="6,4"
-                                        Background="{DynamicResource InputBorderBrush}" />
-                                    <TextBlock
-                                        VerticalAlignment="Center"
-                                        FontSize="13"
-                                        Opacity="0.5"
-                                        Text="圆角" />
-                                    <TextBox
-                                        Width="48"
-                                        Height="26"
-                                        Margin="4,0,0,0"
-                                        FontSize="13"
-                                        Style="{StaticResource FieldInputStyle}"
-                                        Text="{Binding AnnotationPanel.CornerRadius, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}" />
+                                <StackPanel Visibility="{Binding AnnotationPanel.IsRectangleSettingsVisible, Converter={StaticResource BooleanToVisibilityConverter}}">
+                                    <StackPanel Margin="0,4,0,0" Orientation="Horizontal">
+                                        <TextBlock
+                                            VerticalAlignment="Center"
+                                            FontSize="13"
+                                            Opacity="0.5"
+                                            Text="圆角" />
+                                        <TextBox
+                                            Width="48"
+                                            Height="26"
+                                            Margin="4,0,0,0"
+                                            FontSize="13"
+                                            Style="{StaticResource FieldInputStyle}"
+                                            Text="{Binding AnnotationPanel.CornerRadius, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}" />
+                                    </StackPanel>
+                                    <Slider
+                                        Margin="0,4,0,0"
+                                        IsSnapToTickEnabled="True"
+                                        LargeChange="5"
+                                        Maximum="50"
+                                        Minimum="0"
+                                        SmallChange="1"
+                                        TickFrequency="1"
+                                        Value="{Binding AnnotationPanel.CornerRadius, Mode=TwoWay}" />
                                 </StackPanel>
                                 <!--  模糊强度  -->
-                                <StackPanel Orientation="Horizontal" Visibility="{Binding AnnotationPanel.IsBlurSettingsVisible, Converter={StaticResource BooleanToVisibilityConverter}}">
-                                    <TextBlock
-                                        VerticalAlignment="Center"
-                                        FontSize="13"
-                                        Opacity="0.5"
-                                        Text="强度" />
-                                    <TextBox
-                                        Width="48"
-                                        Height="26"
-                                        Margin="4,0,0,0"
-                                        FontSize="13"
-                                        Style="{StaticResource FieldInputStyle}"
-                                        Text="{Binding AnnotationPanel.BlurRadius, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}" />
+                                <StackPanel Visibility="{Binding AnnotationPanel.IsBlurSettingsVisible, Converter={StaticResource BooleanToVisibilityConverter}}">
+                                    <StackPanel Orientation="Horizontal">
+                                        <TextBlock
+                                            VerticalAlignment="Center"
+                                            FontSize="13"
+                                            Opacity="0.5"
+                                            Text="强度" />
+                                        <TextBox
+                                            Width="48"
+                                            Height="26"
+                                            Margin="4,0,0,0"
+                                            FontSize="13"
+                                            Style="{StaticResource FieldInputStyle}"
+                                            Text="{Binding AnnotationPanel.BlurRadius, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}" />
+                                    </StackPanel>
+                                    <Slider
+                                        Margin="0,4,0,0"
+                                        IsSnapToTickEnabled="True"
+                                        LargeChange="5"
+                                        Maximum="50"
+                                        Minimum="1"
+                                        SmallChange="1"
+                                        TickFrequency="1"
+                                        Value="{Binding AnnotationPanel.BlurRadius, Mode=TwoWay}" />
                                 </StackPanel>
                             </StackPanel>
 
