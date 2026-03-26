@@ -377,7 +377,7 @@
                             </WrapPanel>
                             <TextBlock
                                 Margin="0,0,0,6"
-                                FontSize="11"
+                                FontSize="13"
                                 Text="{Binding CropPanel.AspectRatioDisplayText}" />
                             <Grid>
                                 <Grid.ColumnDefinitions>
@@ -836,14 +836,14 @@
                                     </StackPanel.Style>
                                     <TextBlock
                                         VerticalAlignment="Center"
-                                        FontSize="11"
+                                        FontSize="13"
                                         Opacity="0.5"
                                         Text="线宽" />
                                     <TextBox
-                                        Width="42"
-                                        Height="24"
+                                        Width="48"
+                                        Height="26"
                                         Margin="4,0,0,0"
-                                        FontSize="11"
+                                        FontSize="13"
                                         Style="{StaticResource FieldInputStyle}"
                                         Text="{Binding AnnotationPanel.StrokeWidth, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}" />
                                 </StackPanel>
@@ -855,14 +855,14 @@
                                         Background="{DynamicResource InputBorderBrush}" />
                                     <TextBlock
                                         VerticalAlignment="Center"
-                                        FontSize="11"
+                                        FontSize="13"
                                         Opacity="0.5"
                                         Text="圆角" />
                                     <TextBox
-                                        Width="42"
-                                        Height="24"
+                                        Width="48"
+                                        Height="26"
                                         Margin="4,0,0,0"
-                                        FontSize="11"
+                                        FontSize="13"
                                         Style="{StaticResource FieldInputStyle}"
                                         Text="{Binding AnnotationPanel.CornerRadius, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}" />
                                 </StackPanel>
@@ -870,14 +870,14 @@
                                 <StackPanel Orientation="Horizontal" Visibility="{Binding AnnotationPanel.IsBlurSettingsVisible, Converter={StaticResource BooleanToVisibilityConverter}}">
                                     <TextBlock
                                         VerticalAlignment="Center"
-                                        FontSize="11"
+                                        FontSize="13"
                                         Opacity="0.5"
                                         Text="强度" />
                                     <TextBox
-                                        Width="42"
-                                        Height="24"
+                                        Width="48"
+                                        Height="26"
                                         Margin="4,0,0,0"
-                                        FontSize="11"
+                                        FontSize="13"
                                         Style="{StaticResource FieldInputStyle}"
                                         Text="{Binding AnnotationPanel.BlurRadius, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}" />
                                 </StackPanel>
@@ -886,64 +886,64 @@
                             <!--  文字属性行（文本工具时显示）  -->
                             <StackPanel Margin="0,6,0,0" Orientation="Horizontal" Visibility="{Binding AnnotationPanel.IsTextSettingsVisible, Converter={StaticResource BooleanToVisibilityConverter}}">
                                 <ComboBox
-                                    Width="110"
-                                    Height="25"
-                                    FontSize="12"
+                                    Width="120"
+                                    Height="26"
+                                    FontSize="13"
                                     ItemsSource="{Binding AnnotationPanel.FontFamilies}"
                                     SelectedItem="{Binding AnnotationPanel.FontFamily, Mode=TwoWay}" />
                                 <TextBox
-                                    Width="38"
-                                    Height="24"
+                                    Width="42"
+                                    Height="26"
                                     Margin="4,0,0,0"
-                                    FontSize="12"
+                                    FontSize="13"
                                     Style="{StaticResource FieldInputStyle}"
                                     Text="{Binding AnnotationPanel.FontSize, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}"
                                     ToolTip="字号 (px)" />
                                 <ToggleButton
-                                    Width="24"
-                                    Height="24"
+                                    Width="26"
+                                    Height="26"
                                     Margin="4,0,0,0"
                                     IsChecked="{Binding AnnotationPanel.IsBold, Mode=TwoWay}"
                                     Style="{StaticResource PanelToggleButtonStyle}"
                                     ToolTip="粗体">
                                     <TextBlock
-                                        FontSize="12"
+                                        FontSize="13"
                                         FontWeight="Bold"
                                         Text="B" />
                                 </ToggleButton>
                                 <ToggleButton
-                                    Width="24"
-                                    Height="24"
+                                    Width="26"
+                                    Height="26"
                                     Margin="2,0,0,0"
                                     IsChecked="{Binding AnnotationPanel.IsItalic, Mode=TwoWay}"
                                     Style="{StaticResource PanelToggleButtonStyle}"
                                     ToolTip="斜体">
                                     <TextBlock
-                                        FontSize="12"
+                                        FontSize="13"
                                         FontStyle="Italic"
                                         Text="I" />
                                 </ToggleButton>
                                 <ToggleButton
-                                    Width="24"
-                                    Height="24"
+                                    Width="26"
+                                    Height="26"
                                     Margin="2,0,0,0"
                                     IsChecked="{Binding AnnotationPanel.IsUnderline, Mode=TwoWay}"
                                     Style="{StaticResource PanelToggleButtonStyle}"
                                     ToolTip="下划线">
                                     <TextBlock
-                                        FontSize="12"
+                                        FontSize="13"
                                         Text="U"
                                         TextDecorations="Underline" />
                                 </ToggleButton>
                                 <ToggleButton
-                                    Width="24"
-                                    Height="24"
+                                    Width="26"
+                                    Height="26"
                                     Margin="2,0,0,0"
                                     IsChecked="{Binding AnnotationPanel.IsStrikethrough, Mode=TwoWay}"
                                     Style="{StaticResource PanelToggleButtonStyle}"
                                     ToolTip="删除线">
                                     <TextBlock
-                                        FontSize="12"
+                                        FontSize="13"
                                         Text="S"
                                         TextDecorations="Strikethrough" />
                                 </ToggleButton>
