@@ -46,6 +46,15 @@ internal static class NativeWindowHelper
     [StructLayout(LayoutKind.Sequential)]
     private struct RECT { public int left, top, right, bottom; }
 
+    [DllImport("dwmapi.dll")]
+    private static extern int DwmGetWindowAttribute(IntPtr hwnd, int dwAttribute, out int pvAttribute, int cbAttribute);
+
+    [DllImport("user32.dll", CharSet = CharSet.Unicode)]
+    private static extern int GetWindowTextLengthW(IntPtr hwnd);
+
+    [DllImport("user32.dll", CharSet = CharSet.Unicode)]
+    private static extern int GetWindowTextW(IntPtr hwnd, System.Text.StringBuilder lpString, int nMaxCount);
+
     [DllImport("user32")]
     private static extern IntPtr MonitorFromWindow(IntPtr hwnd, uint dwFlags);
 
@@ -174,6 +183,8 @@ internal static class NativeWindowHelper
     [return: MarshalAs(UnmanagedType.Bool)]
     private static extern bool IsIconic(IntPtr hwnd);
 
+    private const int DWMWA_CLOAKED = 14;
+
     /// <summary>从顶层窗口开始枚举 Z 序，返回包含指定屏幕坐标点的第一个可见窗口句柄（排除指定句柄）。</summary>
     public static IntPtr FindTopWindowAtPoint(Point screenPoint, IntPtr excludeHwnd)
     {
@@ -181,8 +192,7 @@ internal static class NativeWindowHelper
         while (hwnd != IntPtr.Zero)
         {
             if (hwnd != excludeHwnd
-                && IsWindowVisible(hwnd)
-                && !IsIconic(hwnd)
+                && IsCapturableTopLevelWindow(hwnd)
                 && TryGetWindowRect(hwnd, out var rect)
                 && rect.Contains(screenPoint))
             {
@@ -191,5 +201,28 @@ internal static class NativeWindowHelper
             hwnd = GetWindow(hwnd, GW_HWNDNEXT);
         }
         return IntPtr.Zero;
+    }
+
+    private static bool IsCapturableTopLevelWindow(IntPtr hwnd)
+    {
+        if (!IsWindowVisible(hwnd) || IsIconic(hwnd) || IsWindowCloaked(hwnd))
+        {
+            return false;
+        }
+
+        var titleLength = GetWindowTextLengthW(hwnd);
+        if (titleLength <= 0)
+        {
+            return false;
+        }
+
+        var title = new System.Text.StringBuilder(titleLength + 1);
+        _ = GetWindowTextW(hwnd, title, title.Capacity);
+        return title.Length > 0;
+    }
+
+    private static bool IsWindowCloaked(IntPtr hwnd)
+    {
+        return DwmGetWindowAttribute(hwnd, DWMWA_CLOAKED, out var cloaked, sizeof(int)) == 0 && cloaked != 0;
     }
 }

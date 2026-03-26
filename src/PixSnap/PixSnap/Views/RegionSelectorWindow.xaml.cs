@@ -26,8 +26,6 @@ public partial class RegionSelectorWindow : Window
     private bool _isMouseDown;
     private bool _isDraggingSelection;
     private IntPtr _windowHandle;
-    private Rect _overlayScreenBounds;
-    private DpiScale _dpiScale;
     private WindowInfo? _hoveredWindow;
     private ScreenInfo? _hoveredScreen;
     private Point _mouseDownPoint;
@@ -65,11 +63,6 @@ public partial class RegionSelectorWindow : Window
     private void OnLoaded(object sender, RoutedEventArgs e)
     {
         _windowHandle = new WindowInteropHelper(this).Handle;
-        _dpiScale = VisualTreeHelper.GetDpi(this);
-        if (NativeWindowHelper.TryGetWindowRect(_windowHandle, out var overlayRect))
-        {
-            _overlayScreenBounds = overlayRect;
-        }
 
         // Mask 和提示气泡属于纯视图层元素，初始化时直接按当前覆盖窗口尺寸定位。
         Mask.Width = Width;
@@ -345,17 +338,13 @@ public partial class RegionSelectorWindow : Window
 
     private Point ScreenPointToLocalPoint(Point screenPoint)
     {
-        // WGC 选择逻辑使用屏幕坐标，WPF 绘制使用设备无关单位，这里统一做一次转换。
-        return new Point(
-            (screenPoint.X - _overlayScreenBounds.Left) / _dpiScale.DpiScaleX,
-            (screenPoint.Y - _overlayScreenBounds.Top) / _dpiScale.DpiScaleY);
+        // 交给 WPF 自身做屏幕像素 <-> DIP 转换，避免手工缓存窗口矩形与 DPI 在某些缩放比下产生偏移。
+        return PointFromScreen(screenPoint);
     }
 
     private Point LocalPointToScreenPoint(Point localPoint)
     {
-        return new Point(
-            _overlayScreenBounds.Left + (localPoint.X * _dpiScale.DpiScaleX),
-            _overlayScreenBounds.Top + (localPoint.Y * _dpiScale.DpiScaleY));
+        return PointToScreen(localPoint);
     }
 
     private static bool IsDragGesture(Point start, Point current)
