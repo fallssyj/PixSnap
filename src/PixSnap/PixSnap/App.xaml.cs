@@ -277,7 +277,7 @@ public partial class App : System.Windows.Application, IRecipient<ScreenshotCapt
     private void InitializeTrayIcon()
     {
         _taskbarIcon = (TaskbarIcon)FindResource("TrayIcon");
-        _taskbarIcon.DataContext = new TrayViewModel(StartCaptureFromTray, StartDelayCaptureFromTray, CaptureLastRegionFromTray, ShowSettings, ShowAbout);
+        _taskbarIcon.DataContext = new TrayViewModel(StartCaptureFromTray, ShowSettings, ShowAbout);
         _taskbarIcon.Icon = LoadTrayIcon();
         _taskbarIcon.TrayMouseDoubleClick += OnTrayMouseDoubleClick;
         _taskbarIcon.TrayContextMenuOpen += OnTrayContextMenuOpen;
@@ -437,24 +437,6 @@ public partial class App : System.Windows.Application, IRecipient<ScreenshotCapt
         if (viewModel.StartCaptureCommand.CanExecute(null))
         {
             viewModel.StartCaptureCommand.Execute(null);
-        }
-    }
-
-    private async void StartDelayCaptureFromTray(int seconds)
-    {
-        Log.Information("延时截图: {Seconds} 秒", seconds);
-        var countdown = new Views.CountdownOverlay(seconds);
-        countdown.Show();
-        await Task.Delay(seconds * 1000);
-        countdown.Close();
-        StartCaptureFromTray();
-    }
-
-    private async void CaptureLastRegionFromTray()
-    {
-        if (_mainWindow?.DataContext is MainViewModel viewModel)
-        {
-            await viewModel.CaptureLastRegionAsync();
         }
     }
 

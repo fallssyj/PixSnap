@@ -27,7 +27,6 @@ public static class SettingsService
     private const string KeyVersion = "Version";
     private const string KeySaveDirectory = "SaveDirectory";
     private const string KeyAutoSave = "AutoSave";
-    private const string KeyLastRegion = "LastRegion";
 
     // ── 默认快捷键：Ctrl + Shift + Q ──────────────────────────────────────────
     public static readonly ModifierKeys DefaultHotkeyModifiers = ModifierKeys.Control | ModifierKeys.Shift;
@@ -187,41 +186,6 @@ public static class SettingsService
         Log.Information("写入自动保存: {Enabled}", enabled);
         var dict = ReadConfigDict();
         dict[KeyAutoSave] = enabled ? 1 : 0;
-        dict[KeyVersion] = CurrentSettingsVersion;
-        WriteConfigDict(dict);
-    }
-
-    // ── 上次截图区域（JSON 配置文件） ─────────────────────────────────────────
-
-    /// <summary>读取上次截图区域（x,y,w,h），无记录返回 null。</summary>
-    public static (double X, double Y, double W, double H)? ReadLastRegion()
-    {
-        try
-        {
-            if (!File.Exists(ConfigFilePath)) return null;
-            var json = File.ReadAllText(ConfigFilePath);
-            var doc = JsonDocument.Parse(json);
-            if (!doc.RootElement.TryGetProperty(KeyLastRegion, out var v) || v.ValueKind != JsonValueKind.String)
-                return null;
-            var parts = (v.GetString() ?? "").Split(',');
-            if (parts.Length == 4 &&
-                double.TryParse(parts[0], out var x) &&
-                double.TryParse(parts[1], out var y) &&
-                double.TryParse(parts[2], out var w) &&
-                double.TryParse(parts[3], out var h))
-                return (x, y, w, h);
-        }
-        catch (Exception ex)
-        {
-            Log.Warning(ex, "ReadLastRegion 失败");
-        }
-        return null;
-    }
-
-    public static void WriteLastRegion(double x, double y, double w, double h)
-    {
-        var dict = ReadConfigDict();
-        dict[KeyLastRegion] = $"{x},{y},{w},{h}";
         dict[KeyVersion] = CurrentSettingsVersion;
         WriteConfigDict(dict);
     }
