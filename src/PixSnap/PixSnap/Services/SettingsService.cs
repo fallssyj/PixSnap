@@ -136,23 +136,27 @@ public static class SettingsService
 
     // ── 保存目录（JSON 配置文件） ──────────────────────────────────────────────
 
-    /// <summary>读取自定义保存目录，空字符串表示未设置。</summary>
+    /// <summary>读取自定义保存目录，默认为系统图片文件夹。</summary>
     public static string ReadSaveDirectory()
     {
         try
         {
-            if (!File.Exists(ConfigFilePath)) return string.Empty;
-            var json = File.ReadAllText(ConfigFilePath);
-            var doc = JsonDocument.Parse(json);
-            return doc.RootElement.TryGetProperty(KeySaveDirectory, out var v) && v.ValueKind == JsonValueKind.String
-                ? v.GetString() ?? string.Empty
-                : string.Empty;
+            if (File.Exists(ConfigFilePath))
+            {
+                var json = File.ReadAllText(ConfigFilePath);
+                var doc = JsonDocument.Parse(json);
+                if (doc.RootElement.TryGetProperty(KeySaveDirectory, out var v) && v.ValueKind == JsonValueKind.String)
+                {
+                    var dir = v.GetString() ?? string.Empty;
+                    if (!string.IsNullOrEmpty(dir)) return dir;
+                }
+            }
         }
         catch (Exception ex)
         {
             Log.Warning(ex, "ReadSaveDirectory 失败");
-            return string.Empty;
         }
+        return Environment.GetFolderPath(Environment.SpecialFolder.MyPictures);
     }
 
     public static void WriteSaveDirectory(string directory)

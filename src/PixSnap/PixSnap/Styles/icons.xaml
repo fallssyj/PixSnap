@@ -34,6 +34,7 @@
     <s:String x:Key="Glyph_Ellipse">&#xEA3A;</s:String>
     <s:String x:Key="Glyph_Text">&#xE8D2;</s:String>
     <s:String x:Key="Glyph_Pen">&#xEE56;</s:String>
+    <s:String x:Key="Glyph_Blur">&#xE91C;</s:String>
     <s:String x:Key="Glyph_Delete">&#xE74D;</s:String>
 
     <!--  底部栏  -->

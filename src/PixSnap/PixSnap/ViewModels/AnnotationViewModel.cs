@@ -11,7 +11,7 @@ using System.Windows.Media.Imaging;
 namespace PixSnap.ViewModels;
 
 /// <summary>标注工具类型。</summary>
-public enum AnnotationTool { Pointer, Arrow, Rectangle, Ellipse, Text, Pen }
+public enum AnnotationTool { Pointer, Arrow, Rectangle, Ellipse, Text, Pen, Blur }
 
 /// <summary>单条标注元素。</summary>
 public sealed class AnnotationItem
@@ -19,10 +19,17 @@ public sealed class AnnotationItem
     public AnnotationTool Tool { get; init; }
     public Point Start { get; set; }
     public Point End { get; set; }
-    public Color StrokeColor { get; init; } = Colors.Red;
-    public double StrokeWidth { get; init; } = 3;
+    public Color StrokeColor { get; set; } = Colors.Red;
+    public double StrokeWidth { get; set; } = 3;
     public string Text { get; set; } = string.Empty;
-    public double FontSize { get; init; } = 20;
+    public double FontSize { get; set; } = 20;
+    public string FontFamily { get; set; } = "Microsoft YaHei";
+    public bool IsBold { get; set; }
+    public bool IsItalic { get; set; }
+    public bool IsUnderline { get; set; }
+    public bool IsStrikethrough { get; set; }
+    public double CornerRadius { get; set; }
+    public double BlurRadius { get; set; } = 10;
     public List<Point> PenPoints { get; } = [];
     public Vector Offset { get; set; }
 }
@@ -53,6 +60,55 @@ internal sealed class MoveAnnotationAction(AnnotationItem item, Vector oldOffset
     public void Redo(ObservableCollection<AnnotationItem> annotations) { item.Offset = newOffset; }
 }
 
+internal sealed class ResizeAnnotationAction(AnnotationItem item, Point oldStart, Point oldEnd, Point newStart, Point newEnd) : IAnnotationAction
+{
+    public void Undo(ObservableCollection<AnnotationItem> annotations) { item.Start = oldStart; item.End = oldEnd; }
+    public void Redo(ObservableCollection<AnnotationItem> annotations) { item.Start = newStart; item.End = newEnd; }
+}
+
+internal sealed class EditColorAction(AnnotationItem item, Color oldColor, Color newColor) : IAnnotationAction
+{
+    public void Undo(ObservableCollection<AnnotationItem> annotations) { item.StrokeColor = oldColor; }
+    public void Redo(ObservableCollection<AnnotationItem> annotations) { item.StrokeColor = newColor; }
+}
+
+internal sealed class EditStrokeWidthAction(AnnotationItem item, double oldWidth, double newWidth) : IAnnotationAction
+{
+    public void Undo(ObservableCollection<AnnotationItem> annotations) { item.StrokeWidth = oldWidth; }
+    public void Redo(ObservableCollection<AnnotationItem> annotations) { item.StrokeWidth = newWidth; }
+}
+
+internal sealed class EditCornerRadiusAction(AnnotationItem item, double oldRadius, double newRadius) : IAnnotationAction
+{
+    public void Undo(ObservableCollection<AnnotationItem> annotations) { item.CornerRadius = oldRadius; }
+    public void Redo(ObservableCollection<AnnotationItem> annotations) { item.CornerRadius = newRadius; }
+}
+
+internal sealed class EditBlurRadiusAction(AnnotationItem item, double oldRadius, double newRadius) : IAnnotationAction
+{
+    public void Undo(ObservableCollection<AnnotationItem> annotations) { item.BlurRadius = oldRadius; }
+    public void Redo(ObservableCollection<AnnotationItem> annotations) { item.BlurRadius = newRadius; }
+}
+
+internal sealed class EditTextStyleAction(
+    AnnotationItem item,
+    string oldFamily, double oldSize, bool oldBold, bool oldItalic, bool oldUnderline, bool oldStrikethrough,
+    string newFamily, double newSize, bool newBold, bool newItalic, bool newUnderline, bool newStrikethrough) : IAnnotationAction
+{
+    public void Undo(ObservableCollection<AnnotationItem> annotations)
+    {
+        item.FontFamily = oldFamily; item.FontSize = oldSize;
+        item.IsBold = oldBold; item.IsItalic = oldItalic;
+        item.IsUnderline = oldUnderline; item.IsStrikethrough = oldStrikethrough;
+    }
+    public void Redo(ObservableCollection<AnnotationItem> annotations)
+    {
+        item.FontFamily = newFamily; item.FontSize = newSize;
+        item.IsBold = newBold; item.IsItalic = newItalic;
+        item.IsUnderline = newUnderline; item.IsStrikethrough = newStrikethrough;
+    }
+}
+
 /// <summary>
 /// 标注绘制面板 ViewModel：管理标注工具选择、颜色、标注列表及撤销/重做。
 /// 标注坐标使用图片像素空间。
@@ -63,7 +119,19 @@ public partial class AnnotationViewModel : ObservableObject
     private readonly Stack<IAnnotationAction> _redoStack = new();
 
     [ObservableProperty]
+    [NotifyPropertyChangedFor(nameof(IsTextSettingsVisible))]
+    [NotifyPropertyChangedFor(nameof(IsRectangleSettingsVisible))]
+    [NotifyPropertyChangedFor(nameof(IsBlurSettingsVisible))]
     private AnnotationTool _selectedTool = AnnotationTool.Arrow;
+
+    partial void OnSelectedToolChanged(AnnotationTool value)
+    {
+        CommitTextStyleEdit();
+        CommitColorEdit();
+        CommitStrokeWidthEdit();
+        CommitCornerRadiusEdit();
+        CommitBlurRadiusEdit();
+    }
 
     [ObservableProperty]
     [NotifyPropertyChangedFor(nameof(StrokeColorBrush))]
@@ -73,13 +141,320 @@ public partial class AnnotationViewModel : ObservableObject
     private double _strokeWidth = 3;
 
     [ObservableProperty]
+    private double _cornerRadius;
+
+    [ObservableProperty]
+    private double _blurRadius = 10;
+
+    [ObservableProperty]
     private double _fontSize = 20;
+
+    [ObservableProperty]
+    private string _fontFamily = "Microsoft YaHei";
+
+    [ObservableProperty]
+    private bool _isBold;
+
+    [ObservableProperty]
+    private bool _isItalic;
+
+    [ObservableProperty]
+    private bool _isUnderline;
+
+    [ObservableProperty]
+    private bool _isStrikethrough;
+
+    public string[] FontFamilies { get; } = ["Microsoft YaHei", "SimSun", "SimHei", "KaiTi", "Arial", "Times New Roman", "Consolas"];
 
     [ObservableProperty]
     private bool _isAnnotating;
 
     [ObservableProperty]
+    [NotifyPropertyChangedFor(nameof(IsTextSettingsVisible))]
+    [NotifyPropertyChangedFor(nameof(IsRectangleSettingsVisible))]
+    [NotifyPropertyChangedFor(nameof(IsBlurSettingsVisible))]
     private AnnotationItem? _selectedAnnotation;
+
+    /// <summary>文字设置面板是否可见：选中文本工具 或 选中了一个文本标注。</summary>
+    public bool IsTextSettingsVisible =>
+        SelectedTool == AnnotationTool.Text ||
+        (SelectedAnnotation is not null && SelectedAnnotation.Tool == AnnotationTool.Text);
+
+    /// <summary>矩形圆角设置是否可见：选中矩形工具 或 选中了一个矩形标注。</summary>
+    public bool IsRectangleSettingsVisible =>
+        SelectedTool == AnnotationTool.Rectangle ||
+        (SelectedAnnotation is not null && SelectedAnnotation.Tool == AnnotationTool.Rectangle);
+
+    /// <summary>模糊设置是否可见：选中模糊工具 或 选中了一个模糊标注。</summary>
+    public bool IsBlurSettingsVisible =>
+        SelectedTool == AnnotationTool.Blur ||
+        (SelectedAnnotation is not null && SelectedAnnotation.Tool == AnnotationTool.Blur);
+
+    private bool _syncingTextProps;
+
+    // ── 选中文本标注时同步属性到面板 ──────────────────────
+
+    partial void OnSelectedAnnotationChanged(AnnotationItem? oldValue, AnnotationItem? newValue)
+    {
+        // 先提交旧选中标注的编辑
+        if (oldValue is not null)
+        {
+            if (oldValue.Tool == AnnotationTool.Text && _hasTextStyleSnapshot)
+            {
+                var saved = SelectedAnnotation;
+                _selectedAnnotation = oldValue;
+                CommitTextStyleEdit();
+                _selectedAnnotation = saved;
+            }
+            if (_hasColorSnapshot)
+            {
+                var saved = SelectedAnnotation;
+                _selectedAnnotation = oldValue;
+                CommitColorEdit();
+                _selectedAnnotation = saved;
+            }
+            if (_hasStrokeWidthSnapshot)
+            {
+                var saved = SelectedAnnotation;
+                _selectedAnnotation = oldValue;
+                CommitStrokeWidthEdit();
+                _selectedAnnotation = saved;
+            }
+            if (_hasCornerRadiusSnapshot)
+            {
+                var saved = SelectedAnnotation;
+                _selectedAnnotation = oldValue;
+                CommitCornerRadiusEdit();
+                _selectedAnnotation = saved;
+            }
+            if (_hasBlurRadiusSnapshot)
+            {
+                var saved = SelectedAnnotation;
+                _selectedAnnotation = oldValue;
+                CommitBlurRadiusEdit();
+                _selectedAnnotation = saved;
+            }
+        }
+
+        _syncingTextProps = true;
+        if (newValue is not null)
+        {
+            StrokeColor = newValue.StrokeColor;
+            StrokeWidth = newValue.StrokeWidth;
+            if (newValue.Tool == AnnotationTool.Rectangle)
+            {
+                CornerRadius = newValue.CornerRadius;
+            }
+            if (newValue.Tool == AnnotationTool.Blur)
+            {
+                BlurRadius = newValue.BlurRadius;
+            }
+            if (newValue.Tool == AnnotationTool.Text)
+            {
+                FontFamily = newValue.FontFamily;
+                FontSize = newValue.FontSize;
+                IsBold = newValue.IsBold;
+                IsItalic = newValue.IsItalic;
+                IsUnderline = newValue.IsUnderline;
+                IsStrikethrough = newValue.IsStrikethrough;
+            }
+        }
+        _syncingTextProps = false;
+        OnPropertyChanged(nameof(IsTextSettingsVisible));
+        OnPropertyChanged(nameof(IsRectangleSettingsVisible));
+        OnPropertyChanged(nameof(IsBlurSettingsVisible));
+    }
+
+    // ── 保存编辑前的文本样式用于撤销 ──────────────────────
+
+    private string _editOldFamily = string.Empty;
+    private double _editOldSize;
+    private bool _editOldBold;
+    private bool _editOldItalic;
+    private bool _editOldUnderline;
+    private bool _editOldStrikethrough;
+    private bool _hasTextStyleSnapshot;
+
+    private void SnapshotTextStyleIfNeeded()
+    {
+        if (_hasTextStyleSnapshot || SelectedAnnotation is not { Tool: AnnotationTool.Text }) return;
+        _editOldFamily = SelectedAnnotation.FontFamily;
+        _editOldSize = SelectedAnnotation.FontSize;
+        _editOldBold = SelectedAnnotation.IsBold;
+        _editOldItalic = SelectedAnnotation.IsItalic;
+        _editOldUnderline = SelectedAnnotation.IsUnderline;
+        _editOldStrikethrough = SelectedAnnotation.IsStrikethrough;
+        _hasTextStyleSnapshot = true;
+    }
+
+    /// <summary>面板属性发生变化后应用到选中的文本标注。</summary>
+    private void ApplyTextPropertyToSelected()
+    {
+        if (_syncingTextProps || SelectedAnnotation is not { Tool: AnnotationTool.Text } item) return;
+        SnapshotTextStyleIfNeeded();
+        item.FontFamily = FontFamily;
+        item.FontSize = FontSize;
+        item.IsBold = IsBold;
+        item.IsItalic = IsItalic;
+        item.IsUnderline = IsUnderline;
+        item.IsStrikethrough = IsStrikethrough;
+        RequestRedraw?.Invoke();
+    }
+
+    /// <summary>提交文本样式编辑到撤销栈（在取消选中 / 切换工具时调用）。</summary>
+    public void CommitTextStyleEdit()
+    {
+        if (!_hasTextStyleSnapshot || SelectedAnnotation is not { Tool: AnnotationTool.Text } item) { _hasTextStyleSnapshot = false; return; }
+        if (item.FontFamily == _editOldFamily && item.FontSize == _editOldSize &&
+            item.IsBold == _editOldBold && item.IsItalic == _editOldItalic &&
+            item.IsUnderline == _editOldUnderline && item.IsStrikethrough == _editOldStrikethrough)
+        {
+            _hasTextStyleSnapshot = false;
+            return;
+        }
+        var action = new EditTextStyleAction(item,
+            _editOldFamily, _editOldSize, _editOldBold, _editOldItalic, _editOldUnderline, _editOldStrikethrough,
+            item.FontFamily, item.FontSize, item.IsBold, item.IsItalic, item.IsUnderline, item.IsStrikethrough);
+        _undoStack.Push(action);
+        _redoStack.Clear();
+        NotifyUndoRedoChanged();
+        _hasTextStyleSnapshot = false;
+    }
+
+    // ── 颜色编辑快照 / 提交 ──────────────────────────────
+
+    private Color _editOldColor;
+    private bool _hasColorSnapshot;
+
+    private void SnapshotColorIfNeeded()
+    {
+        if (_hasColorSnapshot || SelectedAnnotation is null) return;
+        _editOldColor = SelectedAnnotation.StrokeColor;
+        _hasColorSnapshot = true;
+    }
+
+    private void ApplyColorToSelected()
+    {
+        if (_syncingTextProps || SelectedAnnotation is not { } item) return;
+        SnapshotColorIfNeeded();
+        item.StrokeColor = StrokeColor;
+        RequestRedraw?.Invoke();
+    }
+
+    public void CommitColorEdit()
+    {
+        if (!_hasColorSnapshot || SelectedAnnotation is not { } item) { _hasColorSnapshot = false; return; }
+        if (item.StrokeColor == _editOldColor) { _hasColorSnapshot = false; return; }
+        var action = new EditColorAction(item, _editOldColor, item.StrokeColor);
+        _undoStack.Push(action);
+        _redoStack.Clear();
+        NotifyUndoRedoChanged();
+        _hasColorSnapshot = false;
+    }
+
+    // ── 线宽编辑快照 / 提交 ──────────────────────────────
+
+    private double _editOldStrokeWidth;
+    private bool _hasStrokeWidthSnapshot;
+
+    private void SnapshotStrokeWidthIfNeeded()
+    {
+        if (_hasStrokeWidthSnapshot || SelectedAnnotation is null) return;
+        _editOldStrokeWidth = SelectedAnnotation.StrokeWidth;
+        _hasStrokeWidthSnapshot = true;
+    }
+
+    private void ApplyStrokeWidthToSelected()
+    {
+        if (_syncingTextProps || SelectedAnnotation is not { } item) return;
+        SnapshotStrokeWidthIfNeeded();
+        item.StrokeWidth = StrokeWidth;
+        RequestRedraw?.Invoke();
+    }
+
+    public void CommitStrokeWidthEdit()
+    {
+        if (!_hasStrokeWidthSnapshot || SelectedAnnotation is not { } item) { _hasStrokeWidthSnapshot = false; return; }
+        if (item.StrokeWidth == _editOldStrokeWidth) { _hasStrokeWidthSnapshot = false; return; }
+        var action = new EditStrokeWidthAction(item, _editOldStrokeWidth, item.StrokeWidth);
+        _undoStack.Push(action);
+        _redoStack.Clear();
+        NotifyUndoRedoChanged();
+        _hasStrokeWidthSnapshot = false;
+    }
+
+    // ── 圆角编辑快照 / 提交 ──────────────────────────────
+
+    private double _editOldCornerRadius;
+    private bool _hasCornerRadiusSnapshot;
+
+    private void SnapshotCornerRadiusIfNeeded()
+    {
+        if (_hasCornerRadiusSnapshot || SelectedAnnotation is not { Tool: AnnotationTool.Rectangle }) return;
+        _editOldCornerRadius = SelectedAnnotation.CornerRadius;
+        _hasCornerRadiusSnapshot = true;
+    }
+
+    private void ApplyCornerRadiusToSelected()
+    {
+        if (_syncingTextProps || SelectedAnnotation is not { Tool: AnnotationTool.Rectangle } item) return;
+        SnapshotCornerRadiusIfNeeded();
+        item.CornerRadius = CornerRadius;
+        RequestRedraw?.Invoke();
+    }
+
+    public void CommitCornerRadiusEdit()
+    {
+        if (!_hasCornerRadiusSnapshot || SelectedAnnotation is not { Tool: AnnotationTool.Rectangle } item) { _hasCornerRadiusSnapshot = false; return; }
+        if (item.CornerRadius == _editOldCornerRadius) { _hasCornerRadiusSnapshot = false; return; }
+        var action = new EditCornerRadiusAction(item, _editOldCornerRadius, item.CornerRadius);
+        _undoStack.Push(action);
+        _redoStack.Clear();
+        NotifyUndoRedoChanged();
+        _hasCornerRadiusSnapshot = false;
+    }
+
+    // ── 模糊半径编辑快照 / 提交 ──────────────────────────
+
+    private double _editOldBlurRadius;
+    private bool _hasBlurRadiusSnapshot;
+
+    private void SnapshotBlurRadiusIfNeeded()
+    {
+        if (_hasBlurRadiusSnapshot || SelectedAnnotation is not { Tool: AnnotationTool.Blur }) return;
+        _editOldBlurRadius = SelectedAnnotation.BlurRadius;
+        _hasBlurRadiusSnapshot = true;
+    }
+
+    private void ApplyBlurRadiusToSelected()
+    {
+        if (_syncingTextProps || SelectedAnnotation is not { Tool: AnnotationTool.Blur } item) return;
+        SnapshotBlurRadiusIfNeeded();
+        item.BlurRadius = BlurRadius;
+        RequestRedraw?.Invoke();
+    }
+
+    public void CommitBlurRadiusEdit()
+    {
+        if (!_hasBlurRadiusSnapshot || SelectedAnnotation is not { Tool: AnnotationTool.Blur } item) { _hasBlurRadiusSnapshot = false; return; }
+        if (item.BlurRadius == _editOldBlurRadius) { _hasBlurRadiusSnapshot = false; return; }
+        var action = new EditBlurRadiusAction(item, _editOldBlurRadius, item.BlurRadius);
+        _undoStack.Push(action);
+        _redoStack.Clear();
+        NotifyUndoRedoChanged();
+        _hasBlurRadiusSnapshot = false;
+    }
+
+    partial void OnStrokeColorChanged(Color value) => ApplyColorToSelected();
+    partial void OnStrokeWidthChanged(double value) => ApplyStrokeWidthToSelected();
+    partial void OnCornerRadiusChanged(double value) => ApplyCornerRadiusToSelected();
+    partial void OnBlurRadiusChanged(double value) => ApplyBlurRadiusToSelected();
+    partial void OnFontFamilyChanged(string value) => ApplyTextPropertyToSelected();
+    partial void OnFontSizeChanged(double value) => ApplyTextPropertyToSelected();
+    partial void OnIsBoldChanged(bool value) => ApplyTextPropertyToSelected();
+    partial void OnIsItalicChanged(bool value) => ApplyTextPropertyToSelected();
+    partial void OnIsUnderlineChanged(bool value) => ApplyTextPropertyToSelected();
+    partial void OnIsStrikethroughChanged(bool value) => ApplyTextPropertyToSelected();
 
     public SolidColorBrush StrokeColorBrush => new(StrokeColor);
 
@@ -124,7 +499,14 @@ public partial class AnnotationViewModel : ObservableObject
             End = imagePoint,
             StrokeColor = StrokeColor,
             StrokeWidth = StrokeWidth,
-            FontSize = FontSize
+            CornerRadius = CornerRadius,
+            BlurRadius = BlurRadius,
+            FontSize = FontSize,
+            FontFamily = FontFamily,
+            IsBold = IsBold,
+            IsItalic = IsItalic,
+            IsUnderline = IsUnderline,
+            IsStrikethrough = IsStrikethrough
         };
         IsAnnotating = true;
     }
@@ -189,6 +571,27 @@ public partial class AnnotationViewModel : ObservableObject
         NotifyUndoRedoChanged();
     }
 
+    /// <summary>缩放完成后提交到撤销栈。</summary>
+    public void CommitResize(AnnotationItem item, Point oldStart, Point oldEnd)
+    {
+        if (item.Start == oldStart && item.End == oldEnd) return;
+        var action = new ResizeAnnotationAction(item, oldStart, oldEnd, item.Start, item.End);
+        _undoStack.Push(action);
+        _redoStack.Clear();
+        NotifyUndoRedoChanged();
+    }
+
+    /// <summary>文本标注缩放字号后提交到撤销栈。</summary>
+    public void CommitTextResize(AnnotationItem item, double oldFontSize)
+    {
+        var action = new EditTextStyleAction(item,
+            item.FontFamily, oldFontSize, item.IsBold, item.IsItalic, item.IsUnderline, item.IsStrikethrough,
+            item.FontFamily, item.FontSize, item.IsBold, item.IsItalic, item.IsUnderline, item.IsStrikethrough);
+        _undoStack.Push(action);
+        _redoStack.Clear();
+        NotifyUndoRedoChanged();
+    }
+
     // ── 碰撞检测 ───────────────────────────────────────────
 
     public AnnotationItem? HitTest(Point imagePoint, double tolerancePx = 8)
@@ -214,14 +617,14 @@ public partial class AnnotationViewModel : ObservableObject
                 return DistanceToSegment(pt, new Point(sx, sy), new Point(ex, ey)) <= tol + item.StrokeWidth;
             case AnnotationTool.Rectangle:
             case AnnotationTool.Ellipse:
+            case AnnotationTool.Blur:
                 var bounds = new Rect(new Point(Math.Min(sx, ex), Math.Min(sy, ey)),
                                      new Point(Math.Max(sx, ex), Math.Max(sy, ey)));
                 bounds.Inflate(tol, tol);
                 return bounds.Contains(pt);
             case AnnotationTool.Text:
-                var textBounds = new Rect(sx, sy,
-                    Math.Max(Math.Abs(ex - sx), item.FontSize * Math.Max(1, item.Text.Length) * 0.6),
-                    item.FontSize * 1.4);
+                var textSize = MeasureTextSize(item);
+                var textBounds = new Rect(sx, sy, textSize.Width, textSize.Height);
                 textBounds.Inflate(tol, tol);
                 return textBounds.Contains(pt);
             case AnnotationTool.Pen:
@@ -241,6 +644,28 @@ public partial class AnnotationViewModel : ObservableObject
         t = Math.Clamp(t, 0, 1);
         var closest = new Point(a.X + ab.X * t, a.Y + ab.Y * t);
         return (p - closest).Length;
+    }
+
+    /// <summary>使用 WPF FormattedText 精确测量文本标注的像素尺寸。</summary>
+    internal static Size MeasureTextSize(AnnotationItem item)
+    {
+        if (string.IsNullOrEmpty(item.Text))
+            return new Size(item.FontSize * 2, item.FontSize * 1.4);
+
+        var typeface = new Typeface(
+            new FontFamily(item.FontFamily),
+            item.IsItalic ? FontStyles.Italic : FontStyles.Normal,
+            item.IsBold ? FontWeights.Bold : FontWeights.Normal,
+            FontStretches.Normal);
+
+        var ft = new FormattedText(
+            item.Text, System.Globalization.CultureInfo.CurrentCulture,
+            FlowDirection.LeftToRight, typeface, item.FontSize,
+            System.Windows.Media.Brushes.Black,
+            VisualTreeHelper.GetDpi(Application.Current.MainWindow).PixelsPerDip);
+
+        return new Size(Math.Max(ft.WidthIncludingTrailingWhitespace, item.FontSize),
+                        Math.Max(ft.Height, item.FontSize));
     }
 
     // ── 命令 ───────────────────────────────────────────────
@@ -311,6 +736,8 @@ public partial class AnnotationViewModel : ObservableObject
     private void SelectText() => SelectedTool = AnnotationTool.Text;
     [RelayCommand]
     private void SelectPen() => SelectedTool = AnnotationTool.Pen;
+    [RelayCommand]
+    private void SelectBlur() => SelectedTool = AnnotationTool.Blur;
 
     [RelayCommand]
     private void SetColorRed() => StrokeColor = Colors.Red;
@@ -361,7 +788,12 @@ public partial class AnnotationViewModel : ObservableObject
         using var canvas = new SKCanvas(bitmap);
 
         foreach (var annotation in Annotations)
-            DrawAnnotation(canvas, annotation);
+        {
+            if (annotation.Tool == AnnotationTool.Blur)
+                ApplyBlurRegion(canvas, bitmap, annotation);
+            else
+                DrawAnnotation(canvas, annotation);
+        }
 
         // 保留原图 DPI，避免 Stretch="None" 显示尺寸变化
         int w = bitmap.Width, h = bitmap.Height;
@@ -409,7 +841,11 @@ public partial class AnnotationViewModel : ObservableObject
                 var rect = new SKRect(
                     (float)Math.Min(start.X, end.X), (float)Math.Min(start.Y, end.Y),
                     (float)Math.Max(start.X, end.X), (float)Math.Max(start.Y, end.Y));
-                canvas.DrawRect(rect, paint);
+                float cr = (float)item.CornerRadius;
+                if (cr > 0)
+                    canvas.DrawRoundRect(rect, cr, cr, paint);
+                else
+                    canvas.DrawRect(rect, paint);
                 break;
 
             case AnnotationTool.Ellipse:
@@ -421,11 +857,32 @@ public partial class AnnotationViewModel : ObservableObject
                 break;
 
             case AnnotationTool.Text:
-                using (var typeface = SKTypeface.FromFamilyName("Microsoft YaHei") ?? SKTypeface.Default)
+                var skStyle = SKFontStyle.Normal;
+                if (item.IsBold && item.IsItalic) skStyle = SKFontStyle.BoldItalic;
+                else if (item.IsBold) skStyle = SKFontStyle.Bold;
+                else if (item.IsItalic) skStyle = SKFontStyle.Italic;
+                using (var typeface = SKTypeface.FromFamilyName(item.FontFamily, skStyle) ?? SKTypeface.Default)
                 using (var font = new SKFont(typeface, (float)item.FontSize))
                 using (var textPaint = new SKPaint { Color = color, IsAntialias = true, Style = SKPaintStyle.Fill })
                 {
-                    canvas.DrawText(item.Text, (float)start.X, (float)start.Y + (float)item.FontSize, SKTextAlign.Left, font, textPaint);
+                    float tx = (float)start.X;
+                    float ty = (float)start.Y + (float)item.FontSize;
+                    canvas.DrawText(item.Text, tx, ty, SKTextAlign.Left, font, textPaint);
+
+                    // 下划线 / 删除线
+                    float textWidth = font.MeasureText(item.Text, textPaint);
+                    float lineThickness = Math.Max(1f, (float)item.FontSize / 14f);
+                    using var linePaint = new SKPaint { Color = color, StrokeWidth = lineThickness, IsAntialias = true, Style = SKPaintStyle.Stroke };
+                    if (item.IsUnderline)
+                    {
+                        float uy = ty + lineThickness * 2;
+                        canvas.DrawLine(tx, uy, tx + textWidth, uy, linePaint);
+                    }
+                    if (item.IsStrikethrough)
+                    {
+                        float sy2 = ty - (float)item.FontSize * 0.35f;
+                        canvas.DrawLine(tx, sy2, tx + textWidth, sy2, linePaint);
+                    }
                 }
                 break;
 
@@ -442,26 +899,91 @@ public partial class AnnotationViewModel : ObservableObject
         }
     }
 
+    private static void ApplyBlurRegion(SKCanvas canvas, SKBitmap bitmap, AnnotationItem item)
+    {
+        float ox = (float)item.Offset.X, oy = (float)item.Offset.Y;
+        float x1 = (float)Math.Min(item.Start.X, item.End.X) + ox;
+        float y1 = (float)Math.Min(item.Start.Y, item.End.Y) + oy;
+        float x2 = (float)Math.Max(item.Start.X, item.End.X) + ox;
+        float y2 = (float)Math.Max(item.Start.Y, item.End.Y) + oy;
+
+        // 限制到位图边界
+        x1 = Math.Max(0, x1); y1 = Math.Max(0, y1);
+        x2 = Math.Min(bitmap.Width, x2); y2 = Math.Min(bitmap.Height, y2);
+        if (x2 - x1 < 1 || y2 - y1 < 1) return;
+
+        var blurRect = new SKRect(x1, y1, x2, y2);
+        float sigma = (float)item.BlurRadius;
+
+        using var blurFilter = SKImageFilter.CreateBlur(sigma, sigma);
+        using var blurPaint = new SKPaint { ImageFilter = blurFilter };
+
+        canvas.Save();
+        canvas.ClipRect(blurRect);
+        canvas.SaveLayer(blurPaint);
+        canvas.DrawBitmap(bitmap, 0, 0);
+        canvas.Restore();
+        canvas.Restore();
+    }
+
     private static void DrawArrow(SKCanvas canvas, SKPaint paint, Point start, Point end)
     {
-        canvas.DrawLine((float)start.X, (float)start.Y, (float)end.X, (float)end.Y, paint);
+        double dx = end.X - start.X;
+        double dy = end.Y - start.Y;
+        double lineLen = Math.Sqrt(dx * dx + dy * dy);
+        if (lineLen < 1) return;
 
-        double angle = Math.Atan2(end.Y - start.Y, end.X - start.X);
-        double arrowLength = Math.Max(12, paint.StrokeWidth * 5);
-        double arrowAngle = Math.PI / 6;
+        double angle = Math.Atan2(dy, dx);
+        double sw = paint.StrokeWidth;
 
-        var p1 = new SKPoint(
-            (float)(end.X - arrowLength * Math.Cos(angle - arrowAngle)),
-            (float)(end.Y - arrowLength * Math.Sin(angle - arrowAngle)));
-        var p2 = new SKPoint(
-            (float)(end.X - arrowLength * Math.Cos(angle + arrowAngle)),
-            (float)(end.Y - arrowLength * Math.Sin(angle + arrowAngle)));
+        // 箭头头部尺寸：宽度为线宽的 3 倍，长度为宽度的 1.6 倍
+        double headHalfW = sw * 1.5;
+        double headLen = headHalfW * 1.6;
+        headLen = Math.Min(headLen, lineLen * 0.45);  // 头部最多占线段 45%
+        headHalfW = headLen / 1.6;
+
+        double shaftHalfW = sw / 2.0;
+
+        // 法线方向（垂直于箭头方向）
+        double nx = -Math.Sin(angle);
+        double ny = Math.Cos(angle);
+        // 箭头方向
+        double ax = Math.Cos(angle);
+        double ay = Math.Sin(angle);
+
+        // 线尾的左右点
+        float s1x = (float)(start.X + nx * shaftHalfW);
+        float s1y = (float)(start.Y + ny * shaftHalfW);
+        float s2x = (float)(start.X - nx * shaftHalfW);
+        float s2y = (float)(start.Y - ny * shaftHalfW);
+
+        // 箭杆与头部交界处
+        double jx = end.X - ax * headLen;
+        double jy = end.Y - ay * headLen;
+        float j1x = (float)(jx + nx * shaftHalfW);
+        float j1y = (float)(jy + ny * shaftHalfW);
+        float j2x = (float)(jx - nx * shaftHalfW);
+        float j2y = (float)(jy - ny * shaftHalfW);
+
+        // 箭头两翼
+        float w1x = (float)(jx + nx * headHalfW);
+        float w1y = (float)(jy + ny * headHalfW);
+        float w2x = (float)(jx - nx * headHalfW);
+        float w2y = (float)(jy - ny * headHalfW);
+
+        // 箭头尖端
+        float tx = (float)end.X;
+        float ty = (float)end.Y;
 
         using var fillPaint = new SKPaint { Color = paint.Color, Style = SKPaintStyle.Fill, IsAntialias = true };
         using var path = new SKPath();
-        path.MoveTo((float)end.X, (float)end.Y);
-        path.LineTo(p1);
-        path.LineTo(p2);
+        path.MoveTo(s1x, s1y);
+        path.LineTo(j1x, j1y);
+        path.LineTo(w1x, w1y);
+        path.LineTo(tx, ty);
+        path.LineTo(w2x, w2y);
+        path.LineTo(j2x, j2y);
+        path.LineTo(s2x, s2y);
         path.Close();
         canvas.DrawPath(path, fillPaint);
     }

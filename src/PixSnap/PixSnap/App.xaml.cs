@@ -184,9 +184,6 @@ public partial class App : System.Windows.Application, IRecipient<ScreenshotCapt
     {
         try
         {
-            // 保存到历史记录（后台异步，不阻塞预览窗口）
-            _ = ScreenshotHistoryService.SaveAsync(message.Screenshot);
-
             var previewViewModel = Services.GetRequiredService<ScreenshotPreviewViewModel>();
             previewViewModel.Receive(message);
 

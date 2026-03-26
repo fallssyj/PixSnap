@@ -46,6 +46,9 @@
             Modifiers="Ctrl" />
     </mica:MicaWindow.InputBindings>
 
+    <mica:MicaWindow.Resources>
+        <BooleanToVisibilityConverter x:Key="BooleanToVisibilityConverter" />
+    </mica:MicaWindow.Resources>
 
     <Border Background="{DynamicResource AppBackgroundBrush}" MouseLeftButtonDown="OnWindowDragMove">
         <Grid>
@@ -245,28 +248,17 @@
                         <Grid
                             x:Name="PreviewViewport"
                             ClipToBounds="True"
+                            Focusable="True"
                             MouseRightButtonUp="PreviewViewport_MouseRightButtonUp"
                             SizeChanged="PreviewViewport_SizeChanged">
-                            <Grid x:Name="FitPreviewHost">
-                                <Image
-                                    x:Name="FitPreviewImage"
-                                    HorizontalAlignment="Center"
-                                    VerticalAlignment="Center"
-                                    RenderOptions.BitmapScalingMode="LowQuality"
-                                    Source="{Binding ScreenshotImage}"
-                                    Stretch="Uniform"
-                                    StretchDirection="DownOnly" />
-                            </Grid>
-
                             <ScrollViewer
                                 x:Name="ActualSizeScrollViewer"
-                                HorizontalScrollBarVisibility="Auto"
+                                HorizontalScrollBarVisibility="Hidden"
                                 MouseLeave="ActualSizeScrollViewer_MouseLeave"
-                                PreviewMouseLeftButtonDown="ActualSizeScrollViewer_PreviewMouseLeftButtonDown"
-                                PreviewMouseLeftButtonUp="ActualSizeScrollViewer_PreviewMouseLeftButtonUp"
+                                PreviewMouseDown="ActualSizeScrollViewer_PreviewMouseDown"
+                                PreviewMouseUp="ActualSizeScrollViewer_PreviewMouseUp"
                                 PreviewMouseMove="ActualSizeScrollViewer_PreviewMouseMove"
-                                VerticalScrollBarVisibility="Auto"
-                                Visibility="Collapsed">
+                                VerticalScrollBarVisibility="Hidden">
                                 <!--  Padding 在图片四周创建可滑动的空白区，实现拖动到边缘后还能继续拖动  -->
                                 <Border Padding="200">
                                     <Grid>
@@ -717,6 +709,22 @@
                                         </Style>
                                     </Button.Style>
                                 </Button>
+                                <Button
+                                    Margin="0,0,2,0"
+                                    Command="{Binding AnnotationPanel.SelectBlurCommand}"
+                                    Content="模糊"
+                                    Tag="{StaticResource Glyph_Blur}"
+                                    ToolTip="模糊区域">
+                                    <Button.Style>
+                                        <Style BasedOn="{StaticResource RibbonToolButtonStyle}" TargetType="Button">
+                                            <Style.Triggers>
+                                                <DataTrigger Binding="{Binding AnnotationPanel.SelectedTool}" Value="Blur">
+                                                    <Setter Property="Background" Value="{DynamicResource AccentBrush}" />
+                                                </DataTrigger>
+                                            </Style.Triggers>
+                                        </Style>
+                                    </Button.Style>
+                                </Button>
                             </WrapPanel>
                             <!--  颜色选择  -->
                             <TextBlock
@@ -795,6 +803,123 @@
                                 SmallChange="1"
                                 TickFrequency="1"
                                 Value="{Binding AnnotationPanel.StrokeWidth, Mode=TwoWay}" />
+                            <!--  圆角设置（矩形工具 或 选中矩形标注时可见）  -->
+                            <StackPanel Visibility="{Binding AnnotationPanel.IsRectangleSettingsVisible, Converter={StaticResource BooleanToVisibilityConverter}}">
+                                <StackPanel Margin="0,8,0,0" Orientation="Horizontal">
+                                    <TextBlock Style="{StaticResource FieldLabelStyle}" Text="圆角" />
+                                    <TextBox
+                                        Margin="6,0,0,0"
+                                        Style="{StaticResource FieldInputStyle}"
+                                        Text="{Binding AnnotationPanel.CornerRadius, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}" />
+                                    <TextBlock
+                                        Margin="4,0,0,0"
+                                        Style="{StaticResource FieldLabelStyle}"
+                                        Text="px" />
+                                </StackPanel>
+                                <Slider
+                                    Margin="0,6,0,0"
+                                    IsSnapToTickEnabled="True"
+                                    LargeChange="5"
+                                    Maximum="50"
+                                    Minimum="0"
+                                    SmallChange="1"
+                                    TickFrequency="1"
+                                    Value="{Binding AnnotationPanel.CornerRadius, Mode=TwoWay}" />
+                            </StackPanel>
+                            <!--  模糊设置（模糊工具 或 选中模糊标注时可见）  -->
+                            <StackPanel Visibility="{Binding AnnotationPanel.IsBlurSettingsVisible, Converter={StaticResource BooleanToVisibilityConverter}}">
+                                <StackPanel Margin="0,8,0,0" Orientation="Horizontal">
+                                    <TextBlock Style="{StaticResource FieldLabelStyle}" Text="模糊强度" />
+                                    <TextBox
+                                        Margin="6,0,0,0"
+                                        Style="{StaticResource FieldInputStyle}"
+                                        Text="{Binding AnnotationPanel.BlurRadius, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}" />
+                                </StackPanel>
+                                <Slider
+                                    Margin="0,6,0,0"
+                                    IsSnapToTickEnabled="True"
+                                    LargeChange="5"
+                                    Maximum="50"
+                                    Minimum="1"
+                                    SmallChange="1"
+                                    TickFrequency="1"
+                                    Value="{Binding AnnotationPanel.BlurRadius, Mode=TwoWay}" />
+                            </StackPanel>
+                            <!--  文字设置（文本工具 或 选中文本标注时可见）  -->
+                            <StackPanel Visibility="{Binding AnnotationPanel.IsTextSettingsVisible, Converter={StaticResource BooleanToVisibilityConverter}}">
+                                <TextBlock
+                                    Margin="0,8,0,4"
+                                    FontSize="11"
+                                    Opacity="0.6"
+                                    Text="文字设置" />
+                                <ComboBox
+                                    Margin="0,0,0,6"
+                                    ItemsSource="{Binding AnnotationPanel.FontFamilies}"
+                                    SelectedItem="{Binding AnnotationPanel.FontFamily, Mode=TwoWay}" />
+                                <StackPanel Margin="0,0,0,4" Orientation="Horizontal">
+                                    <TextBlock Style="{StaticResource FieldLabelStyle}" Text="字号" />
+                                    <TextBox
+                                        Margin="6,0,0,0"
+                                        Style="{StaticResource FieldInputStyle}"
+                                        Text="{Binding AnnotationPanel.FontSize, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}" />
+                                    <TextBlock
+                                        Margin="4,0,0,0"
+                                        Style="{StaticResource FieldLabelStyle}"
+                                        Text="px" />
+                                </StackPanel>
+                                <Slider
+                                    Margin="0,2,0,4"
+                                    IsSnapToTickEnabled="True"
+                                    LargeChange="4"
+                                    Maximum="72"
+                                    Minimum="8"
+                                    SmallChange="1"
+                                    TickFrequency="1"
+                                    Value="{Binding AnnotationPanel.FontSize, Mode=TwoWay}" />
+                                <StackPanel Orientation="Horizontal">
+                                    <ToggleButton
+                                        Width="32"
+                                        Height="28"
+                                        Margin="0,0,4,0"
+                                        IsChecked="{Binding AnnotationPanel.IsBold, Mode=TwoWay}"
+                                        Style="{StaticResource PanelToggleButtonStyle}"
+                                        ToolTip="粗体">
+                                        <TextBlock
+                                            FontSize="14"
+                                            FontWeight="Bold"
+                                            Text="B" />
+                                    </ToggleButton>
+                                    <ToggleButton
+                                        Width="32"
+                                        Height="28"
+                                        IsChecked="{Binding AnnotationPanel.IsItalic, Mode=TwoWay}"
+                                        Style="{StaticResource PanelToggleButtonStyle}"
+                                        ToolTip="斜体">
+                                        <TextBlock
+                                            FontSize="14"
+                                            FontStyle="Italic"
+                                            Text="I" />
+                                    </ToggleButton>
+                                    <ToggleButton
+                                        Width="32"
+                                        Height="28"
+                                        Margin="4,0,0,0"
+                                        IsChecked="{Binding AnnotationPanel.IsUnderline, Mode=TwoWay}"
+                                        Style="{StaticResource PanelToggleButtonStyle}"
+                                        ToolTip="下划线">
+                                        <TextBlock FontSize="14" TextDecorations="Underline" Text="U" />
+                                    </ToggleButton>
+                                    <ToggleButton
+                                        Width="32"
+                                        Height="28"
+                                        Margin="4,0,0,0"
+                                        IsChecked="{Binding AnnotationPanel.IsStrikethrough, Mode=TwoWay}"
+                                        Style="{StaticResource PanelToggleButtonStyle}"
+                                        ToolTip="删除线">
+                                        <TextBlock FontSize="14" TextDecorations="Strikethrough" Text="S" />
+                                    </ToggleButton>
+                                </StackPanel>
+                            </StackPanel>
                             <!--  操作按钮  -->
                             <StackPanel
                                 Margin="0,12,0,0"

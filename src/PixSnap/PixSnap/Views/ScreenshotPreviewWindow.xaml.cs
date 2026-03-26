@@ -46,12 +46,17 @@ public partial class ScreenshotPreviewWindow : MicaWindow
     private TranslateTransform? _draggingTransform;
     private Point _panelDragStart;
     private Point _panelTransformStart;
-    // ── 标注拖拽 / 文本输入 / 中键平移 ───────────────────────
-    private bool _isAnnotationPanning;
+    // ── 标注拖拽 / 文本输入 ─────────────────────────────────
     private AnnotationItem? _dragAnnotation;
     private Point _dragStartImagePoint;
     private Vector _dragStartOffset;
     private System.Windows.Controls.TextBox? _activeTextBox;
+    // ── 标注缩放拖拽 ──────────────────────────────────────────
+    private AnnotationItem? _resizeAnnotation;
+    private int _resizeHandle = -1; // 0-7: TL,T,TR,R,BR,B,BL,L
+    private Point _resizeStartStart;
+    private Point _resizeStartEnd;
+    private double _resizeStartFontSize;
 
     public ScreenshotPreviewWindow()
     {
@@ -120,9 +125,7 @@ public partial class ScreenshotPreviewWindow : MicaWindow
         viewModel?.Cleanup();
 
         // 3. 彻底移除 WPF 绑定表达式（光设 Source=null 只是覆盖值，绑定对象本身仍存在）
-        BindingOperations.ClearBinding(FitPreviewImage, Image.SourceProperty);
         BindingOperations.ClearBinding(ActualSizeImage, Image.SourceProperty);
-        FitPreviewImage.Source = null;
         ActualSizeImage.Source = null;
 
         // 4. 清除擦除画布视觉元素
@@ -266,29 +269,50 @@ public partial class ScreenshotPreviewWindow : MicaWindow
 
     private void UpdatePreviewModeVisibility()
     {
-        if (DataContext is not ScreenshotPreviewViewModel viewModel)
+        if (DataContext is not ScreenshotPreviewViewModel viewModel) return;
+
+        if (viewModel.IsActualSize)
         {
-            FitPreviewHost.Visibility = Visibility.Visible;
-            ActualSizeScrollViewer.Visibility = Visibility.Collapsed;
-            return;
-        }
+            // 实际大小/手动缩放模式：显示滚动条
+            ActualSizeScrollViewer.HorizontalScrollBarVisibility = ScrollBarVisibility.Auto;
+            ActualSizeScrollViewer.VerticalScrollBarVisibility = ScrollBarVisibility.Auto;
 
-        var actualSizeVisibility = viewModel.IsActualSize ? Visibility.Visible : Visibility.Collapsed;
-        var fitViewVisibility = viewModel.IsActualSize ? Visibility.Collapsed : Visibility.Visible;
-
-        FitPreviewHost.Visibility = fitViewVisibility;
-        ActualSizeScrollViewer.Visibility = actualSizeVisibility;
-
-        // 切换到实际大小模式时，将初始滚动位置对齐到图片左上角（跳过 padding 空白）
-        // 由滚轮触发的切换由滚轮 handler 自行定位，此处不覆盖
-        if (viewModel.IsActualSize && !_zoomTriggeredModeSwitch)
-        {
-            Dispatcher.InvokeAsync(() =>
+            // 由滚轮触发的切换由滚轮 handler 自行定位，此处不覆盖
+            if (!_zoomTriggeredModeSwitch)
             {
-                ActualSizeScrollViewer.ScrollToHorizontalOffset(OverscrollPadding);
-                ActualSizeScrollViewer.ScrollToVerticalOffset(OverscrollPadding);
-            }, DispatcherPriority.Loaded);
+                Dispatcher.InvokeAsync(() =>
+                {
+                    ActualSizeScrollViewer.ScrollToHorizontalOffset(OverscrollPadding);
+                    ActualSizeScrollViewer.ScrollToVerticalOffset(OverscrollPadding);
+                }, DispatcherPriority.Loaded);
+            }
         }
+        else
+        {
+            // 缩放以适应模式：隐藏滚动条，居中显示
+            ActualSizeScrollViewer.HorizontalScrollBarVisibility = ScrollBarVisibility.Hidden;
+            ActualSizeScrollViewer.VerticalScrollBarVisibility = ScrollBarVisibility.Hidden;
+            viewModel.ZoomFactor = viewModel.FitZoomFactor;
+            CenterScrollViewerOnImage();
+        }
+    }
+
+    /// <summary>将 ScrollViewer 滚动到图片居中位置。</summary>
+    private void CenterScrollViewerOnImage()
+    {
+        Dispatcher.InvokeAsync(() =>
+        {
+            if (DataContext is not ScreenshotPreviewViewModel vm || vm.ScreenshotImage is null) return;
+            ActualSizeScrollViewer.UpdateLayout();
+            double displayW = vm.ScreenshotImage.Width * vm.ZoomFactor;
+            double displayH = vm.ScreenshotImage.Height * vm.ZoomFactor;
+            double vpW = ActualSizeScrollViewer.ViewportWidth;
+            double vpH = ActualSizeScrollViewer.ViewportHeight;
+            ActualSizeScrollViewer.ScrollToHorizontalOffset(
+                Math.Max(0, OverscrollPadding - (vpW - displayW) / 2));
+            ActualSizeScrollViewer.ScrollToVerticalOffset(
+                Math.Max(0, OverscrollPadding - (vpH - displayH) / 2));
+        }, DispatcherPriority.Loaded);
     }
 
     private void UpdateFitZoomFactor()
@@ -314,6 +338,13 @@ public partial class ScreenshotPreviewWindow : MicaWindow
 
         var fitZoom = Math.Min(PreviewViewport.ActualWidth / imageWidth, PreviewViewport.ActualHeight / imageHeight);
         viewModel.FitZoomFactor = Math.Clamp(fitZoom, ScreenshotPreviewViewModel.MinZoomFactor, 1.0);
+
+        // 适应模式下同步 ZoomFactor 并居中
+        if (!viewModel.IsActualSize)
+        {
+            viewModel.ZoomFactor = viewModel.FitZoomFactor;
+            CenterScrollViewerOnImage();
+        }
     }
 
     private void PreviewHost_PreviewMouseWheel(object sender, MouseWheelEventArgs e)
@@ -332,8 +363,8 @@ public partial class ScreenshotPreviewWindow : MicaWindow
 
         e.Handled = true;
 
-        var pointerPosition = e.GetPosition(PreviewViewport);
-        var oldZoom = viewModel.IsActualSize ? viewModel.ZoomFactor : viewModel.FitZoomFactor;
+        var pointerPosition = e.GetPosition(ActualSizeScrollViewer);
+        var oldZoom = viewModel.ZoomFactor;
         var zoomStep = e.Delta > 0 ? ZoomStepFactor : 1.0 / ZoomStepFactor;
         var newZoom = Math.Clamp(
             oldZoom * zoomStep,
@@ -345,26 +376,12 @@ public partial class ScreenshotPreviewWindow : MicaWindow
             return;
         }
 
-        if (!viewModel.IsActualSize)
-        {
-            // 从"缩放以适应"模式切换：直接用 fit 几何推算鼠标下方的图片像素，
-            // 无需先 UpdateLayout（避免 padding 空白闪烁）
-            var imgW = viewModel.ScreenshotImage.PixelWidth;
-            var imgH = viewModel.ScreenshotImage.PixelHeight;
-            var originX = Math.Max(0d, (PreviewViewport.ActualWidth - imgW * oldZoom) / 2);
-            var originY = Math.Max(0d, (PreviewViewport.ActualHeight - imgH * oldZoom) / 2);
-            var contentX = (pointerPosition.X - originX) / oldZoom;
-            var contentY = (pointerPosition.Y - originY) / oldZoom;
+        // 统一公式：从 ScrollViewer 滚动位置推算鼠标下方的图片内容坐标
+        var contentX = (ActualSizeScrollViewer.HorizontalOffset + pointerPosition.X - OverscrollPadding) / oldZoom;
+        var contentY = (ActualSizeScrollViewer.VerticalOffset + pointerPosition.Y - OverscrollPadding) / oldZoom;
+        bool switching = !viewModel.IsActualSize;
 
-            ApplyZoomAroundCursor(viewModel, newZoom, contentX, contentY, pointerPosition, isModeSwitch: true);
-            return;
-        }
-
-        // 已在实际大小模式：以鼠标为中心缩放，保持鼠标下方图片像素不动
-        var hContentX = (ActualSizeScrollViewer.HorizontalOffset + pointerPosition.X - OverscrollPadding) / oldZoom;
-        var hContentY = (ActualSizeScrollViewer.VerticalOffset + pointerPosition.Y - OverscrollPadding) / oldZoom;
-
-        ApplyZoomAroundCursor(viewModel, newZoom, hContentX, hContentY, pointerPosition, isModeSwitch: false);
+        ApplyZoomAroundCursor(viewModel, newZoom, contentX, contentY, pointerPosition, isModeSwitch: switching);
     }
 
     /// <summary>以鼠标为中心应用缩放并定位滚动偏移，保持鼠标下方图片像素不动。</summary>
@@ -381,25 +398,11 @@ public partial class ScreenshotPreviewWindow : MicaWindow
         ActualSizeScrollViewer.ScrollToVerticalOffset(Math.Max(0, OverscrollPadding + contentY * newZoom - pointer.Y));
     }
 
-    private void ActualSizeScrollViewer_PreviewMouseLeftButtonDown(object sender, MouseButtonEventArgs e)
+    private void ActualSizeScrollViewer_PreviewMouseDown(object sender, MouseButtonEventArgs e)
     {
-        if (DataContext is not ScreenshotPreviewViewModel viewModel || !viewModel.IsActualSize)
-        {
-            return;
-        }
+        if (e.ChangedButton != MouseButton.Middle) return;
 
-        // 标注模式下左键用于绘制，不做平移
-        if (viewModel.IsAnnotateMode) return;
-
-        if (IsScrollBarInteraction(e.OriginalSource as DependencyObject))
-        {
-            return;
-        }
-
-        if (ActualSizeScrollViewer.ScrollableWidth <= 0 && ActualSizeScrollViewer.ScrollableHeight <= 0)
-        {
-            return;
-        }
+        if (IsScrollBarInteraction(e.OriginalSource as DependencyObject)) return;
 
         _isPanningPreview = true;
         _panStartPoint = e.GetPosition(ActualSizeScrollViewer);
@@ -425,14 +428,15 @@ public partial class ScreenshotPreviewWindow : MicaWindow
         e.Handled = true;
     }
 
-    private void ActualSizeScrollViewer_PreviewMouseLeftButtonUp(object sender, MouseButtonEventArgs e)
+    private void ActualSizeScrollViewer_PreviewMouseUp(object sender, MouseButtonEventArgs e)
     {
+        if (e.ChangedButton != MouseButton.Middle) return;
         EndPreviewPan();
     }
 
     private void ActualSizeScrollViewer_MouseLeave(object sender, MouseEventArgs e)
     {
-        if (e.LeftButton != MouseButtonState.Pressed)
+        if (e.MiddleButton != MouseButtonState.Pressed)
         {
             EndPreviewPan();
         }
@@ -449,6 +453,8 @@ public partial class ScreenshotPreviewWindow : MicaWindow
         ActualSizeScrollViewer.ReleaseMouseCapture();
         ActualSizeScrollViewer.ClearValue(CursorProperty);
     }
+
+
 
     private static bool IsScrollBarInteraction(DependencyObject? source)
     {
@@ -548,21 +554,18 @@ public partial class ScreenshotPreviewWindow : MicaWindow
             vm.CropPanel.CancelCommand.Execute(null);
     }
 
-    /// <summary>获取图片在 FitPreviewHost 中居中显示的区域（像素）。</summary>
+    /// <summary>获取图片在 PreviewViewport 中的显示区域。</summary>
     private Rect GetImageDisplayRect()
     {
         if (DataContext is not ScreenshotPreviewViewModel vm || vm.ScreenshotImage is null)
             return new Rect(0, 0, PreviewViewport.ActualWidth, PreviewViewport.ActualHeight);
 
-        var vpW = PreviewViewport.ActualWidth;
-        var vpH = PreviewViewport.ActualHeight;
-        var imgW = vm.ScreenshotImage.PixelWidth;
-        var imgH = vm.ScreenshotImage.PixelHeight;
-        var scale = Math.Min(vpW / imgW, vpH / imgH);
-        scale = Math.Min(scale, 1.0); // StretchDirection=DownOnly
-        var dW = imgW * scale;
-        var dH = imgH * scale;
-        return new Rect((vpW - dW) / 2, (vpH - dH) / 2, dW, dH);
+        double zoom = vm.ZoomFactor;
+        double displayW = vm.ScreenshotImage.Width * zoom;  // DIP width * zoom
+        double displayH = vm.ScreenshotImage.Height * zoom;
+        double left = OverscrollPadding - ActualSizeScrollViewer.HorizontalOffset;
+        double top = OverscrollPadding - ActualSizeScrollViewer.VerticalOffset;
+        return new Rect(left, top, displayW, displayH);
     }
 
     /// <summary>将鼠标在 AnnotationCanvas 的本地坐标（即图片像素坐标）进行边界检查。</summary>
@@ -826,25 +829,11 @@ public partial class ScreenshotPreviewWindow : MicaWindow
 
     private void AnnotationCanvas_MouseDown(object sender, MouseButtonEventArgs e)
     {
-        if (e.ChangedButton != MouseButton.Middle) return;
-        if (DataContext is not ScreenshotPreviewViewModel vm || !vm.IsAnnotateMode || !vm.IsActualSize) return;
-
-        _isAnnotationPanning = true;
-        _panStartPoint = e.GetPosition(ActualSizeScrollViewer);
-        _panStartHorizontalOffset = ActualSizeScrollViewer.HorizontalOffset;
-        _panStartVerticalOffset = ActualSizeScrollViewer.VerticalOffset;
-        AnnotationCanvas.Cursor = Cursors.SizeAll;
-        AnnotationCanvas.CaptureMouse();
-        e.Handled = true;
+        // 中键平移已统一为 Space+左键，此处不再处理
     }
 
     private void AnnotationCanvas_MouseUp(object sender, MouseButtonEventArgs e)
     {
-        if (e.ChangedButton != MouseButton.Middle || !_isAnnotationPanning) return;
-        _isAnnotationPanning = false;
-        AnnotationCanvas.ReleaseMouseCapture();
-        UpdateAnnotationCursor();
-        e.Handled = true;
     }
 
     private void UpdateAnnotationCursor()
@@ -908,6 +897,24 @@ public partial class ScreenshotPreviewWindow : MicaWindow
 
         if (vm.AnnotationPanel.SelectedTool == AnnotationTool.Pointer)
         {
+            // 优先检测缩放手柄
+            if (vm.AnnotationPanel.SelectedAnnotation is { } sel)
+            {
+                int handle = HitTestResizeHandle(sel, pos);
+                if (handle >= 0 && sel.Tool is not AnnotationTool.Pen)
+                {
+                    _resizeAnnotation = sel;
+                    _resizeHandle = handle;
+                    _resizeStartStart = sel.Start;
+                    _resizeStartEnd = sel.End;
+                    _resizeStartFontSize = sel.FontSize;
+                    AnnotationCanvas.Cursor = ResizeHandleCursors[handle];
+                    AnnotationCanvas.CaptureMouse();
+                    e.Handled = true;
+                    return;
+                }
+            }
+
             var hit = vm.AnnotationPanel.HitTest(imgPoint);
             if (hit is not null)
             {
@@ -938,21 +945,33 @@ public partial class ScreenshotPreviewWindow : MicaWindow
     {
         if (DataContext is not ScreenshotPreviewViewModel vm || !vm.IsAnnotateMode) return;
 
-        // 中键平移
-        if (_isAnnotationPanning && e.MiddleButton == MouseButtonState.Pressed)
+        // 中键平移已移除，改用 Space+左键
+
+        var pos = e.GetPosition(AnnotationCanvas);
+
+        // 非拖拽时更新鼠标指针（悬停在手柄上变为缩放光标）
+        if (e.LeftButton != MouseButtonState.Pressed && vm.AnnotationPanel.SelectedTool == AnnotationTool.Pointer)
         {
-            var cur = e.GetPosition(ActualSizeScrollViewer);
-            var delta = cur - _panStartPoint;
-            ActualSizeScrollViewer.ScrollToHorizontalOffset(Math.Max(0, _panStartHorizontalOffset - delta.X));
-            ActualSizeScrollViewer.ScrollToVerticalOffset(Math.Max(0, _panStartVerticalOffset - delta.Y));
-            e.Handled = true;
+            if (vm.AnnotationPanel.SelectedAnnotation is { } sel &&
+                sel.Tool is not AnnotationTool.Pen)
+            {
+                int h = HitTestResizeHandle(sel, pos);
+                AnnotationCanvas.Cursor = h >= 0 ? ResizeHandleCursors[h] : Cursors.Arrow;
+            }
             return;
         }
 
         if (e.LeftButton != MouseButtonState.Pressed) return;
 
-        var pos = e.GetPosition(AnnotationCanvas);
         if (!TryGetImagePixelPoint(pos, out var imgPoint)) return;
+
+        // 缩放拖拽
+        if (_resizeAnnotation is not null)
+        {
+            ApplyResize(_resizeAnnotation, _resizeHandle, imgPoint);
+            RedrawAnnotationOverlay();
+            return;
+        }
 
         if (_dragAnnotation is not null)
         {
@@ -970,6 +989,31 @@ public partial class ScreenshotPreviewWindow : MicaWindow
     private void AnnotationCanvas_MouseLeftButtonUp(object sender, MouseButtonEventArgs e)
     {
         if (DataContext is not ScreenshotPreviewViewModel vm || !vm.IsAnnotateMode) return;
+
+        // 缩放结束 → 提交到撤销栈
+        if (_resizeAnnotation is not null)
+        {
+            if (_resizeAnnotation.Tool == AnnotationTool.Text)
+            {
+                // 文本缩放修改的是字号，通过 EditTextStyleAction 撤销
+                if (Math.Abs(_resizeAnnotation.FontSize - _resizeStartFontSize) > 0.1)
+                {
+                    var item = _resizeAnnotation;
+                    vm.AnnotationPanel.CommitTextResize(item, _resizeStartFontSize);
+                }
+            }
+            else
+            {
+                vm.AnnotationPanel.CommitResize(_resizeAnnotation, _resizeStartStart, _resizeStartEnd);
+            }
+            _resizeAnnotation = null;
+            _resizeHandle = -1;
+            UpdateAnnotationCursor();
+            AnnotationCanvas.ReleaseMouseCapture();
+            RedrawAnnotationOverlay();
+            e.Handled = true;
+            return;
+        }
 
         // 拖拽结束 → 提交移动到撤销栈
         if (_dragAnnotation is not null)
@@ -1048,6 +1092,9 @@ public partial class ScreenshotPreviewWindow : MicaWindow
             MinWidth = 80,
             MaxWidth = Math.Max(120, vm.ScreenshotImage.Width - sx - 8),
             FontSize = Math.Max(10, textItem.FontSize * d),
+            FontFamily = new System.Windows.Media.FontFamily(textItem.FontFamily),
+            FontWeight = textItem.IsBold ? FontWeights.Bold : FontWeights.Normal,
+            FontStyle = textItem.IsItalic ? FontStyles.Italic : FontStyles.Normal,
             Foreground = new SolidColorBrush(textItem.StrokeColor),
             Background = System.Windows.Media.Brushes.Transparent,
             BorderBrush = new SolidColorBrush(Color.FromArgb(128, textItem.StrokeColor.R, textItem.StrokeColor.G, textItem.StrokeColor.B)),
@@ -1057,6 +1104,10 @@ public partial class ScreenshotPreviewWindow : MicaWindow
             CaretBrush = new SolidColorBrush(textItem.StrokeColor),
             Tag = textItem
         };
+        var inputDecs = new TextDecorationCollection();
+        if (textItem.IsUnderline) inputDecs.Add(TextDecorations.Underline);
+        if (textItem.IsStrikethrough) inputDecs.Add(TextDecorations.Strikethrough);
+        if (inputDecs.Count > 0) tb.TextDecorations = inputDecs;
         Canvas.SetLeft(tb, sx);
         Canvas.SetTop(tb, sy);
         AnnotationCanvas.Children.Add(tb);
@@ -1139,25 +1190,40 @@ public partial class ScreenshotPreviewWindow : MicaWindow
         switch (item.Tool)
         {
             case AnnotationTool.Arrow:
-                var arrowLine = new System.Windows.Shapes.Line
-                {
-                    X1 = sx, Y1 = sy, X2 = ex, Y2 = ey,
-                    Stroke = brush, StrokeThickness = thickness
-                };
-                AnnotationCanvas.Children.Add(arrowLine);
+            {
+                double adx = ex - sx, ady = ey - sy;
+                double aLineLen = Math.Sqrt(adx * adx + ady * ady);
+                if (aLineLen < 0.5) break;
 
-                double angle = Math.Atan2(ey - sy, ex - sx);
-                double arrowLen = Math.Max(8, thickness * 5);
-                double arrowAngle = Math.PI / 6;
-                var p1 = new Point(ex - arrowLen * Math.Cos(angle - arrowAngle), ey - arrowLen * Math.Sin(angle - arrowAngle));
-                var p2 = new Point(ex - arrowLen * Math.Cos(angle + arrowAngle), ey - arrowLen * Math.Sin(angle + arrowAngle));
-                var arrowHead = new System.Windows.Shapes.Polygon
+                double aAngle = Math.Atan2(ady, adx);
+                double headHalfW = thickness * 1.5;
+                double headLen = headHalfW * 1.6;
+                headLen = Math.Min(headLen, aLineLen * 0.45);
+                headHalfW = headLen / 1.6;
+                double shaftHalfW = thickness / 2.0;
+
+                double anx = -Math.Sin(aAngle), any = Math.Cos(aAngle);
+                double aax = Math.Cos(aAngle), aay = Math.Sin(aAngle);
+
+                double jx = ex - aax * headLen, jy = ey - aay * headLen;
+
+                var arrowPoly = new System.Windows.Shapes.Polygon
                 {
-                    Points = [new Point(ex, ey), p1, p2],
-                    Fill = brush
+                    Fill = brush,
+                    Points =
+                    [
+                        new Point(sx + anx * shaftHalfW, sy + any * shaftHalfW),
+                        new Point(jx + anx * shaftHalfW, jy + any * shaftHalfW),
+                        new Point(jx + anx * headHalfW,  jy + any * headHalfW),
+                        new Point(ex, ey),
+                        new Point(jx - anx * headHalfW,  jy - any * headHalfW),
+                        new Point(jx - anx * shaftHalfW, jy - any * shaftHalfW),
+                        new Point(sx - anx * shaftHalfW, sy - any * shaftHalfW),
+                    ]
                 };
-                AnnotationCanvas.Children.Add(arrowHead);
+                AnnotationCanvas.Children.Add(arrowPoly);
                 break;
+            }
 
             case AnnotationTool.Rectangle:
                 var rect = new System.Windows.Shapes.Rectangle
@@ -1165,7 +1231,9 @@ public partial class ScreenshotPreviewWindow : MicaWindow
                     Width = Math.Abs(ex - sx),
                     Height = Math.Abs(ey - sy),
                     Stroke = brush,
-                    StrokeThickness = thickness
+                    StrokeThickness = thickness,
+                    RadiusX = item.CornerRadius * d,
+                    RadiusY = item.CornerRadius * d
                 };
                 Canvas.SetLeft(rect, Math.Min(sx, ex));
                 Canvas.SetTop(rect, Math.Min(sy, ey));
@@ -1190,8 +1258,15 @@ public partial class ScreenshotPreviewWindow : MicaWindow
                 {
                     Text = item.Text,
                     Foreground = brush,
-                    FontSize = item.FontSize * d
+                    FontSize = item.FontSize * d,
+                    FontFamily = new System.Windows.Media.FontFamily(item.FontFamily),
+                    FontWeight = item.IsBold ? FontWeights.Bold : FontWeights.Normal,
+                    FontStyle = item.IsItalic ? FontStyles.Italic : FontStyles.Normal
                 };
+                var decs = new TextDecorationCollection();
+                if (item.IsUnderline) decs.Add(TextDecorations.Underline);
+                if (item.IsStrikethrough) decs.Add(TextDecorations.Strikethrough);
+                if (decs.Count > 0) tb.TextDecorations = decs;
                 Canvas.SetLeft(tb, sx);
                 Canvas.SetTop(tb, sy);
                 AnnotationCanvas.Children.Add(tb);
@@ -1211,9 +1286,57 @@ public partial class ScreenshotPreviewWindow : MicaWindow
                     AnnotationCanvas.Children.Add(polyline);
                 }
                 break;
+
+            case AnnotationTool.Blur:
+            {
+                double bw = Math.Abs(ex - sx), bh = Math.Abs(ey - sy);
+                double bx = Math.Min(sx, ex), by = Math.Min(sy, ey);
+                if (bw < 1 || bh < 1) break;
+
+                // 从截图中裁剪模糊区域并用 BlurEffect 显示
+                if (DataContext is ScreenshotPreviewViewModel bvm && bvm.ScreenshotImage is { } src)
+                {
+                    // 像素空间裁剪区域
+                    double scale = 1.0 / d;
+                    int px = (int)Math.Max(0, (bx - iox) * scale);
+                    int py = (int)Math.Max(0, (by - ioy) * scale);
+                    int pw = (int)Math.Min(src.PixelWidth - px, bw * scale);
+                    int ph = (int)Math.Min(src.PixelHeight - py, bh * scale);
+                    if (pw > 0 && ph > 0)
+                    {
+                        var cropped = new CroppedBitmap(src, new Int32Rect(px, py, pw, ph));
+                        var blurImage = new System.Windows.Controls.Image
+                        {
+                            Source = cropped,
+                            Width = bw,
+                            Height = bh,
+                            Stretch = System.Windows.Media.Stretch.Fill,
+                            Effect = new System.Windows.Media.Effects.BlurEffect { Radius = item.BlurRadius * d * 2 }
+                        };
+                        Canvas.SetLeft(blurImage, bx);
+                        Canvas.SetTop(blurImage, by);
+                        AnnotationCanvas.Children.Add(blurImage);
+                    }
+                }
+
+                // 虚线边框
+                var blurBorder = new System.Windows.Shapes.Rectangle
+                {
+                    Width = bw,
+                    Height = bh,
+                    Stroke = System.Windows.Media.Brushes.DodgerBlue,
+                    StrokeThickness = 1,
+                    StrokeDashArray = [4, 2],
+                    Fill = null
+                };
+                Canvas.SetLeft(blurBorder, bx);
+                Canvas.SetTop(blurBorder, by);
+                AnnotationCanvas.Children.Add(blurBorder);
+                break;
+            }
         }
 
-        // 选中标注绘制虚线选框
+        // 选中标注绘制虚线选框 + 缩放手柄
         if (isSelected)
         {
             var bounds = GetAnnotationScreenBounds(item, d);
@@ -1232,6 +1355,37 @@ public partial class ScreenshotPreviewWindow : MicaWindow
                 Canvas.SetLeft(selRect, bounds.X);
                 Canvas.SetTop(selRect, bounds.Y);
                 AnnotationCanvas.Children.Add(selRect);
+
+                // 8 个缩放手柄: TL(0), T(1), TR(2), R(3), BR(4), B(5), BL(6), L(7)
+                const double hs = 7;
+                double cx = bounds.X + bounds.Width / 2;
+                double cy = bounds.Y + bounds.Height / 2;
+                Point[] handlePositions =
+                [
+                    new(bounds.X, bounds.Y),                         // TL
+                    new(cx, bounds.Y),                               // T
+                    new(bounds.X + bounds.Width, bounds.Y),          // TR
+                    new(bounds.X + bounds.Width, cy),                // R
+                    new(bounds.X + bounds.Width, bounds.Y + bounds.Height), // BR
+                    new(cx, bounds.Y + bounds.Height),               // B
+                    new(bounds.X, bounds.Y + bounds.Height),         // BL
+                    new(bounds.X, cy),                               // L
+                ];
+
+                foreach (var hp in handlePositions)
+                {
+                    var handle = new System.Windows.Shapes.Rectangle
+                    {
+                        Width = hs,
+                        Height = hs,
+                        Fill = System.Windows.Media.Brushes.White,
+                        Stroke = System.Windows.Media.Brushes.DodgerBlue,
+                        StrokeThickness = 1.2
+                    };
+                    Canvas.SetLeft(handle, hp.X - hs / 2);
+                    Canvas.SetTop(handle, hp.Y - hs / 2);
+                    AnnotationCanvas.Children.Add(handle);
+                }
             }
         }
     }
@@ -1251,9 +1405,11 @@ public partial class ScreenshotPreviewWindow : MicaWindow
                 return new Rect(new Point(Math.Min(sx, ex), Math.Min(sy, ey)), new Point(Math.Max(sx, ex), Math.Max(sy, ey)));
             case AnnotationTool.Rectangle:
             case AnnotationTool.Ellipse:
+            case AnnotationTool.Blur:
                 return new Rect(new Point(Math.Min(sx, ex), Math.Min(sy, ey)), new Point(Math.Max(sx, ex), Math.Max(sy, ey)));
             case AnnotationTool.Text:
-                return new Rect(sx, sy, Math.Max(Math.Abs(ex - sx), item.FontSize * d * Math.Max(1, item.Text.Length) * 0.6), item.FontSize * d * 1.4);
+                var textSize = AnnotationViewModel.MeasureTextSize(item);
+                return new Rect(sx, sy, textSize.Width * d, textSize.Height * d);
             case AnnotationTool.Pen:
                 if (item.PenPoints.Count == 0) return Rect.Empty;
                 double minX = double.MaxValue, minY = double.MaxValue, maxX = double.MinValue, maxY = double.MinValue;
@@ -1270,6 +1426,120 @@ public partial class ScreenshotPreviewWindow : MicaWindow
             default:
                 return Rect.Empty;
         }
+    }
+
+    /// <summary>检测 canvas DIP 坐标是否落在选中标注的 8 个缩放手柄上。返回手柄索引 0-7 或 -1。</summary>
+    private int HitTestResizeHandle(AnnotationItem selected, Point canvasPos)
+    {
+        double d = 1.0 / GetAnnotationDpiScale();
+        var bounds = GetAnnotationScreenBounds(selected, d);
+        if (bounds.Width <= 0 && bounds.Height <= 0) return -1;
+        bounds.Inflate(4, 4);
+
+        const double hs = 7;
+        double cx = bounds.X + bounds.Width / 2;
+        double cy = bounds.Y + bounds.Height / 2;
+        Point[] handlePositions =
+        [
+            new(bounds.X, bounds.Y),
+            new(cx, bounds.Y),
+            new(bounds.X + bounds.Width, bounds.Y),
+            new(bounds.X + bounds.Width, cy),
+            new(bounds.X + bounds.Width, bounds.Y + bounds.Height),
+            new(cx, bounds.Y + bounds.Height),
+            new(bounds.X, bounds.Y + bounds.Height),
+            new(bounds.X, cy),
+        ];
+
+        for (int i = 0; i < handlePositions.Length; i++)
+        {
+            if (Math.Abs(canvasPos.X - handlePositions[i].X) <= hs &&
+                Math.Abs(canvasPos.Y - handlePositions[i].Y) <= hs)
+                return i;
+        }
+        return -1;
+    }
+
+    private static readonly Cursor[] ResizeHandleCursors =
+    [
+        Cursors.SizeNWSE, // TL
+        Cursors.SizeNS,   // T
+        Cursors.SizeNESW, // TR
+        Cursors.SizeWE,   // R
+        Cursors.SizeNWSE, // BR
+        Cursors.SizeNS,   // B
+        Cursors.SizeNESW, // BL
+        Cursors.SizeWE,   // L
+    ];
+
+    /// <summary>根据拖拽的手柄索引更新标注的 Start/End 坐标（像素空间）。</summary>
+    private void ApplyResize(AnnotationItem item, int handle, Point imgPoint)
+    {
+        // 文本标注：通过缩放比例改变字号
+        if (item.Tool == AnnotationTool.Text)
+        {
+            var origSize = AnnotationViewModel.MeasureTextSize(new AnnotationItem
+            {
+                Tool = AnnotationTool.Text, Text = item.Text,
+                FontSize = _resizeStartFontSize, FontFamily = item.FontFamily,
+                IsBold = item.IsBold, IsItalic = item.IsItalic
+            });
+            double ox = item.Offset.X, oy = item.Offset.Y;
+            double sx = _resizeStartStart.X + ox;
+            double sy = _resizeStartStart.Y + oy;
+
+            // 根据拖拽方向计算缩放比例
+            double scale = 1.0;
+            switch (handle)
+            {
+                case 4: // BR — 最常用
+                case 2: // TR
+                case 6: // BL
+                case 0: // TL
+                    double newW = Math.Abs(imgPoint.X - sx);
+                    double newH = Math.Abs(imgPoint.Y - sy);
+                    double scaleW = origSize.Width > 1 ? newW / origSize.Width : 1;
+                    double scaleH = origSize.Height > 1 ? newH / origSize.Height : 1;
+                    scale = Math.Max(scaleW, scaleH);
+                    break;
+                case 3: case 7: // R, L — 水平
+                    scale = origSize.Width > 1 ? Math.Abs(imgPoint.X - sx) / origSize.Width : 1;
+                    break;
+                case 1: case 5: // T, B — 垂直
+                    scale = origSize.Height > 1 ? Math.Abs(imgPoint.Y - sy) / origSize.Height : 1;
+                    break;
+            }
+            item.FontSize = Math.Clamp(_resizeStartFontSize * scale, 8, 200);
+
+            // 同步面板显示
+            if (DataContext is ScreenshotPreviewViewModel vm)
+            {
+                vm.AnnotationPanel.FontSize = item.FontSize;
+            }
+            return;
+        }
+
+        // 非文本标注：修改 Start/End
+        double oox = item.Offset.X, ooy = item.Offset.Y;
+        double l = Math.Min(_resizeStartStart.X, _resizeStartEnd.X) + oox;
+        double t = Math.Min(_resizeStartStart.Y, _resizeStartEnd.Y) + ooy;
+        double r = Math.Max(_resizeStartStart.X, _resizeStartEnd.X) + oox;
+        double b = Math.Max(_resizeStartStart.Y, _resizeStartEnd.Y) + ooy;
+
+        switch (handle)
+        {
+            case 0: l = imgPoint.X; t = imgPoint.Y; break; // TL
+            case 1: t = imgPoint.Y; break;                 // T
+            case 2: r = imgPoint.X; t = imgPoint.Y; break; // TR
+            case 3: r = imgPoint.X; break;                 // R
+            case 4: r = imgPoint.X; b = imgPoint.Y; break; // BR
+            case 5: b = imgPoint.Y; break;                 // B
+            case 6: l = imgPoint.X; b = imgPoint.Y; break; // BL
+            case 7: l = imgPoint.X; break;                 // L
+        }
+
+        item.Start = new Point(l - oox, t - ooy);
+        item.End = new Point(r - oox, b - ooy);
     }
 
     private void EditPanel_MouseLeftButtonDown(object sender, MouseButtonEventArgs e)
