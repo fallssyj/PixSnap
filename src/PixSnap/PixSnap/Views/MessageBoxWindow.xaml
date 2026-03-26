@@ -153,24 +153,28 @@
                 HorizontalAlignment="Right"
                 Orientation="Horizontal">
                 <Button
+                    Height="30"
                     MinWidth="80"
                     Margin="0,0,8,0"
                     Command="{Binding YesCommand}"
                     Content="是"
                     Visibility="{Binding ShowYes, Converter={StaticResource BoolToVis}}" />
                 <Button
+                    Height="30"
                     MinWidth="80"
                     Margin="0,0,8,0"
                     Command="{Binding NoCommand}"
                     Content="否"
                     Visibility="{Binding ShowNo, Converter={StaticResource BoolToVis}}" />
                 <Button
+                    Height="30"
                     MinWidth="80"
                     Margin="0,0,8,0"
                     Command="{Binding OkCommand}"
                     Content="确定"
                     Visibility="{Binding ShowOk, Converter={StaticResource BoolToVis}}" />
                 <Button
+                    Height="30"
                     MinWidth="80"
                     Command="{Binding CancelCommand}"
                     Content="取消"
