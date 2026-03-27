@@ -3,12 +3,14 @@
     xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
     xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
     xmlns:controls="clr-namespace:PixSnap.Controls"
+    xmlns:converters="clr-namespace:PixSnap.Converters"
+    xmlns:local="clr-namespace:PixSnap.Views"
     xmlns:mica="clr-namespace:MicaWPF.Controls;assembly=MicaWPF"
     Title="截图预览"
-    Width="1040"
-    Height="760"
-    MinWidth="1000"
-    MinHeight="520"
+    Width="{x:Static local:ScreenshotPreviewWindow.DefaultWidth}"
+    Height="{x:Static local:ScreenshotPreviewWindow.DefaultHeight}"
+    MinWidth="{x:Static local:ScreenshotPreviewWindow.MinWindowWidth}"
+    MinHeight="{x:Static local:ScreenshotPreviewWindow.MinWindowHeight}"
     TextOptions.TextFormattingMode="Display"
     UseLayoutRounding="True"
     WindowStartupLocation="CenterScreen"
@@ -50,6 +52,7 @@
 
     <mica:MicaWindow.Resources>
         <BooleanToVisibilityConverter x:Key="BooleanToVisibilityConverter" />
+        <converters:InverseBooleanToVisibilityConverter x:Key="InverseBoolToVisibility" />
     </mica:MicaWindow.Resources>
 
     <Border Background="{DynamicResource AppBackgroundBrush}" MouseLeftButtonDown="OnWindowDragMove">
@@ -259,17 +262,9 @@
                     </Border>
 
                     <!--  裁剪信息拖动面板  -->
-                    <Border
+                    <controls:FloatingPanel
                         x:Name="CropPanel"
-                        MouseLeftButtonDown="EditPanel_MouseLeftButtonDown"
-                        MouseLeftButtonUp="EditPanel_MouseLeftButtonUp"
-                        MouseMove="EditPanel_MouseMove"
-                        RenderTransformOrigin="0.5,0.5"
-                        Style="{StaticResource RightTopFloatingPanelStyle}"
                         Visibility="Collapsed">
-                        <Border.RenderTransform>
-                            <TranslateTransform x:Name="CropPanelTranslate" />
-                        </Border.RenderTransform>
                         <StackPanel MinWidth="220">
                             <TextBlock Style="{StaticResource PanelTitleStyle}" Text="裁剪" />
                             <!--  比例预设  -->
@@ -371,19 +366,12 @@
                                     ToolTip="应用裁剪" />
                             </StackPanel>
                         </StackPanel>
-                    </Border>
+                    </controls:FloatingPanel>
 
                     <!--  圆角信息拖动面板  -->
-                    <Border
+                    <controls:FloatingPanel
                         x:Name="RoundCornerPanel"
-                        MouseLeftButtonDown="EditPanel_MouseLeftButtonDown"
-                        MouseLeftButtonUp="EditPanel_MouseLeftButtonUp"
-                        MouseMove="EditPanel_MouseMove"
-                        Style="{StaticResource RightTopFloatingPanelStyle}"
                         Visibility="Collapsed">
-                        <Border.RenderTransform>
-                            <TranslateTransform x:Name="RoundCornerPanelTranslate" />
-                        </Border.RenderTransform>
                         <StackPanel MinWidth="200">
                             <TextBlock Style="{StaticResource PanelTitleStyle}" Text="圆角" />
                             <StackPanel Orientation="Horizontal">
@@ -409,41 +397,22 @@
                                     ToolTip="应用圆角" />
                             </StackPanel>
                         </StackPanel>
-                    </Border>
+                    </controls:FloatingPanel>
 
                     <!--  AI 擦除画刷大小浮动面板  -->
-                    <Border
+                    <controls:FloatingPanel
                         x:Name="EraserFloatingPanel"
-                        MouseLeftButtonDown="EditPanel_MouseLeftButtonDown"
-                        MouseLeftButtonUp="EditPanel_MouseLeftButtonUp"
-                        MouseMove="EditPanel_MouseMove"
-                        Style="{StaticResource RightTopFloatingPanelStyle}"
                         Visibility="Collapsed">
-                        <Border.RenderTransform>
-                            <TranslateTransform x:Name="EraserFloatingPanelTranslate" />
-                        </Border.RenderTransform>
                         <StackPanel MinWidth="200">
                             <TextBlock Style="{StaticResource PanelTitleStyle}" Text="AI 擦除" />
-                            <!--  画刷大小输入  -->
-                            <StackPanel Orientation="Horizontal">
-                                <TextBlock Style="{StaticResource FieldLabelStyle}" Text="画刷大小" />
-                                <TextBox
-                                    Margin="6,0,0,0"
-                                    Style="{StaticResource FieldInputStyle}"
-                                    Text="{Binding EraserPanel.BrushSize, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}" />
-                                <TextBlock
-                                    Margin="4,0,0,0"
-                                    Style="{StaticResource FieldLabelStyle}"
-                                    Text="px" />
-                            </StackPanel>
-                            <Slider
-                                Margin="0,8,0,0"
-                                IsSnapToTickEnabled="True"
+                            <controls:SliderField
+                                Label="画刷大小"
                                 LargeChange="10"
                                 Maximum="200"
                                 Minimum="5"
                                 SmallChange="1"
                                 TickFrequency="5"
+                                Unit="px"
                                 Value="{Binding EraserPanel.BrushSize, Mode=TwoWay}" />
 
                             <StackPanel Margin="0,10,0,0" Orientation="Horizontal">
@@ -486,19 +455,12 @@
                                     ToolTip="执行 AI 修复" />
                             </StackPanel>
                         </StackPanel>
-                    </Border>
+                    </controls:FloatingPanel>
 
                     <!--  标注工具浮动面板  -->
-                    <Border
+                    <controls:FloatingPanel
                         x:Name="AnnotationFloatingPanel"
-                        MouseLeftButtonDown="EditPanel_MouseLeftButtonDown"
-                        MouseLeftButtonUp="EditPanel_MouseLeftButtonUp"
-                        MouseMove="EditPanel_MouseMove"
-                        Style="{StaticResource RightTopFloatingPanelStyle}"
                         Visibility="Collapsed">
-                        <Border.RenderTransform>
-                            <TranslateTransform x:Name="AnnotationFloatingPanelTranslate" />
-                        </Border.RenderTransform>
                         <StackPanel>
                             <!--  第一行：工具选择 + 分隔 + 颜色色块  -->
                             <StackPanel Orientation="Horizontal">
@@ -579,21 +541,8 @@
                                             </Style.Triggers>
                                         </Style>
                                     </StackPanel.Style>
-                                    <StackPanel Orientation="Horizontal">
-                                        <TextBlock
-                                            Style="{StaticResource PanelCompactFieldLabelStyle}"
-                                            Text="线宽" />
-                                        <TextBox
-                                            Width="48"
-                                            Height="26"
-                                            Margin="4,0,0,0"
-                                            FontSize="13"
-                                            Style="{StaticResource FieldInputStyle}"
-                                            Text="{Binding AnnotationPanel.StrokeWidth, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}" />
-                                    </StackPanel>
-                                    <Slider
-                                        Margin="0,4,0,0"
-                                        IsSnapToTickEnabled="True"
+                                    <controls:SliderField
+                                        Label="线宽"
                                         LargeChange="2"
                                         Maximum="20"
                                         Minimum="1"
@@ -602,53 +551,26 @@
                                         Value="{Binding AnnotationPanel.StrokeWidth, Mode=TwoWay}" />
                                 </StackPanel>
                                 <!--  圆角（矩形工具时附加显示）  -->
-                                <StackPanel Visibility="{Binding AnnotationPanel.IsRectangleSettingsVisible, Converter={StaticResource BooleanToVisibilityConverter}}">
-                                    <StackPanel Margin="0,4,0,0" Orientation="Horizontal">
-                                        <TextBlock
-                                            Style="{StaticResource PanelCompactFieldLabelStyle}"
-                                            Text="圆角" />
-                                        <TextBox
-                                            Width="48"
-                                            Height="26"
-                                            Margin="4,0,0,0"
-                                            FontSize="13"
-                                            Style="{StaticResource FieldInputStyle}"
-                                            Text="{Binding AnnotationPanel.CornerRadius, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}" />
-                                    </StackPanel>
-                                    <Slider
-                                        Margin="0,4,0,0"
-                                        IsSnapToTickEnabled="True"
-                                        LargeChange="5"
-                                        Maximum="50"
-                                        Minimum="0"
-                                        SmallChange="1"
-                                        TickFrequency="1"
-                                        Value="{Binding AnnotationPanel.CornerRadius, Mode=TwoWay}" />
-                                </StackPanel>
+                                <controls:SliderField
+                                    Margin="0,4,0,0"
+                                    Label="圆角"
+                                    LargeChange="5"
+                                    Maximum="50"
+                                    Minimum="0"
+                                    SmallChange="1"
+                                    TickFrequency="1"
+                                    Value="{Binding AnnotationPanel.CornerRadius, Mode=TwoWay}"
+                                    Visibility="{Binding AnnotationPanel.IsRectangleSettingsVisible, Converter={StaticResource BooleanToVisibilityConverter}}" />
                                 <!--  模糊强度  -->
-                                <StackPanel Visibility="{Binding AnnotationPanel.IsBlurSettingsVisible, Converter={StaticResource BooleanToVisibilityConverter}}">
-                                    <StackPanel Orientation="Horizontal">
-                                        <TextBlock
-                                            Style="{StaticResource PanelCompactFieldLabelStyle}"
-                                            Text="强度" />
-                                        <TextBox
-                                            Width="48"
-                                            Height="26"
-                                            Margin="4,0,0,0"
-                                            FontSize="13"
-                                            Style="{StaticResource FieldInputStyle}"
-                                            Text="{Binding AnnotationPanel.BlurRadius, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}" />
-                                    </StackPanel>
-                                    <Slider
-                                        Margin="0,4,0,0"
-                                        IsSnapToTickEnabled="True"
-                                        LargeChange="5"
-                                        Maximum="50"
-                                        Minimum="1"
-                                        SmallChange="1"
-                                        TickFrequency="1"
-                                        Value="{Binding AnnotationPanel.BlurRadius, Mode=TwoWay}" />
-                                </StackPanel>
+                                <controls:SliderField
+                                    Label="强度"
+                                    LargeChange="5"
+                                    Maximum="50"
+                                    Minimum="1"
+                                    SmallChange="1"
+                                    TickFrequency="1"
+                                    Value="{Binding AnnotationPanel.BlurRadius, Mode=TwoWay}"
+                                    Visibility="{Binding AnnotationPanel.IsBlurSettingsVisible, Converter={StaticResource BooleanToVisibilityConverter}}" />
                             </StackPanel>
 
                             <!--  文字属性行（文本工具时显示）  -->
@@ -733,7 +655,7 @@
                                     ToolTip="将标注合并到图像" />
                             </StackPanel>
                         </StackPanel>
-                    </Border>
+                    </controls:FloatingPanel>
 
                     <Popup
                         x:Name="AiModulePopup"
@@ -818,18 +740,8 @@
                                         VerticalAlignment="Center"
                                         FontFamily="{StaticResource SegoeFluent}"
                                         FontSize="4.5"
-                                        Text="{StaticResource Glyph_OriginalSize}">
-                                        <TextBlock.Style>
-                                            <Style TargetType="TextBlock">
-                                                <Setter Property="Visibility" Value="Visible" />
-                                                <Style.Triggers>
-                                                    <DataTrigger Binding="{Binding IsActualSize}" Value="True">
-                                                        <Setter Property="Visibility" Value="Collapsed" />
-                                                    </DataTrigger>
-                                                </Style.Triggers>
-                                            </Style>
-                                        </TextBlock.Style>
-                                    </TextBlock>
+                                        Text="{StaticResource Glyph_OriginalSize}"
+                                        Visibility="{Binding IsActualSize, Converter={StaticResource InverseBoolToVisibility}}" />
                                 </Grid>
                             </Button>
                             <ComboBox

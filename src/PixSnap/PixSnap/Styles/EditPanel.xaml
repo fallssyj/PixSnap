@@ -1,6 +1,7 @@
 <ResourceDictionary
     xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
     xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+    xmlns:controls="clr-namespace:PixSnap.Controls"
     xmlns:converters="clr-namespace:PixSnap.Converters"
     xmlns:vm="clr-namespace:PixSnap.ViewModels">
 
@@ -319,6 +320,98 @@
                             <Setter TargetName="root" Property="Opacity" Value="0.72" />
                         </Trigger>
                     </ControlTemplate.Triggers>
+                </ControlTemplate>
+            </Setter.Value>
+        </Setter>
+    </Style>
+
+    <!--  浮动面板 ContentControl（内置拖拽，右上角定位）  -->
+    <Style TargetType="controls:FloatingPanel">
+        <Setter Property="Background" Value="{DynamicResource AppGradientStartBrush}" />
+        <Setter Property="HorizontalAlignment" Value="Right" />
+        <Setter Property="VerticalAlignment" Value="Top" />
+        <Setter Property="Margin" Value="0,20,20,0" />
+        <Setter Property="Template">
+            <Setter.Value>
+                <ControlTemplate TargetType="controls:FloatingPanel">
+                    <Border
+                        Padding="14"
+                        Background="{TemplateBinding Background}"
+                        CornerRadius="10">
+                        <Border.Effect>
+                            <DropShadowEffect
+                                BlurRadius="18"
+                                Direction="270"
+                                Opacity="0.45"
+                                ShadowDepth="4"
+                                Color="#000000" />
+                        </Border.Effect>
+                        <ContentPresenter />
+                    </Border>
+                </ControlTemplate>
+            </Setter.Value>
+        </Setter>
+        <Style.Triggers>
+            <EventTrigger RoutedEvent="Loaded">
+                <BeginStoryboard>
+                    <Storyboard>
+                        <DoubleAnimation
+                            Storyboard.TargetProperty="Opacity"
+                            From="0"
+                            To="1"
+                            Duration="0:0:0.15">
+                            <DoubleAnimation.EasingFunction>
+                                <CubicEase EasingMode="EaseOut" />
+                            </DoubleAnimation.EasingFunction>
+                        </DoubleAnimation>
+                    </Storyboard>
+                </BeginStoryboard>
+            </EventTrigger>
+        </Style.Triggers>
+    </Style>
+
+    <!--  SliderField 复合控件：标签 + 数字输入框 + 滑块  -->
+    <Style TargetType="controls:SliderField">
+        <Setter Property="Focusable" Value="False" />
+        <Setter Property="Template">
+            <Setter.Value>
+                <ControlTemplate TargetType="controls:SliderField">
+                    <StackPanel>
+                        <StackPanel Orientation="Horizontal">
+                            <TextBlock
+                                Style="{StaticResource PanelCompactFieldLabelStyle}"
+                                Text="{TemplateBinding Label}" />
+                            <TextBox
+                                Width="48"
+                                Height="26"
+                                Margin="4,0,0,0"
+                                FontSize="13"
+                                Style="{StaticResource FieldInputStyle}"
+                                Text="{Binding Value, RelativeSource={RelativeSource TemplatedParent}, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}" />
+                            <TextBlock
+                                Margin="4,0,0,0"
+                                Text="{Binding Unit, RelativeSource={RelativeSource TemplatedParent}}">
+                                <TextBlock.Style>
+                                    <Style BasedOn="{StaticResource PanelCompactFieldLabelStyle}" TargetType="TextBlock">
+                                        <Style.Triggers>
+                                            <DataTrigger Binding="{Binding Unit, RelativeSource={RelativeSource TemplatedParent}}" Value="">
+                                                <Setter Property="Visibility" Value="Collapsed" />
+                                            </DataTrigger>
+                                        </Style.Triggers>
+                                    </Style>
+                                </TextBlock.Style>
+                            </TextBlock>
+                        </StackPanel>
+                        <Slider
+                            Margin="0,4,0,0"
+                            IsSnapToTickEnabled="True"
+                            LargeChange="{Binding LargeChange, RelativeSource={RelativeSource TemplatedParent}}"
+                            Maximum="{Binding Maximum, RelativeSource={RelativeSource TemplatedParent}}"
+                            Minimum="{Binding Minimum, RelativeSource={RelativeSource TemplatedParent}}"
+                            SmallChange="{Binding SmallChange, RelativeSource={RelativeSource TemplatedParent}}"
+                            TickFrequency="{Binding TickFrequency, RelativeSource={RelativeSource TemplatedParent}}"
+                            Value="{Binding Value, RelativeSource={RelativeSource TemplatedParent}, Mode=TwoWay}" />
+                    </StackPanel>
                 </ControlTemplate>
             </Setter.Value>
         </Setter>
