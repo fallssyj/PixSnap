@@ -51,6 +51,9 @@ public partial class App : System.Windows.Application, IRecipient<ScreenshotCapt
 
         Log.Information("PixSnap 启动");
 
+        // 清理过期的录屏临时文件（7天前），异步执行避免阻塞启动
+        _ = Task.Run(CleanupOldRecordingFiles);
+
         DispatcherUnhandledException += OnDispatcherUnhandledException;
         AppDomain.CurrentDomain.UnhandledException += OnCurrentDomainUnhandledException;
         TaskScheduler.UnobservedTaskException += OnUnobservedTaskException;
@@ -92,14 +95,31 @@ public partial class App : System.Windows.Application, IRecipient<ScreenshotCapt
         MainWindow = _mainWindow;
         _mainWindow.Hide();
 
-        InitializeTrayIcon();
-        InitializeHotkey();
-
         // 订阅 MicaWPF 主题切换，强制刷新桥接字典使颜色跟随
         _themeSubscription = MicaWPFServiceUtility.ThemeService.ThemeChanged.Subscribe(OnMicaThemeChanged);
 
         // 应用持久化的主题偏好
         ApplyTheme(SettingsService.ReadTheme());
+
+        //创建托盘图标
+        InitializeTrayIcon();
+
+        // 检测系统版本是否支持 Windows Graphics Capture API
+        // CreateFreeThreaded + IsCursorCaptureEnabled 需要 Windows 10 2004 (Build 19041)
+        if (Environment.OSVersion.Version.Build < 19041)
+        {
+            MessageBoxWindow.Show(
+                "PixSnap 需要 Windows 10 版本 2004（Build 19041）或更高版本。\n\n" +
+                $"当前系统版本：{Environment.OSVersion.Version}",
+                "系统版本不支持",
+                MessageBoxButton.OK,
+                MessageBoxImage.Error);
+            Shutdown(-1);
+            return;
+        }
+
+        //注册快捷键
+        InitializeHotkey();
     }
 
     private void OnMicaThemeChanged(MicaWPF.Core.Enums.WindowsTheme _)
@@ -221,9 +241,18 @@ public partial class App : System.Windows.Application, IRecipient<ScreenshotCapt
     {
         if (e.ExceptionObject is Exception exception)
         {
-            Log.Fatal(exception, "未处理的 CLR 异常");
+            Log.Fatal(exception, "未处理的 CLR 异常 (IsTerminating={IsTerminating})", e.IsTerminating);
+        }
+        else
+        {
+            Log.Fatal("未处理的非托管异常: {ExObj} (IsTerminating={IsTerminating})", e.ExceptionObject, e.IsTerminating);
+        }
+        Log.CloseAndFlush();
+
+        if (e.ExceptionObject is Exception ex)
+        {
             MessageBoxWindow.Show(
-                BuildExceptionMessage(exception),
+                BuildExceptionMessage(ex),
                 "应用异常",
                 MessageBoxButton.OK,
                 MessageBoxImage.Error);
@@ -269,6 +298,36 @@ public partial class App : System.Windows.Application, IRecipient<ScreenshotCapt
         }
 
         return builder.ToString().TrimEnd();
+    }
+
+    private static void CleanupOldRecordingFiles()
+    {
+        try
+        {
+            var dir = SettingsService.ReadRecordingTempDirectory();
+            if (!Directory.Exists(dir)) return;
+
+            var cutoff = DateTime.Now.AddDays(-7);
+            foreach (var file in Directory.EnumerateFiles(dir, "recording_*.mp4"))
+            {
+                try
+                {
+                    if (File.GetLastWriteTime(file) < cutoff)
+                    {
+                        File.Delete(file);
+                        Log.Information("已清理过期录屏文件: {File}", file);
+                    }
+                }
+                catch (Exception ex)
+                {
+                    Log.Warning(ex, "清理录屏文件失败: {File}", file);
+                }
+            }
+        }
+        catch (Exception ex)
+        {
+            Log.Warning(ex, "清理过期录屏文件时出错");
+        }
     }
 
     private void InitializeTrayIcon()

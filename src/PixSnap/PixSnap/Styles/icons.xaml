@@ -37,6 +37,15 @@
     <s:String x:Key="Glyph_Blur">&#xED5B;</s:String>
     <s:String x:Key="Glyph_Delete">&#xE74D;</s:String>
 
+    <!--  视频播放  -->
+    <s:String x:Key="Glyph_Play">&#xE768;</s:String>
+    <s:String x:Key="Glyph_Pause">&#xE769;</s:String>
+
+    <!--  音频  -->
+    <s:String x:Key="Glyph_Microphone">&#xE720;</s:String>
+    <s:String x:Key="Glyph_Speaker">&#xE767;</s:String>
+    <s:String x:Key="Glyph_Mute">&#xE74F;</s:String>
+
     <!--  底部栏  -->
     <s:String x:Key="Glyph_Resolution">&#xE799;</s:String>
     <s:String x:Key="Glyph_List">&#xE8FD;</s:String>

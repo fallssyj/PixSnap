@@ -11,6 +11,7 @@
     Height="{x:Static local:ScreenshotPreviewWindow.DefaultHeight}"
     MinWidth="{x:Static local:ScreenshotPreviewWindow.MinWindowWidth}"
     MinHeight="{x:Static local:ScreenshotPreviewWindow.MinWindowHeight}"
+    Icon="/Assets/icons/picture.png"
     TextOptions.TextFormattingMode="Display"
     UseLayoutRounding="True"
     WindowStartupLocation="CenterScreen"
@@ -143,10 +144,7 @@
                         <Border Style="{StaticResource PreviewTitleChipStyle}">
                             <StackPanel Orientation="Horizontal">
 
-                                <TextBlock
-                                    Style="{StaticResource PreviewTitleTextStyle}"
-                                    Text="{Binding CaptureTitleDisplay}"
-                                     />
+                                <TextBlock Style="{StaticResource PreviewTitleTextStyle}" Text="{Binding CaptureTitleDisplay}" />
                             </StackPanel>
                         </Border>
 
@@ -262,9 +260,7 @@
                     </Border>
 
                     <!--  裁剪信息拖动面板  -->
-                    <controls:FloatingPanel
-                        x:Name="CropPanel"
-                        Visibility="Collapsed">
+                    <controls:FloatingPanel x:Name="CropPanel" Visibility="Collapsed">
                         <StackPanel MinWidth="220">
                             <TextBlock Style="{StaticResource PanelTitleStyle}" Text="裁剪" />
                             <!--  比例预设  -->
@@ -369,9 +365,7 @@
                     </controls:FloatingPanel>
 
                     <!--  圆角信息拖动面板  -->
-                    <controls:FloatingPanel
-                        x:Name="RoundCornerPanel"
-                        Visibility="Collapsed">
+                    <controls:FloatingPanel x:Name="RoundCornerPanel" Visibility="Collapsed">
                         <StackPanel MinWidth="200">
                             <TextBlock Style="{StaticResource PanelTitleStyle}" Text="圆角" />
                             <StackPanel Orientation="Horizontal">
@@ -400,9 +394,7 @@
                     </controls:FloatingPanel>
 
                     <!--  AI 擦除画刷大小浮动面板  -->
-                    <controls:FloatingPanel
-                        x:Name="EraserFloatingPanel"
-                        Visibility="Collapsed">
+                    <controls:FloatingPanel x:Name="EraserFloatingPanel" Visibility="Collapsed">
                         <StackPanel MinWidth="200">
                             <TextBlock Style="{StaticResource PanelTitleStyle}" Text="AI 擦除" />
                             <controls:SliderField
@@ -458,9 +450,7 @@
                     </controls:FloatingPanel>
 
                     <!--  标注工具浮动面板  -->
-                    <controls:FloatingPanel
-                        x:Name="AnnotationFloatingPanel"
-                        Visibility="Collapsed">
+                    <controls:FloatingPanel x:Name="AnnotationFloatingPanel" Visibility="Collapsed">
                         <StackPanel>
                             <!--  第一行：工具选择 + 分隔 + 颜色色块  -->
                             <StackPanel Orientation="Horizontal">
@@ -559,8 +549,8 @@
                                     Minimum="0"
                                     SmallChange="1"
                                     TickFrequency="1"
-                                    Value="{Binding AnnotationPanel.CornerRadius, Mode=TwoWay}"
-                                    Visibility="{Binding AnnotationPanel.IsRectangleSettingsVisible, Converter={StaticResource BooleanToVisibilityConverter}}" />
+                                    Visibility="{Binding AnnotationPanel.IsRectangleSettingsVisible, Converter={StaticResource BooleanToVisibilityConverter}}"
+                                    Value="{Binding AnnotationPanel.CornerRadius, Mode=TwoWay}" />
                                 <!--  模糊强度  -->
                                 <controls:SliderField
                                     Label="强度"
@@ -569,12 +559,15 @@
                                     Minimum="1"
                                     SmallChange="1"
                                     TickFrequency="1"
-                                    Value="{Binding AnnotationPanel.BlurRadius, Mode=TwoWay}"
-                                    Visibility="{Binding AnnotationPanel.IsBlurSettingsVisible, Converter={StaticResource BooleanToVisibilityConverter}}" />
+                                    Visibility="{Binding AnnotationPanel.IsBlurSettingsVisible, Converter={StaticResource BooleanToVisibilityConverter}}"
+                                    Value="{Binding AnnotationPanel.BlurRadius, Mode=TwoWay}" />
                             </StackPanel>
 
                             <!--  文字属性行（文本工具时显示）  -->
-                            <StackPanel Margin="0,6,0,0" Orientation="Horizontal" Visibility="{Binding AnnotationPanel.IsTextSettingsVisible, Converter={StaticResource BooleanToVisibilityConverter}}">
+                            <StackPanel
+                                Margin="0,6,0,0"
+                                Orientation="Horizontal"
+                                Visibility="{Binding AnnotationPanel.IsTextSettingsVisible, Converter={StaticResource BooleanToVisibilityConverter}}">
                                 <ComboBox
                                     Width="120"
                                     Height="26"
@@ -596,10 +589,7 @@
                                     IsChecked="{Binding AnnotationPanel.IsBold, Mode=TwoWay}"
                                     Style="{StaticResource PanelToggleButtonStyle}"
                                     ToolTip="粗体">
-                                    <TextBlock
-                                        FontSize="13"
-                                        FontWeight="Bold"
-                                        Text="B" />
+                                    <TextBlock FontSize="13" Text="B" />
                                 </ToggleButton>
                                 <ToggleButton
                                     Width="26"
@@ -666,7 +656,7 @@
                         PopupAnimation="Fade"
                         StaysOpen="False"
                         VerticalOffset="6">
-                        <Border Style="{StaticResource PopupCardStyle}" MinWidth="180">
+                        <Border MinWidth="180" Style="{StaticResource PopupCardStyle}">
                             <StackPanel>
                                 <Button
                                     Margin="0,0,0,6"

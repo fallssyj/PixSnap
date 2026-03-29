@@ -15,12 +15,16 @@ using PixWindowInfo = PixSnap.Models.WindowInfo;
 namespace PixSnap.Services;
 
 /// <summary>
-/// 屏幕截图服务实现：通过 NativeScreenCapturer （C++/CLI）调用 Windows Graphics Capture API。
+/// 屏幕截图与录屏服务实现：通过 NativeScreenCapturer （C++/CLI）调用 Windows Graphics Capture API。
 /// 所有截图操作均在 UI 线程上执行，以确保 BitmapSource 可直接用于 WPF 绑定。
 /// </summary>
 public sealed class ScreenCaptureService : IScreenCaptureService, IDisposable
 {
     private readonly ScreenCapturer _nativeCapturer = new();
+
+    public bool IsRecording => _nativeCapturer.IsRecording;
+
+    public bool AudioInitFailed => _nativeCapturer.AudioInitFailed;
 
     public Task<BitmapSource> CaptureFullScreenAsync(int screenIndex)
     {
@@ -81,8 +85,56 @@ public sealed class ScreenCaptureService : IScreenCaptureService, IDisposable
 
     public void Dispose()
     {
+        if (IsRecording)
+            StopRecording();
         Log.Debug("ScreenCaptureService 已释放");
         _nativeCapturer.Dispose();
+    }
+
+    public void StartRecordingFullScreen(int screenIndex, string outputPath, bool enableMicrophone = false, bool enableSystemAudio = false, int videoBitrate = 8000000)
+    {
+        Log.Information("开始录制全屏: 显示器 {Index}, 输出 {Path}, 麦克风={Mic}, 系统声音={Sys}, 码率={Bitrate}", screenIndex, outputPath, enableMicrophone, enableSystemAudio, videoBitrate);
+        _nativeCapturer.StartRecordingMonitor(screenIndex, outputPath, enableMicrophone, enableSystemAudio, videoBitrate);
+        Log.Information("录制全屏已启动");
+    }
+
+    public void StartRecordingWindow(IntPtr hwnd, string outputPath, bool enableMicrophone = false, bool enableSystemAudio = false, int videoBitrate = 8000000)
+    {
+        Log.Information("开始录制窗口: HWND={Hwnd:X8}, 输出 {Path}, 麦克风={Mic}, 系统声音={Sys}, 码率={Bitrate}", hwnd, outputPath, enableMicrophone, enableSystemAudio, videoBitrate);
+        _nativeCapturer.StartRecordingWindow(hwnd, outputPath, enableMicrophone, enableSystemAudio, videoBitrate);
+        Log.Information("录制窗口已启动");
+    }
+
+    public void StartRecordingRegion(Rect region, string outputPath, bool enableMicrophone = false, bool enableSystemAudio = false, int videoBitrate = 8000000)
+    {
+        Log.Information("开始录制区域: ({X},{Y}) {W}×{H}, 输出 {Path}, 麦克风={Mic}, 系统声音={Sys}, 码率={Bitrate}",
+            (int)region.X, (int)region.Y, (int)region.Width, (int)region.Height, outputPath, enableMicrophone, enableSystemAudio, videoBitrate);
+        _nativeCapturer.StartRecordingRegion(
+            (int)Math.Round(region.X),
+            (int)Math.Round(region.Y),
+            (int)Math.Round(region.Width),
+            (int)Math.Round(region.Height),
+            outputPath,
+            enableMicrophone,
+            enableSystemAudio,
+            videoBitrate);
+        Log.Information("录制区域已启动");
+    }
+
+    public void PauseRecording()
+    {
+        _nativeCapturer.PauseRecording();
+    }
+
+    public void ResumeRecording()
+    {
+        _nativeCapturer.ResumeRecording();
+    }
+
+    public void StopRecording()
+    {
+        Log.Information("停止录制");
+        _nativeCapturer.StopRecording();
     }
 
     private static Task<BitmapSource> InvokeOnUiThreadAsync(Func<BitmapSource> captureAction)

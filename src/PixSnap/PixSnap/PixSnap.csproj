@@ -20,6 +20,8 @@
     <None Remove="Assets\fonts\MiSans-Normal.ttf" />
     <None Remove="Assets\fonts\Segoe Fluent Icons.ttf" />
     <None Remove="Assets\icons\app.png" />
+    <None Remove="Assets\icons\picture.png" />
+    <None Remove="Assets\icons\video.png" />
   </ItemGroup>
 
   <ItemGroup>
@@ -49,6 +51,8 @@
   <ItemGroup>
     <Resource Include="Assets\fonts\MiSans-Normal.ttf" />
     <Resource Include="Assets\icons\app.png" />
+    <Resource Include="Assets\icons\picture.png" />
+    <Resource Include="Assets\icons\video.png" />
   </ItemGroup>
 
 </Project>

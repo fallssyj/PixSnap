@@ -29,6 +29,10 @@ public partial class SettingsViewModel : ObservableObject
     [ObservableProperty]
     private bool _isAutoSaveEnabled;
 
+    /// <summary>录屏临时文件存放目录。</summary>
+    [ObservableProperty]
+    private string _recordingTempDirectory = string.Empty;
+
     /// <summary>是否处于快捷键录制状态（用户点击输入框后激活）。</summary>
     [ObservableProperty]
     private bool _isRecordingHotkey;
@@ -52,6 +56,7 @@ public partial class SettingsViewModel : ObservableObject
         _selectedThemeIndex = SettingsService.ReadTheme();
         _saveDirectory = SettingsService.ReadSaveDirectory();
         _isAutoSaveEnabled = SettingsService.ReadAutoSave();
+        _recordingTempDirectory = SettingsService.ReadRecordingTempDirectory();
         var (modifiers, key) = SettingsService.ReadHotkey();
         _pendingModifiers = (int)modifiers;
         _pendingKey = (int)key;
@@ -89,8 +94,9 @@ public partial class SettingsViewModel : ObservableObject
         SettingsService.WriteTheme(SelectedThemeIndex);
         SettingsService.WriteSaveDirectory(SaveDirectory);
         SettingsService.WriteAutoSave(IsAutoSaveEnabled);
-        Log.Information("设置已保存: 开机启动={Startup}, 快捷键={Modifiers}+{Key}, 主题={Theme}, 保存目录={SaveDir}, 自动保存={AutoSave}",
-            IsStartupEnabled, (ModifierKeys)_pendingModifiers, (Key)_pendingKey, SelectedThemeIndex, SaveDirectory, IsAutoSaveEnabled);
+        SettingsService.WriteRecordingTempDirectory(RecordingTempDirectory);
+        Log.Information("设置已保存: 开机启动={Startup}, 快捷键={Modifiers}+{Key}, 主题={Theme}, 保存目录={SaveDir}, 自动保存={AutoSave}, 录屏目录={RecDir}",
+            IsStartupEnabled, (ModifierKeys)_pendingModifiers, (Key)_pendingKey, SelectedThemeIndex, SaveDirectory, IsAutoSaveEnabled, RecordingTempDirectory);
         HotkeyChanged?.Invoke((ModifierKeys)_pendingModifiers, (Key)_pendingKey);
         ThemeChanged?.Invoke(SelectedThemeIndex);
         RequestClose?.Invoke();
@@ -106,6 +112,19 @@ public partial class SettingsViewModel : ObservableObject
         if (dialog.ShowDialog() == true)
         {
             SaveDirectory = dialog.FolderName;
+        }
+    }
+
+    [RelayCommand]
+    private void BrowseRecordingTempDirectory()
+    {
+        var dialog = new Microsoft.Win32.OpenFolderDialog
+        {
+            Title = "选择录屏临时文件目录"
+        };
+        if (dialog.ShowDialog() == true)
+        {
+            RecordingTempDirectory = dialog.FolderName;
         }
     }
 

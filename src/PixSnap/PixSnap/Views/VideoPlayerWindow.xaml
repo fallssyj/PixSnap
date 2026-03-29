@@ -1,0 +1,172 @@
+<mica:MicaWindow
+    x:Class="PixSnap.Views.VideoPlayerWindow"
+    xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+    xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+    xmlns:b="http://schemas.microsoft.com/xaml/behaviors"
+    xmlns:mica="clr-namespace:MicaWPF.Controls;assembly=MicaWPF"
+    Title="录屏预览 仅作预览 如需要裁剪 请使用其它工具"
+    Width="800"
+    Height="520"
+    MinWidth="480"
+    MinHeight="360"
+    Icon="/Assets/icons/video.png"
+    TextOptions.TextFormattingMode="Display"
+    UseLayoutRounding="True"
+    WindowStartupLocation="CenterScreen">
+
+    <mica:MicaWindow.InputBindings>
+        <KeyBinding
+            Key="S"
+            Command="{Binding SaveCommand}"
+            Modifiers="Ctrl" />
+        <KeyBinding Key="Space" Command="{Binding PlayPauseCommand}" />
+    </mica:MicaWindow.InputBindings>
+
+    <Grid>
+        <Grid.RowDefinitions>
+            <RowDefinition Height="*" />
+            <RowDefinition Height="Auto" />
+        </Grid.RowDefinitions>
+
+        <!--  视频区域  -->
+        <Border
+            Grid.Row="0"
+            Background="Black"
+            ClipToBounds="True">
+            <MediaElement
+                x:Name="VideoPlayer"
+                LoadedBehavior="Manual"
+                Stretch="Uniform"
+                UnloadedBehavior="Stop" />
+        </Border>
+
+        <!--  底部控制栏  -->
+        <Border
+            Grid.Row="1"
+            Padding="16,10"
+            Background="{DynamicResource MicaWPF.Brushes.ApplicationBackgroundBrush}"
+            BorderBrush="{DynamicResource MicaWPF.Brushes.ControlElevationBorderBrush}"
+            BorderThickness="0,1,0,0">
+            <Grid>
+                <Grid.RowDefinitions>
+                    <RowDefinition Height="Auto" />
+                    <RowDefinition Height="Auto" />
+                </Grid.RowDefinitions>
+
+                <!--  进度条  -->
+                <Grid Grid.Row="0" Margin="0,0,0,8">
+                    <Grid.ColumnDefinitions>
+                        <ColumnDefinition Width="Auto" />
+                        <ColumnDefinition />
+                        <ColumnDefinition Width="Auto" />
+                    </Grid.ColumnDefinitions>
+                    <TextBlock
+                        Grid.Column="0"
+                        VerticalAlignment="Center"
+                        FontSize="12"
+                        Text="{Binding PositionText}" />
+                    <Slider
+                        Grid.Column="1"
+                        Margin="10,0"
+                        VerticalAlignment="Center"
+                        IsMoveToPointEnabled="True"
+                        Maximum="1"
+                        Minimum="0"
+                        Thumb.DragCompleted="OnSliderDragCompleted"
+                        Thumb.DragStarted="OnSliderDragStarted"
+                        Value="{Binding SliderValue, Mode=TwoWay}">
+                        <b:Interaction.Triggers>
+                            <b:EventTrigger EventName="PreviewMouseLeftButtonUp">
+                                <b:InvokeCommandAction Command="{Binding SliderClickCommand}" />
+                            </b:EventTrigger>
+                        </b:Interaction.Triggers>
+                    </Slider>
+                    <TextBlock
+                        Grid.Column="2"
+                        VerticalAlignment="Center"
+                        FontSize="12"
+                        Text="{Binding DurationText}" />
+                </Grid>
+
+                <!--  按钮行  -->
+                <Grid Grid.Row="1">
+                    <Grid.ColumnDefinitions>
+                        <ColumnDefinition Width="*" />
+                        <ColumnDefinition Width="Auto" />
+                        <ColumnDefinition Width="*" />
+                    </Grid.ColumnDefinitions>
+
+                    <!--  左侧占位  -->
+
+                    <!--  中间播放 + 保存  -->
+                    <StackPanel
+                        Grid.Column="1"
+                        HorizontalAlignment="Center"
+                        Orientation="Horizontal">
+                        <Button
+                            Margin="0,0,16,0"
+                            Command="{Binding PlayPauseCommand}"
+                            Cursor="Hand"
+                            ToolTip="播放 / 暂停 (Space)">
+                            <TextBlock
+                                HorizontalAlignment="Center"
+                                VerticalAlignment="Center"
+                                FontFamily="{StaticResource SegoeFluent}"
+                                FontSize="18"
+                                Text="{Binding PlayPauseIcon}" />
+                        </Button>
+                        <Button
+                            Width="100"
+                            Height="36"
+                            Command="{Binding SaveCommand}"
+                            Cursor="Hand"
+                            ToolTip="保存 (Ctrl+S)">
+                            <StackPanel Orientation="Horizontal">
+                                <TextBlock
+                                    VerticalAlignment="Center"
+                                    FontFamily="{StaticResource SegoeFluent}"
+                                    FontSize="14"
+                                    Text="{StaticResource Glyph_Save}" />
+                                <TextBlock
+                                    Margin="6,0,0,0"
+                                    VerticalAlignment="Center"
+                                    FontSize="13"
+                                    Text="保存" />
+                            </StackPanel>
+                        </Button>
+                    </StackPanel>
+
+                    <!--  右侧音量控制  -->
+                    <StackPanel
+                        Grid.Column="2"
+                        HorizontalAlignment="Right"
+                        Orientation="Horizontal">
+                        <Button
+                            Width="32"
+                            Height="32"
+                            Padding="0"
+                            Command="{Binding ToggleMuteCommand}"
+                            Cursor="Hand"
+                            ToolTip="静音">
+                            <TextBlock
+                                HorizontalAlignment="Center"
+                                VerticalAlignment="Center"
+                                FontFamily="{StaticResource SegoeFluent}"
+                                FontSize="14"
+                                Text="{Binding VolumeIcon}" />
+                        </Button>
+                        <Slider
+                            Width="50"
+                            Margin="8,0,0,0"
+                            VerticalAlignment="Center"
+                            IsMoveToPointEnabled="True"
+                            Maximum="1"
+                            Minimum="0"
+                            Value="{Binding Volume, Mode=TwoWay}" />
+                    </StackPanel>
+                </Grid>
+
+            </Grid>
+        </Border>
+    </Grid>
+</mica:MicaWindow>

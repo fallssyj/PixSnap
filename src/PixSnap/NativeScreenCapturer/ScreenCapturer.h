@@ -16,6 +16,7 @@ namespace System
 }
 
 class ScreenCapturerImpl;
+class ScreenRecorderState;
 
 namespace NativeScreenCapturer
 {
@@ -43,10 +44,21 @@ namespace NativeScreenCapturer
         System::Drawing::Rectangle GetScreenBounds(int screenIndex);
         System::Threading::Tasks::Task<System::Windows::Media::Imaging::BitmapSource^>^ CaptureFullScreenAsync(int screenIndex);
 
+        // 录屏 API
+        void StartRecordingMonitor(int screenIndex, System::String^ outputPath, bool enableMicrophone, bool enableSystemAudio, int videoBitrate);
+        void StartRecordingWindow(System::IntPtr hwnd, System::String^ outputPath, bool enableMicrophone, bool enableSystemAudio, int videoBitrate);
+        void StartRecordingRegion(int x, int y, int width, int height, System::String^ outputPath, bool enableMicrophone, bool enableSystemAudio, int videoBitrate);
+        void PauseRecording();
+        void ResumeRecording();
+        void StopRecording();
+        property bool IsRecording { bool get(); }
+        property bool AudioInitFailed { bool get(); }
+
     private:
         System::Windows::Media::Imaging::BitmapSource^ CaptureFullScreenCore(System::Object^ screenIndex);
 
     private:
         ScreenCapturerImpl* m_impl;
+        ScreenRecorderState* m_recorder;
     };
 }

@@ -1,9 +1,6 @@
 using PixSnap.Models;
 using PixSnap.Services;
 using PixSnap.ViewModels;
-using System;
-using System.Collections.Generic;
-using System.Linq;
 using System.Windows;
 using System.Windows.Controls;
 using System.Windows.Input;
@@ -68,6 +65,7 @@ public partial class RegionSelectorWindow : Window
         Mask.Width = Width;
         Mask.Height = Height;
         UpdateHintPanelPositions(null);
+        PositionModeTogglePanel();
 
         // Activate() 在 WPF 内部调用 SetForegroundWindow，确保窗口获得 Win32 键盘焦点。
         // ShowDialog() 默认的 ShowWindow(SW_SHOW) 在进程无前台权限时（如从托盘触发）
@@ -136,7 +134,12 @@ public partial class RegionSelectorWindow : Window
                 Selection = new CaptureSelection
                 {
                     Mode = CaptureSelectionMode.Region,
-                    Region = screenRect
+                    Region = screenRect,
+                    IsRecording = _viewModel.IsRecordingMode,
+                    EnableMicrophone = _viewModel.EnableMicrophone,
+                    EnableSystemAudio = _viewModel.EnableSystemAudio,
+                    Quality = _viewModel.RecordingQuality,
+                    CapturePixelCount = (long)screenRect.Width * (long)screenRect.Height
                 };
                 DialogResult = true;
             }
@@ -148,11 +151,18 @@ public partial class RegionSelectorWindow : Window
 
         if (_hoveredWindow is not null)
         {
+            var windowPixels = NativeWindowHelper.TryGetWindowRect(_hoveredWindow.Hwnd, out var wr)
+                ? (long)wr.Width * (long)wr.Height : 0L;
             Selection = new CaptureSelection
             {
                 Mode = CaptureSelectionMode.Window,
                 WindowHandle = _hoveredWindow.Hwnd,
-                WindowTitle = string.IsNullOrWhiteSpace(_hoveredWindow.Title) ? _hoveredWindow.ClassName : _hoveredWindow.Title
+                WindowTitle = string.IsNullOrWhiteSpace(_hoveredWindow.Title) ? _hoveredWindow.ClassName : _hoveredWindow.Title,
+                IsRecording = _viewModel.IsRecordingMode,
+                EnableMicrophone = _viewModel.EnableMicrophone,
+                EnableSystemAudio = _viewModel.EnableSystemAudio,
+                Quality = _viewModel.RecordingQuality,
+                CapturePixelCount = windowPixels
             };
             DialogResult = true;
         }
@@ -176,9 +186,21 @@ public partial class RegionSelectorWindow : Window
             Selection = new CaptureSelection
             {
                 Mode = CaptureSelectionMode.FullScreen,
-                ScreenIndex = _hoveredScreen.Index
+                ScreenIndex = _hoveredScreen.Index,
+                IsRecording = _viewModel.IsRecordingMode,
+                EnableMicrophone = _viewModel.EnableMicrophone,
+                EnableSystemAudio = _viewModel.EnableSystemAudio,
+                Quality = _viewModel.RecordingQuality,
+                CapturePixelCount = (long)_hoveredScreen.Bounds.Width * _hoveredScreen.Bounds.Height
             };
             DialogResult = true;
+        }
+
+        if (e.Key == Key.Tab)
+        {
+            _viewModel.IsRecordingMode = !_viewModel.IsRecordingMode;
+            ApplyModeToggleVisuals();
+            e.Handled = true;
         }
     }
 
@@ -291,11 +313,11 @@ public partial class RegionSelectorWindow : Window
     private void PositionFooterHint()
     {
         if (FooterHint is null) return;
-        var canvasWidth  = RootCanvas.ActualWidth  > 0 ? RootCanvas.ActualWidth  : Width;
+        var canvasWidth = RootCanvas.ActualWidth > 0 ? RootCanvas.ActualWidth : Width;
         var canvasHeight = RootCanvas.ActualHeight > 0 ? RootCanvas.ActualHeight : Height;
         var footerSize = MeasureElement(FooterHint);
-        Canvas.SetLeft(FooterHint, Math.Max(InfoBubbleMargin, canvasWidth  - footerSize.Width  - InfoBubbleMargin));
-        Canvas.SetTop(FooterHint,  Math.Max(InfoBubbleMargin, canvasHeight - footerSize.Height - InfoBubbleMargin));
+        Canvas.SetLeft(FooterHint, Math.Max(InfoBubbleMargin, canvasWidth - footerSize.Width - InfoBubbleMargin));
+        Canvas.SetTop(FooterHint, Math.Max(InfoBubbleMargin, canvasHeight - footerSize.Height - InfoBubbleMargin));
     }
 
     private ScreenInfo? FindScreen(Point screenPoint)
@@ -414,5 +436,139 @@ public partial class RegionSelectorWindow : Window
         var width = measured.Width > 0 ? measured.Width : element.ActualWidth;
         var height = measured.Height > 0 ? measured.Height : element.ActualHeight;
         return new Size(width, height);
+    }
+
+    // ── 截屏 / 录屏 模式切换 ─────────────────────────────────────────────────
+
+    private void ScreenshotModeBtn_MouseDown(object sender, MouseButtonEventArgs e)
+    {
+        _viewModel.IsRecordingMode = false;
+        ApplyModeToggleVisuals();
+        e.Handled = true;
+    }
+
+    private void RecordingModeBtn_MouseDown(object sender, MouseButtonEventArgs e)
+    {
+        _viewModel.IsRecordingMode = true;
+        ApplyModeToggleVisuals();
+        e.Handled = true;
+    }
+
+    private void ApplyModeToggleVisuals()
+    {
+        var accent = FindResource("OverlaySelectionStrokeBrush") as Brush ?? Brushes.CornflowerBlue;
+        var recording = _viewModel.IsRecordingMode;
+
+        ScreenshotModeBtn.Background = recording ? Brushes.Transparent : accent;
+        ScreenshotModeBtnText.Foreground = recording ? (FindResource("OverlayFooterForegroundBrush") as Brush ?? Brushes.White) : Brushes.White;
+
+        RecordingModeBtn.Background = recording ? accent : Brushes.Transparent;
+        RecordingModeBtnText.Foreground = recording ? Brushes.White : (FindResource("OverlayFooterForegroundBrush") as Brush ?? Brushes.White);
+
+        FooterHintText.Text = recording
+            ? "左键单击高亮窗口录屏，左键拖动录矩形，Space 录当前显示器，Tab 切换模式，Esc / 右键退出"
+            : "左键单击高亮窗口截图，左键拖动截矩形，Space 截当前显示器，Tab 切换模式，Esc / 右键退出";
+
+        // 音频按钮仅在录屏模式显示
+        var audioVisibility = recording ? Visibility.Visible : Visibility.Collapsed;
+        AudioSeparator.Visibility = audioVisibility;
+        MicToggleBtn.Visibility = audioVisibility;
+        SysAudioToggleBtn.Visibility = audioVisibility;
+
+        // 画质按钮仅在录屏模式显示
+        QualitySeparator.Visibility = audioVisibility;
+        QualityStandardBtn.Visibility = audioVisibility;
+        QualityHighBtn.Visibility = audioVisibility;
+        QualityOriginalBtn.Visibility = audioVisibility;
+
+        if (recording)
+        {
+            ApplyAudioToggleVisuals();
+            ApplyQualityToggleVisuals();
+        }
+
+        // 重新定位（尺寸可能变化）
+        PositionModeTogglePanel();
+
+        // 切换后刷新悬停提示文本
+        var cursorPos = NativeWindowHelper.GetCursorPosition();
+        UpdateHover(cursorPos);
+    }
+
+    private void MicToggleBtn_MouseDown(object sender, MouseButtonEventArgs e)
+    {
+        _viewModel.EnableMicrophone = !_viewModel.EnableMicrophone;
+        ApplyAudioToggleVisuals();
+        e.Handled = true;
+    }
+
+    private void SysAudioToggleBtn_MouseDown(object sender, MouseButtonEventArgs e)
+    {
+        _viewModel.EnableSystemAudio = !_viewModel.EnableSystemAudio;
+        ApplyAudioToggleVisuals();
+        e.Handled = true;
+    }
+
+    private void ApplyAudioToggleVisuals()
+    {
+        var accent = FindResource("OverlaySelectionStrokeBrush") as Brush ?? Brushes.CornflowerBlue;
+        var dimFg = FindResource("OverlayFooterForegroundBrush") as Brush ?? Brushes.White;
+
+        MicToggleBtn.Background = _viewModel.EnableMicrophone ? accent : Brushes.Transparent;
+        MicToggleIcon.Foreground = _viewModel.EnableMicrophone ? Brushes.White : dimFg;
+        MicToggleIcon.Opacity = _viewModel.EnableMicrophone ? 1.0 : 0.5;
+
+        SysAudioToggleBtn.Background = _viewModel.EnableSystemAudio ? accent : Brushes.Transparent;
+        SysAudioToggleIcon.Foreground = _viewModel.EnableSystemAudio ? Brushes.White : dimFg;
+        SysAudioToggleIcon.Opacity = _viewModel.EnableSystemAudio ? 1.0 : 0.5;
+    }
+
+    private void QualityStandardBtn_MouseDown(object sender, MouseButtonEventArgs e)
+    {
+        _viewModel.RecordingQuality = RecordingQuality.Standard;
+        ApplyQualityToggleVisuals();
+        e.Handled = true;
+    }
+
+    private void QualityHighBtn_MouseDown(object sender, MouseButtonEventArgs e)
+    {
+        _viewModel.RecordingQuality = RecordingQuality.High;
+        ApplyQualityToggleVisuals();
+        e.Handled = true;
+    }
+
+    private void QualityOriginalBtn_MouseDown(object sender, MouseButtonEventArgs e)
+    {
+        _viewModel.RecordingQuality = RecordingQuality.Original;
+        ApplyQualityToggleVisuals();
+        e.Handled = true;
+    }
+
+    private void ApplyQualityToggleVisuals()
+    {
+        var accent = FindResource("OverlaySelectionStrokeBrush") as Brush ?? Brushes.CornflowerBlue;
+        var dimFg = FindResource("OverlayFooterForegroundBrush") as Brush ?? Brushes.White;
+        var quality = _viewModel.RecordingQuality;
+
+        QualityStandardBtn.Background = quality == RecordingQuality.Standard ? accent : Brushes.Transparent;
+        QualityStandardText.Foreground = quality == RecordingQuality.Standard ? Brushes.White : dimFg;
+        QualityStandardText.Opacity = quality == RecordingQuality.Standard ? 1.0 : 0.5;
+
+        QualityHighBtn.Background = quality == RecordingQuality.High ? accent : Brushes.Transparent;
+        QualityHighText.Foreground = quality == RecordingQuality.High ? Brushes.White : dimFg;
+        QualityHighText.Opacity = quality == RecordingQuality.High ? 1.0 : 0.5;
+
+        QualityOriginalBtn.Background = quality == RecordingQuality.Original ? accent : Brushes.Transparent;
+        QualityOriginalText.Foreground = quality == RecordingQuality.Original ? Brushes.White : dimFg;
+        QualityOriginalText.Opacity = quality == RecordingQuality.Original ? 1.0 : 0.5;
+    }
+
+    private void PositionModeTogglePanel()
+    {
+        if (ModeTogglePanel is null) return;
+        var canvasWidth = RootCanvas.ActualWidth > 0 ? RootCanvas.ActualWidth : Width;
+        var toggleSize = MeasureElement(ModeTogglePanel);
+        Canvas.SetLeft(ModeTogglePanel, (canvasWidth - toggleSize.Width) / 2);
+        Canvas.SetTop(ModeTogglePanel, InfoBubbleMargin);
     }
 }

@@ -237,9 +237,11 @@ public partial class ScreenshotPreviewViewModel : ObservableRecipient, IRecipien
         RoundCornerPanel.PropertyChanged += OnRoundCornerPanelPropertyChanged;
         AnnotationPanel.PropertyChanged += OnAnnotationPanelPropertyChanged;
         AnnotationPanel.AnnotationApplied += OnAnnotationApplied;
-        AnnotationPanel.AnnotationCancelled += () => ExitEditMode();
+        AnnotationPanel.AnnotationCancelled += OnAnnotationCancelled;
         UpdateAnnotationToolSelection();
     }
+
+    private void OnAnnotationCancelled() => ExitEditMode();
 
     private void OnAnnotationPanelPropertyChanged(object? sender, PropertyChangedEventArgs e)
     {
@@ -933,6 +935,9 @@ public partial class ScreenshotPreviewViewModel : ObservableRecipient, IRecipien
         EraserPanel.PropertyChanged -= OnEraserPanelPropertyChanged;
         CropPanel.PropertyChanged -= OnCropPanelPropertyChanged;
         RoundCornerPanel.PropertyChanged -= OnRoundCornerPanelPropertyChanged;
+        AnnotationPanel.PropertyChanged -= OnAnnotationPanelPropertyChanged;
+        AnnotationPanel.AnnotationApplied -= OnAnnotationApplied;
+        AnnotationPanel.AnnotationCancelled -= OnAnnotationCancelled;
 
         // 确保从 Messenger 注销（兼容未来可能重新激活的场景）
         IsActive = false;

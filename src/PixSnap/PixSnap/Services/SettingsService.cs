@@ -27,6 +27,7 @@ public static class SettingsService
     private const string KeyVersion = "Version";
     private const string KeySaveDirectory = "SaveDirectory";
     private const string KeyAutoSave = "AutoSave";
+    private const string KeyRecordingTempDirectory = "RecordingTempDirectory";
 
     // ── 默认快捷键：Ctrl + Shift + Q ──────────────────────────────────────────
     public static readonly ModifierKeys DefaultHotkeyModifiers = ModifierKeys.Control | ModifierKeys.Shift;
@@ -190,6 +191,43 @@ public static class SettingsService
         Log.Information("写入自动保存: {Enabled}", enabled);
         var dict = ReadConfigDict();
         dict[KeyAutoSave] = enabled ? 1 : 0;
+        dict[KeyVersion] = CurrentSettingsVersion;
+        WriteConfigDict(dict);
+    }
+
+    // ── 录屏临时目录（JSON 配置文件） ────────────────────────────────────────
+
+    private static readonly string DefaultRecordingTempDirectory =
+        Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.MyDocuments), "PixSnap");
+
+    /// <summary>读取录屏临时文件存放目录，默认为 文档/PixSnap。</summary>
+    public static string ReadRecordingTempDirectory()
+    {
+        try
+        {
+            if (File.Exists(ConfigFilePath))
+            {
+                var json = File.ReadAllText(ConfigFilePath);
+                var doc = JsonDocument.Parse(json);
+                if (doc.RootElement.TryGetProperty(KeyRecordingTempDirectory, out var v) && v.ValueKind == JsonValueKind.String)
+                {
+                    var dir = v.GetString() ?? string.Empty;
+                    if (!string.IsNullOrEmpty(dir)) return dir;
+                }
+            }
+        }
+        catch (Exception ex)
+        {
+            Log.Warning(ex, "ReadRecordingTempDirectory 失败");
+        }
+        return DefaultRecordingTempDirectory;
+    }
+
+    public static void WriteRecordingTempDirectory(string directory)
+    {
+        Log.Information("写入录屏临时目录: {Directory}", directory);
+        var dict = ReadConfigDict();
+        dict[KeyRecordingTempDirectory] = directory;
         dict[KeyVersion] = CurrentSettingsVersion;
         WriteConfigDict(dict);
     }

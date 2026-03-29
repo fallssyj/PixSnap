@@ -2,7 +2,6 @@ using PixSnap.Controls;
 using PixSnap.Services;
 using PixSnap.ViewModels;
 using System.ComponentModel;
-using System.Runtime.InteropServices;
 using System.Windows;
 using System.Windows.Controls;
 using System.Windows.Controls.Primitives;
@@ -103,13 +102,6 @@ public partial class ScreenshotPreviewWindow : MicaWindow
                ext.Equals(".webp", StringComparison.OrdinalIgnoreCase);
     }
 
-    [LibraryImport("psapi.dll")]
-    [return: MarshalAs(UnmanagedType.Bool)]
-    private static partial bool EmptyWorkingSet(IntPtr hProcess);
-
-    [LibraryImport("kernel32.dll")]
-    private static partial IntPtr GetCurrentProcess();
-
     private void OnClosed(object? sender, EventArgs e)
     {
         // 1. 移除 WndProc 钩子，断开 HwndSource → Window 引用链
@@ -131,14 +123,8 @@ public partial class ScreenshotPreviewWindow : MicaWindow
         Content = null;
         DataContext = null;
 
-        // 6. GC 回收托管对象 + 运行终结器释放非托管像素内存 + 压缩 LOH
-        GC.Collect(GC.MaxGeneration, GCCollectionMode.Aggressive, blocking: true, compacting: true);
-        GC.WaitForPendingFinalizers();
-        GC.Collect(GC.MaxGeneration, GCCollectionMode.Aggressive, blocking: true, compacting: true);
-
-        // 7. 通知 Windows 立即释放进程工作集中已释放的物理页面
-        //    否则 OS 会将已释放的页面保留在工作集中作为缓存，任务管理器显示的内存不会下降
-        EmptyWorkingSet(GetCurrentProcess());
+        // 6. GC 回收 + 释放工作集
+        MemoryManagementService.ReleaseMemory();
     }
 
     private void OnLoaded(object sender, RoutedEventArgs e)

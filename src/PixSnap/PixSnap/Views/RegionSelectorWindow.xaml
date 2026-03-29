@@ -54,9 +54,137 @@
             CornerRadius="16"
             IsHitTestVisible="False">
             <TextBlock
+                x:Name="FooterHintText"
                 MaxWidth="520"
                 Text="左键单击高亮窗口截图，左键拖动截矩形，Space 截当前显示器，Esc / 右键退出"
                 TextWrapping="Wrap" />
+        </Border>
+
+        <!--  截屏 / 录屏 模式切换  -->
+        <Border
+            x:Name="ModeTogglePanel"
+            Padding="4"
+            Background="{DynamicResource OverlayInfoBubbleBackgroundBrush}"
+            CornerRadius="12"
+            IsHitTestVisible="True">
+            <StackPanel Orientation="Horizontal">
+                <Border
+                    x:Name="ScreenshotModeBtn"
+                    Padding="16,7"
+                    Background="{DynamicResource OverlaySelectionStrokeBrush}"
+                    CornerRadius="9"
+                    Cursor="Hand"
+                    MouseLeftButtonDown="ScreenshotModeBtn_MouseDown">
+                    <TextBlock
+                        x:Name="ScreenshotModeBtnText"
+                        FontSize="13"
+                        Foreground="White"
+                        Text="截屏" />
+                </Border>
+                <Border
+                    x:Name="RecordingModeBtn"
+                    Padding="16,7"
+                    Background="Transparent"
+                    CornerRadius="9"
+                    Cursor="Hand"
+                    MouseLeftButtonDown="RecordingModeBtn_MouseDown">
+                    <TextBlock
+                        x:Name="RecordingModeBtnText"
+                        FontSize="13"
+                        Text="录屏" />
+                </Border>
+
+                <!--  音频选项（仅录屏模式可见）  -->
+                <Border
+                    x:Name="AudioSeparator"
+                    Width="1"
+                    Margin="4,4"
+                    Background="{DynamicResource OverlayFooterForegroundBrush}"
+                    Opacity="0.3"
+                    Visibility="Collapsed" />
+                <Border
+                    x:Name="MicToggleBtn"
+                    Margin="0,0,5,0"
+                    Padding="10,7"
+                    Background="Transparent"
+                    CornerRadius="9"
+                    Cursor="Hand"
+                    MouseLeftButtonDown="MicToggleBtn_MouseDown"
+                    ToolTip="麦克风"
+                    Visibility="Collapsed">
+                    <TextBlock
+                        x:Name="MicToggleIcon"
+                        FontFamily="{DynamicResource SegoeFluent}"
+                        FontSize="15"
+                        Text="{StaticResource Glyph_Microphone}" />
+                </Border>
+                <Border
+                    x:Name="SysAudioToggleBtn"
+                    Padding="10,7"
+                    Background="Transparent"
+                    CornerRadius="9"
+                    Cursor="Hand"
+                    MouseLeftButtonDown="SysAudioToggleBtn_MouseDown"
+                    ToolTip="系统声音"
+                    Visibility="Collapsed">
+                    <TextBlock
+                        x:Name="SysAudioToggleIcon"
+                        FontFamily="{DynamicResource SegoeFluent}"
+                        FontSize="15"
+                        Text="{StaticResource Glyph_Speaker}" />
+                </Border>
+
+                <!--  画质选项（仅录屏模式可见）  -->
+                <Border
+                    x:Name="QualitySeparator"
+                    Width="1"
+                    Margin="4,4"
+                    Background="{DynamicResource OverlayFooterForegroundBrush}"
+                    Opacity="0.3"
+                    Visibility="Collapsed" />
+                <Border
+                    x:Name="QualityStandardBtn"
+                    Padding="10,7"
+                    Background="Transparent"
+                    CornerRadius="9"
+                    Cursor="Hand"
+                    MouseLeftButtonDown="QualityStandardBtn_MouseDown"
+                    ToolTip="标清"
+                    Visibility="Collapsed">
+                    <TextBlock
+                        x:Name="QualityStandardText"
+                        FontSize="12"
+                        Text="标清" />
+                </Border>
+                <Border
+                    x:Name="QualityHighBtn"
+                    Padding="10,7"
+                    Background="Transparent"
+                    CornerRadius="9"
+                    Cursor="Hand"
+                    MouseLeftButtonDown="QualityHighBtn_MouseDown"
+                    ToolTip="高清"
+                    Visibility="Collapsed">
+                    <TextBlock
+                        x:Name="QualityHighText"
+                        FontSize="12"
+                        Text="高清" />
+                </Border>
+                <Border
+                    x:Name="QualityOriginalBtn"
+                    Padding="10,7"
+                    Background="Transparent"
+                    CornerRadius="9"
+                    Cursor="Hand"
+                    MouseLeftButtonDown="QualityOriginalBtn_MouseDown"
+                    ToolTip="原画"
+                    Visibility="Collapsed">
+                    <TextBlock
+                        x:Name="QualityOriginalText"
+                        FontSize="12"
+                        Text="原画" />
+                </Border>
+            </StackPanel>
         </Border>
     </Canvas>
 </Window>
