@@ -67,7 +67,7 @@
 
                     <ControlTemplate.Triggers>
                         <!--  悬停  -->
-                        <Trigger Property="IsMouseOver" SourceName="ItemBorder" Value="True">
+                        <Trigger SourceName="ItemBorder" Property="IsMouseOver" Value="True">
                             <Setter TargetName="ItemBorder" Property="Background" Value="{DynamicResource ButtonHoverBackgroundBrush}" />
                         </Trigger>
 
