@@ -26,6 +26,7 @@
                 <ResourceDictionary Source="Styles/ProgressBar.xaml" />
                 <ResourceDictionary Source="Styles/ScrollViewer.xaml" />
                 <ResourceDictionary Source="Styles/Menu.xaml" />
+                <ResourceDictionary Source="Styles/TreeView.xaml" />
                 <ResourceDictionary Source="Styles/EditPanel.xaml" />
                 <ResourceDictionary Source="Styles/PreviewWindow.xaml" />
             </ResourceDictionary.MergedDictionaries>
@@ -38,6 +39,7 @@
                         <MenuItem Command="{Binding CaptureCommand}" Header="截图" />
                         <Separator />
                         <MenuItem Command="{Binding ShowSettingsCommand}" Header="设置" />
+                        <MenuItem Command="{Binding ShowLogViewerCommand}" Header="日志" />
                         <MenuItem Command="{Binding ShowAboutCommand}" Header="关于 PixSnap" />
                         <Separator />
                         <MenuItem

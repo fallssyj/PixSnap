@@ -4,6 +4,8 @@ using PixSnap.Services;
 using Serilog;
 using System;
 using System.Collections.Generic;
+using System.Diagnostics;
+using System.IO;
 using System.Windows.Input;
 
 namespace PixSnap.ViewModels;
@@ -126,6 +128,20 @@ public partial class SettingsViewModel : ObservableObject
         {
             RecordingTempDirectory = dialog.FolderName;
         }
+    }
+
+    [RelayCommand]
+    private void OpenSaveDirectory()
+    {
+        if (Directory.Exists(SaveDirectory))
+            Process.Start("explorer.exe", SaveDirectory);
+    }
+
+    [RelayCommand]
+    private void OpenRecordingTempDirectory()
+    {
+        if (Directory.Exists(RecordingTempDirectory))
+            Process.Start("explorer.exe", RecordingTempDirectory);
     }
 
     [RelayCommand]

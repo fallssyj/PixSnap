@@ -3,12 +3,12 @@
         <Setter Property="Background" Value="{DynamicResource InputBackgroundBrush}" />
         <Setter Property="Foreground" Value="{DynamicResource TextPrimaryBrush}" />
         <Setter Property="BorderBrush" Value="{DynamicResource InputBorderBrush}" />
-        <Setter Property="BorderThickness" Value="1" />
+        <Setter Property="BorderThickness" Value="0.5" />
         <Setter Property="Padding" Value="14,10" />
         <Setter Property="FontSize" Value="14" />
         <Setter Property="CaretBrush" Value="{DynamicResource AccentInfoBrush}" />
         <Setter Property="SelectionBrush" Value="{DynamicResource InputSelectionBrush}" />
-        <Setter Property="SelectionOpacity" Value="1" />
+        <Setter Property="SelectionOpacity" Value="0.5" />
         <Setter Property="SnapsToDevicePixels" Value="True" />
         <Setter Property="UseLayoutRounding" Value="True" />
         <Setter Property="Template">
@@ -34,7 +34,6 @@
                         <Trigger Property="IsKeyboardFocused" Value="True">
                             <Setter TargetName="OuterBorder" Property="Background" Value="{DynamicResource InputFocusBackgroundBrush}" />
                             <Setter TargetName="OuterBorder" Property="BorderBrush" Value="{DynamicResource InputFocusBorderBrush}" />
-                            <Setter TargetName="OuterBorder" Property="BorderThickness" Value="1.5" />
                         </Trigger>
                         <Trigger Property="IsReadOnly" Value="True">
                             <Setter TargetName="OuterBorder" Property="Opacity" Value="0.88" />

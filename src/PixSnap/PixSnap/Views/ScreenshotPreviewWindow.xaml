@@ -154,11 +154,23 @@
                         HorizontalAlignment="Right"
                         VerticalAlignment="Top"
                         Orientation="Horizontal">
+                        <ToggleButton Content="&#xE840;" IsChecked="{Binding IsPinned}">
+                            <ToggleButton.Style>
+                                <Style BasedOn="{StaticResource ToggleButtonEx}" TargetType="ToggleButton">
+                                    <Setter Property="ToolTip" Value="置顶" />
+                                    <Style.Triggers>
+                                        <Trigger Property="IsChecked" Value="True">
+                                            <Setter Property="ToolTip" Value="取消" />
+                                        </Trigger>
+                                    </Style.Triggers>
+                                </Style>
+                            </ToggleButton.Style>
+                        </ToggleButton>
                         <Button
                             Command="{Binding OpenLogFolderCommand}"
-                            Content="{StaticResource Glyph_Diagnostic}"
+                            Content="{StaticResource Glyph_Preview}"
                             Style="{StaticResource WindowIconButtonStyle}"
-                            ToolTip="打开LOG" />
+                            ToolTip="日志" />
                         <Button
                             Command="{Binding OpenSettingsCommand}"
                             Content="{StaticResource Glyph_Settings}"

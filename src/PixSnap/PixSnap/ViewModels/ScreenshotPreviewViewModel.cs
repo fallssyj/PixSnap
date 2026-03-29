@@ -86,6 +86,9 @@ public partial class ScreenshotPreviewViewModel : ObservableRecipient, IRecipien
     [ObservableProperty]
     private bool _isMaximized;
 
+    [ObservableProperty]
+    private bool _isPinned;
+
     /// <summary>AI 功能弹出菜单是否展开。双向绑定到 Popup.IsOpen。</summary>
     [ObservableProperty]
     private bool _isAiPopupOpen;
@@ -839,9 +842,8 @@ public partial class ScreenshotPreviewViewModel : ObservableRecipient, IRecipien
     [RelayCommand]
     private static void OpenLogFolder()
     {
-        var logDir = Path.Combine(AppContext.BaseDirectory, "logs");
-        if (Directory.Exists(logDir))
-            Process.Start(new ProcessStartInfo(logDir) { UseShellExecute = true });
+        if (Application.Current is App app)
+            app.ShowLogViewer();
     }
 
     /// <summary>从文件路径加载图片（拖拽打开时使用）。</summary>

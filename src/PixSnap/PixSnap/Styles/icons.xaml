@@ -25,6 +25,7 @@
     <s:String x:Key="Glyph_Recapture">&#xEF20;</s:String>
     <s:String x:Key="Glyph_Color">&#xE790;</s:String>
     <s:String x:Key="Glyph_Diagnostic">&#xE9D9;</s:String>
+    <s:String x:Key="Glyph_Preview">&#xE8FF;</s:String>
     <s:String x:Key="Glyph_Settings">&#xE713;</s:String>
 
     <!--  标注工具  -->
@@ -53,5 +54,6 @@
     <s:String x:Key="Glyph_OriginalSize">&#xEA3B;</s:String>
     <s:String x:Key="Glyph_ZoomOut">&#xE71F;</s:String>
     <s:String x:Key="Glyph_ZoomIn">&#xE8A3;</s:String>
-
+    <!--  设置  -->
+    <s:String x:Key="Glyph_File">&#xE838;</s:String>
 </ResourceDictionary>

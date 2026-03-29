@@ -118,8 +118,8 @@
             <DockPanel>
                 <!--  标题栏  -->
                 <Border
-                    DockPanel.Dock="Top"
                     Padding="24,20,24,16"
+                    DockPanel.Dock="Top"
                     MouseLeftButtonDown="OnTitleBarMouseDown">
                     <StackPanel Orientation="Horizontal">
                         <Border
@@ -148,13 +148,13 @@
 
                 <!--  分隔线  -->
                 <Border
-                    DockPanel.Dock="Top"
                     Height="1"
                     Margin="20,0"
-                    Background="{DynamicResource BorderBrush}" />
+                    Background="{DynamicResource BorderBrush}"
+                    DockPanel.Dock="Top" />
 
                 <!--  底部按钮（固定不滚动）  -->
-                <Border DockPanel.Dock="Bottom" Padding="24,16,24,20">
+                <Border Padding="24,16,24,20" DockPanel.Dock="Bottom">
                     <Grid>
                         <Grid.ColumnDefinitions>
                             <ColumnDefinition Width="*" />
@@ -246,7 +246,7 @@
                                     <StackPanel Orientation="Horizontal">
                                         <TextBlock Style="{StaticResource RowIconStyle}" Text="&#xE765;" />
                                         <StackPanel Margin="12,0,0,0" VerticalAlignment="Center">
-                                            <TextBlock Style="{StaticResource RowTitleStyle}" Text="截图快捷键" />
+                                            <TextBlock Style="{StaticResource RowTitleStyle}" Text="截图/录制快捷键" />
                                             <TextBlock Style="{StaticResource RowDescStyle}" Text="点击输入框按下组合键录制，Esc 取消" />
                                         </StackPanel>
                                     </StackPanel>
@@ -303,6 +303,7 @@
                                             <Grid.ColumnDefinitions>
                                                 <ColumnDefinition Width="*" />
                                                 <ColumnDefinition Width="Auto" />
+                                                <ColumnDefinition Width="Auto" />
                                             </Grid.ColumnDefinitions>
                                             <TextBox
                                                 Grid.Column="0"
@@ -317,6 +318,15 @@
                                                 Command="{Binding BrowseSaveDirectoryCommand}"
                                                 Content="浏览"
                                                 FontSize="12" />
+                                            <Button
+                                                Grid.Column="2"
+                                                Height="38"
+                                                Margin="4,0,0,0"
+                                                Padding="10,0"
+                                                Command="{Binding OpenSaveDirectoryCommand}"
+                                                Content="{StaticResource Glyph_File}"
+                                                Style="{StaticResource ToolbarIconButtonStyle}"
+                                                ToolTip="打开目录" />
                                         </Grid>
                                     </StackPanel>
                                 </Border>
@@ -335,6 +345,7 @@
                                             <Grid.ColumnDefinitions>
                                                 <ColumnDefinition Width="*" />
                                                 <ColumnDefinition Width="Auto" />
+                                                <ColumnDefinition Width="Auto" />
                                             </Grid.ColumnDefinitions>
                                             <TextBox
                                                 Grid.Column="0"
@@ -349,6 +360,15 @@
                                                 Command="{Binding BrowseRecordingTempDirectoryCommand}"
                                                 Content="浏览"
                                                 FontSize="12" />
+                                            <Button
+                                                Grid.Column="2"
+                                                Height="38"
+                                                Margin="4,0,0,0"
+                                                Padding="10,0"
+                                                Command="{Binding OpenRecordingTempDirectoryCommand}"
+                                                Content="{StaticResource Glyph_File}"
+                                                Style="{StaticResource ToolbarIconButtonStyle}"
+                                                ToolTip="打开目录" />
                                         </Grid>
                                     </StackPanel>
                                 </Border>

@@ -179,6 +179,10 @@ public partial class ScreenshotPreviewWindow : MicaWindow
             case nameof(ScreenshotPreviewViewModel.IsAnnotateMode):
                 UpdateAnnotationCanvasState();
                 break;
+
+            case nameof(ScreenshotPreviewViewModel.IsPinned):
+                Topmost = (DataContext as ScreenshotPreviewViewModel)?.IsPinned == true;
+                break;
         }
     }
 

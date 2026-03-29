@@ -39,13 +39,14 @@ public partial class App : System.Windows.Application, IRecipient<ScreenshotCapt
     {
         base.OnStartup(e);
 
-        // 初始化 Serilog 文件日志：写入程序目录下的 logs/ 文件夹
+        // 初始化 Serilog 文件日志：按天建立子目录 logs/yyyy-MM-dd/pixsnap.log
+        var todayLogDir = Path.Combine(AppContext.BaseDirectory, "logs", DateTime.Now.ToString("yyyy-MM-dd"));
+        Directory.CreateDirectory(todayLogDir);
         Log.Logger = new LoggerConfiguration()
             .MinimumLevel.Information()
             .WriteTo.File(
-                Path.Combine(AppContext.BaseDirectory, "logs", "pixsnap-.log"),
-                rollingInterval: RollingInterval.Day,
-                retainedFileCountLimit: 7,
+                Path.Combine(todayLogDir, "pixsnap.log"),
+                fileSizeLimitBytes: null,
                 outputTemplate: "{Timestamp:yyyy-MM-dd HH:mm:ss.fff} [{Level:u3}] {Message:lj}{NewLine}{Exception}")
             .CreateLogger();
 
@@ -333,7 +334,7 @@ public partial class App : System.Windows.Application, IRecipient<ScreenshotCapt
     private void InitializeTrayIcon()
     {
         _taskbarIcon = (TaskbarIcon)FindResource("TrayIcon");
-        _taskbarIcon.DataContext = new TrayViewModel(StartCaptureFromTray, ShowSettings, ShowAbout);
+        _taskbarIcon.DataContext = new TrayViewModel(StartCaptureFromTray, ShowSettings, ShowAbout, ShowLogViewer);
         _taskbarIcon.Icon = LoadTrayIcon();
         _taskbarIcon.TrayMouseDoubleClick += OnTrayMouseDoubleClick;
         _taskbarIcon.TrayContextMenuOpen += OnTrayContextMenuOpen;
@@ -481,6 +482,21 @@ public partial class App : System.Windows.Application, IRecipient<ScreenshotCapt
         if (_mainWindow?.IsVisible == true)
             window.Owner = _mainWindow;
         window.ShowDialog();
+    }
+
+    public void ShowLogViewer()
+    {
+        foreach (Window w in Windows)
+        {
+            if (w is LogViewerWindow existing)
+            {
+                existing.Activate();
+                return;
+            }
+        }
+
+        var window = new LogViewerWindow();
+        window.Show();
     }
 
     private void StartCaptureFromTray()

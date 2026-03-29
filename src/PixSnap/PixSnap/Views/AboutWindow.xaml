@@ -4,9 +4,9 @@
     xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
     xmlns:mica="clr-namespace:MicaWPF.Controls;assembly=MicaWPF"
     Title="关于 PixSnap"
-    Width="560"
+    Width="520"
+    Height="640"
     ResizeMode="NoResize"
-    SizeToContent="Height"
     TextOptions.TextFormattingMode="Display"
     UseLayoutRounding="True"
     WindowStartupLocation="CenterScreen"
@@ -22,7 +22,7 @@
 
     <Border>
         <Grid>
-            <!--  关闭按钮浮于最上层  -->
+            <!--  关闭按钮  -->
             <Button
                 Width="44"
                 Height="36"
@@ -33,12 +33,12 @@
                 Content="{StaticResource Glyph_Close}"
                 Style="{StaticResource CloseWindowIconButtonStyle}" />
 
-            <StackPanel>
-
-                <!--  ═══════════════════  Hero 区域  ═══════════════════  -->
+            <DockPanel>
+                <!--  ═══  Hero 区域  ═══  -->
                 <Border
-                    Padding="0,44,0,36"
+                    Padding="0,40,0,32"
                     ClipToBounds="True"
+                    DockPanel.Dock="Top"
                     MouseLeftButtonDown="OnTitleBarMouseDown">
                     <Border.Background>
                         <LinearGradientBrush x:Name="HeroGradient" StartPoint="0,0" EndPoint="1,1">
@@ -75,11 +75,11 @@
                     </Border.Triggers>
 
                     <Grid>
-                        <!--  装饰性光晕圆  -->
+                        <!--  装饰光晕  -->
                         <Ellipse
-                            Width="220"
-                            Height="220"
-                            Margin="0,-30,0,0"
+                            Width="200"
+                            Height="200"
+                            Margin="0,-20,0,0"
                             HorizontalAlignment="Center"
                             VerticalAlignment="Top"
                             IsHitTestVisible="False"
@@ -93,15 +93,14 @@
                         </Ellipse>
 
                         <StackPanel HorizontalAlignment="Center">
-                            <!--  应用图标（带呼吸光晕）  -->
+                            <!--  应用图标  -->
                             <Grid HorizontalAlignment="Center">
-                                <!--  外层光晕  -->
                                 <Border
                                     x:Name="IconGlow"
-                                    Width="96"
-                                    Height="96"
+                                    Width="88"
+                                    Height="88"
                                     HorizontalAlignment="Center"
-                                    CornerRadius="24"
+                                    CornerRadius="22"
                                     IsHitTestVisible="False"
                                     Opacity="0">
                                     <Border.Background>
@@ -129,17 +128,16 @@
                                         </EventTrigger>
                                     </Border.Triggers>
                                 </Border>
-                                <!--  图标  -->
                                 <Border
-                                    Width="72"
-                                    Height="72"
+                                    Width="64"
+                                    Height="64"
                                     HorizontalAlignment="Center"
-                                    CornerRadius="18">
+                                    CornerRadius="16">
                                     <Border.Effect>
                                         <DropShadowEffect
-                                            BlurRadius="24"
-                                            Opacity="0.4"
-                                            ShadowDepth="8"
+                                            BlurRadius="20"
+                                            Opacity="0.35"
+                                            ShadowDepth="6"
                                             Color="#845EF7" />
                                     </Border.Effect>
                                     <Border.Background>
@@ -148,28 +146,27 @@
                                 </Border>
                             </Grid>
 
-                            <!--  应用名称  -->
                             <TextBlock
-                                Margin="0,18,0,0"
+                                Margin="0,14,0,0"
                                 HorizontalAlignment="Center"
-                                FontSize="28"
+                                FontSize="24"
+                                FontWeight="SemiBold"
                                 Text="PixSnap" />
 
-                            <!--  Tagline  -->
                             <TextBlock
-                                Margin="0,6,0,0"
+                                Margin="0,4,0,0"
                                 HorizontalAlignment="Center"
                                 FontSize="13"
                                 Opacity="0.5"
-                                Text="截图 · 编辑 · AI · 一步到位" />
+                                Text="截图 · 录屏 · 标注 · AI 编辑" />
 
                             <!--  版本徽章  -->
                             <Border
-                                Margin="0,14,0,0"
-                                Padding="16,6"
+                                Margin="0,12,0,0"
+                                Padding="14,5"
                                 HorizontalAlignment="Center"
                                 Background="{DynamicResource HeroBadgeBackgroundBrush}"
-                                CornerRadius="14">
+                                CornerRadius="12">
                                 <StackPanel Orientation="Horizontal">
                                     <Ellipse
                                         Width="6"
@@ -187,285 +184,379 @@
                     </Grid>
                 </Border>
 
-                <!--  ═══════════════════  截图模式  ═══════════════════  -->
-                <StackPanel Margin="28,22,28,0">
-                    <TextBlock
-                        Margin="4,0,0,10"
-                        FontSize="13"
-                        Opacity="0.4"
-                        Text="截图模式" />
+                <!--  分隔线  -->
+                <Border
+                    Height="1"
+                    Margin="24,0"
+                    Background="{DynamicResource BorderBrush}"
+                    DockPanel.Dock="Top" />
 
-                    <Grid>
-                        <Grid.ColumnDefinitions>
-                            <ColumnDefinition Width="*" />
-                            <ColumnDefinition Width="8" />
-                            <ColumnDefinition Width="*" />
-                            <ColumnDefinition Width="8" />
-                            <ColumnDefinition Width="*" />
-                        </Grid.ColumnDefinitions>
+                <!--  版权（底部固定）  -->
+                <TextBlock
+                    Margin="0,0,0,20"
+                    HorizontalAlignment="Center"
+                    DockPanel.Dock="Bottom"
+                    FontSize="12"
+                    Opacity="0.25"
+                    Text="Copyright © 2026 PixSnap Contributors" />
 
-                        <!--  窗口  -->
-                        <Border
-                            Grid.Column="0"
-                            Padding="16,18"
-                            Background="{DynamicResource FeatureWindowBackgroundBrush}"
-                            CornerRadius="14">
-                            <StackPanel>
-                                <TextBlock
-                                    FontFamily="{StaticResource SegoeFluent}"
-                                    FontSize="22"
-                                    Foreground="{DynamicResource FeatureWindowForegroundBrush}"
-                                    Text="{StaticResource Glyph_Maximize}" />
-                                <TextBlock
-                                    Margin="0,10,0,0"
-                                    FontSize="14"
-                                    Foreground="{DynamicResource FeatureWindowForegroundBrush}"
-                                    Text="窗口" />
-                                <TextBlock
-                                    Margin="0,4,0,0"
-                                    FontSize="13"
-                                    Foreground="{DynamicResource FeatureWindowDescriptionBrush}"
-                                    Text="悬停高亮，点击捕获"
-                                    TextWrapping="Wrap" />
-                                <Border
-                                    Margin="0,10,0,0"
-                                    Padding="8,3"
-                                    HorizontalAlignment="Left"
-                                    Background="#10FFFFFF"
-                                    CornerRadius="6">
-                                    <TextBlock
-                                        FontSize="12"
-                                        Foreground="{DynamicResource FeatureWindowDescriptionBrush}"
-                                        Text="左键单击" />
-                                </Border>
-                            </StackPanel>
-                        </Border>
+                <!--  可滚动内容区  -->
+                <ScrollViewer
+                    Padding="24,16,24,8"
+                    HorizontalScrollBarVisibility="Disabled"
+                    VerticalScrollBarVisibility="Auto">
+                    <StackPanel>
 
-                        <!--  矩形  -->
-                        <Border
-                            Grid.Column="2"
-                            Padding="16,18"
-                            Background="{DynamicResource FeatureRegionBackgroundBrush}"
-                            CornerRadius="14">
-                            <StackPanel>
-                                <TextBlock
-                                    FontFamily="{StaticResource SegoeFluent}"
-                                    FontSize="22"
-                                    Foreground="{DynamicResource FeatureRegionForegroundBrush}"
-                                    Text="{StaticResource Glyph_Crop}" />
-                                <TextBlock
-                                    Margin="0,10,0,0"
-                                    FontSize="14"
-                                    Foreground="{DynamicResource FeatureRegionForegroundBrush}"
-                                    Text="矩形" />
-                                <TextBlock
-                                    Margin="0,4,0,0"
-                                    FontSize="13"
-                                    Foreground="{DynamicResource FeatureRegionDescriptionBrush}"
-                                    Text="拖拽框选，像素级精准"
-                                    TextWrapping="Wrap" />
-                                <Border
-                                    Margin="0,10,0,0"
-                                    Padding="8,3"
-                                    HorizontalAlignment="Left"
-                                    Background="#10FFFFFF"
-                                    CornerRadius="6">
-                                    <TextBlock
-                                        FontSize="12"
-                                        Foreground="{DynamicResource FeatureRegionDescriptionBrush}"
-                                        Text="左键拖动" />
-                                </Border>
-                            </StackPanel>
-                        </Border>
+                        <!--  ═══  核心功能  ═══  -->
+                        <TextBlock
+                            Margin="4,0,0,10"
+                            FontSize="13"
+                            Opacity="0.4"
+                            Text="核心功能" />
 
-                        <!--  全屏  -->
-                        <Border
-                            Grid.Column="4"
-                            Padding="16,18"
-                            Background="{DynamicResource FeatureMonitorBackgroundBrush}"
-                            CornerRadius="14">
-                            <StackPanel>
-                                <TextBlock
-                                    FontFamily="{StaticResource SegoeFluent}"
-                                    FontSize="22"
-                                    Foreground="{DynamicResource FeatureMonitorForegroundBrush}"
-                                    Text="{StaticResource Glyph_Resolution}" />
-                                <TextBlock
-                                    Margin="0,10,0,0"
-                                    FontSize="14"
-                                    Foreground="{DynamicResource FeatureMonitorForegroundBrush}"
-                                    Text="全屏" />
-                                <TextBlock
-                                    Margin="0,4,0,0"
-                                    FontSize="13"
-                                    Foreground="{DynamicResource FeatureMonitorDescriptionBrush}"
-                                    Text="一键截取整个显示器"
-                                    TextWrapping="Wrap" />
-                                <Border
-                                    Margin="0,10,0,0"
-                                    Padding="8,3"
-                                    HorizontalAlignment="Left"
-                                    Background="#10FFFFFF"
-                                    CornerRadius="6">
-                                    <TextBlock
-                                        FontSize="12"
-                                        Foreground="{DynamicResource FeatureMonitorDescriptionBrush}"
-                                        Text="Space" />
-                                </Border>
-                            </StackPanel>
-                        </Border>
-                    </Grid>
-                </StackPanel>
-
-                <!--  ═══════════════════  编辑能力  ═══════════════════  -->
-                <StackPanel Margin="28,18,28,0">
-                    <TextBlock
-                        Margin="4,0,0,10"
-                        FontSize="13"
-                        Opacity="0.4"
-                        Text="编辑能力" />
-
-                    <Border
-                        Padding="18,16"
-                        Background="{DynamicResource SurfaceBrush}"
-                        BorderBrush="{DynamicResource BorderSubtleBrush}"
-                        BorderThickness="1"
-                        CornerRadius="14">
+                        <!--  截图 + 录屏 两列  -->
                         <Grid>
                             <Grid.ColumnDefinitions>
                                 <ColumnDefinition Width="*" />
-                                <ColumnDefinition Width="*" />
-                                <ColumnDefinition Width="*" />
+                                <ColumnDefinition Width="10" />
                                 <ColumnDefinition Width="*" />
                             </Grid.ColumnDefinitions>
 
-                            <!--  裁剪  -->
-                            <StackPanel Grid.Column="0" HorizontalAlignment="Center">
-                                <Border
-                                    Width="40"
-                                    Height="40"
-                                    HorizontalAlignment="Center"
-                                    Background="#15845EF7"
-                                    CornerRadius="10">
+                            <!--  截图  -->
+                            <Border
+                                Grid.Column="0"
+                                Padding="16,16"
+                                Background="{DynamicResource FeatureWindowBackgroundBrush}"
+                                CornerRadius="12">
+                                <StackPanel>
+                                    <Grid>
+                                        <Border
+                                            Width="36"
+                                            Height="36"
+                                            HorizontalAlignment="Left"
+                                            Background="#15845EF7"
+                                            CornerRadius="9">
+                                            <TextBlock
+                                                HorizontalAlignment="Center"
+                                                VerticalAlignment="Center"
+                                                FontFamily="{StaticResource SegoeFluent}"
+                                                FontSize="16"
+                                                Foreground="{DynamicResource AccentBrush}"
+                                                Text="{StaticResource Glyph_Crop}" />
+                                        </Border>
+                                    </Grid>
                                     <TextBlock
-                                        HorizontalAlignment="Center"
-                                        VerticalAlignment="Center"
-                                        FontFamily="{StaticResource SegoeFluent}"
-                                        FontSize="18"
-                                        Foreground="{DynamicResource AccentBrush}"
-                                        Text="{StaticResource Glyph_Crop}" />
-                                </Border>
-                                <TextBlock
-                                    Margin="0,8,0,0"
-                                    HorizontalAlignment="Center"
-                                    FontSize="13"
-                                    Text="裁剪" />
-                            </StackPanel>
+                                        Margin="0,12,0,0"
+                                        FontSize="14"
+                                        FontWeight="Medium"
+                                        Text="截图" />
+                                    <TextBlock
+                                        Margin="0,4,0,0"
+                                        FontSize="12"
+                                        Opacity="0.5"
+                                        Text="窗口 · 矩形 · 全屏"
+                                        TextWrapping="Wrap" />
+                                </StackPanel>
+                            </Border>
 
-                            <!--  圆角  -->
-                            <StackPanel Grid.Column="1" HorizontalAlignment="Center">
-                                <Border
-                                    Width="40"
-                                    Height="40"
-                                    HorizontalAlignment="Center"
-                                    Background="#15845EF7"
-                                    CornerRadius="10">
+                            <!--  录屏  -->
+                            <Border
+                                Grid.Column="2"
+                                Padding="16,16"
+                                Background="{DynamicResource FeatureRegionBackgroundBrush}"
+                                CornerRadius="12">
+                                <StackPanel>
+                                    <Grid>
+                                        <Border
+                                            Width="36"
+                                            Height="36"
+                                            HorizontalAlignment="Left"
+                                            Background="#15E64980"
+                                            CornerRadius="9">
+                                            <TextBlock
+                                                HorizontalAlignment="Center"
+                                                VerticalAlignment="Center"
+                                                FontFamily="{StaticResource SegoeFluent}"
+                                                FontSize="16"
+                                                Foreground="#E64980"
+                                                Text="{StaticResource Glyph_Play}" />
+                                        </Border>
+                                    </Grid>
                                     <TextBlock
-                                        HorizontalAlignment="Center"
-                                        VerticalAlignment="Center"
-                                        FontFamily="{StaticResource SegoeFluent}"
-                                        FontSize="18"
-                                        Foreground="{DynamicResource AccentBrush}"
-                                        Text="{StaticResource Glyph_RoundCorner}" />
-                                </Border>
-                                <TextBlock
-                                    Margin="0,8,0,0"
-                                    HorizontalAlignment="Center"
-                                    FontSize="13"
-                                    Text="圆角" />
-                            </StackPanel>
-
-                            <!--  AI 擦除  -->
-                            <StackPanel Grid.Column="2" HorizontalAlignment="Center">
-                                <Border
-                                    Width="40"
-                                    Height="40"
-                                    HorizontalAlignment="Center"
-                                    Background="#15845EF7"
-                                    CornerRadius="10">
+                                        Margin="0,12,0,0"
+                                        FontSize="14"
+                                        FontWeight="Medium"
+                                        Text="录屏" />
                                     <TextBlock
-                                        HorizontalAlignment="Center"
-                                        VerticalAlignment="Center"
-                                        FontFamily="{StaticResource SegoeFluent}"
-                                        FontSize="18"
-                                        Foreground="{DynamicResource AccentBrush}"
-                                        Text="{StaticResource Glyph_Eraser}" />
-                                </Border>
-                                <TextBlock
-                                    Margin="0,8,0,0"
-                                    HorizontalAlignment="Center"
-                                    FontSize="13"
-                                    Text="AI 擦除" />
-                            </StackPanel>
-
-                            <!--  超分辨率  -->
-                            <StackPanel Grid.Column="3" HorizontalAlignment="Center">
-                                <Border
-                                    Width="40"
-                                    Height="40"
-                                    HorizontalAlignment="Center"
-                                    Background="#15845EF7"
-                                    CornerRadius="10">
-                                    <TextBlock
-                                        HorizontalAlignment="Center"
-                                        VerticalAlignment="Center"
-                                        FontFamily="{StaticResource SegoeFluent}"
-                                        FontSize="18"
-                                        Foreground="{DynamicResource AccentBrush}"
-                                        Text="{StaticResource Glyph_ZoomIn}" />
-                                </Border>
-                                <TextBlock
-                                    Margin="0,8,0,0"
-                                    HorizontalAlignment="Center"
-                                    FontSize="13"
-                                    Text="超分四倍" />
-                            </StackPanel>
+                                        Margin="0,4,0,0"
+                                        FontSize="12"
+                                        Opacity="0.5"
+                                        Text="H.264 + AAC · 暂停恢复"
+                                        TextWrapping="Wrap" />
+                                </StackPanel>
+                            </Border>
                         </Grid>
-                    </Border>
-                </StackPanel>
 
-                <!--  ═══════════════════  快捷键提示  ═══════════════════  -->
-                <Border
-                    Margin="28,18,28,0"
-                    Padding="16,12"
-                    Background="{DynamicResource SurfaceBrush}"
-                    BorderBrush="{DynamicResource BorderSubtleBrush}"
-                    BorderThickness="1"
-                    CornerRadius="14">
-                    <StackPanel Orientation="Horizontal">
+                        <!--  ═══  编辑 & AI  ═══  -->
                         <TextBlock
-                            VerticalAlignment="Center"
-                            FontFamily="{StaticResource SegoeFluent}"
-                            FontSize="14"
-                            Foreground="{DynamicResource AccentBrush}"
-                            Text="{StaticResource Glyph_Settings}" />
-                        <TextBlock
-                            Margin="10,0,0,0"
-                            VerticalAlignment="Center"
+                            Margin="4,18,0,10"
                             FontSize="13"
-                            Opacity="0.7"
-                            Text="Esc / 右键退出截图 · 在设置中自定义全局快捷键" />
-                    </StackPanel>
-                </Border>
+                            Opacity="0.4"
+                            Text="编辑 &amp; AI" />
 
-                <!--  版权  -->
-                <TextBlock
-                    Margin="0,20,0,24"
-                    HorizontalAlignment="Center"
-                    FontSize="13"
-                    Opacity="0.3"
-                    Text="Copyright © 2026 PixSnap Contributors" />
-            </StackPanel>
+                        <Border
+                            Padding="4,14"
+                            Background="{DynamicResource SurfaceBrush}"
+                            CornerRadius="12">
+                            <Grid>
+                                <Grid.ColumnDefinitions>
+                                    <ColumnDefinition Width="*" />
+                                    <ColumnDefinition Width="*" />
+                                    <ColumnDefinition Width="*" />
+                                    <ColumnDefinition Width="*" />
+                                    <ColumnDefinition Width="*" />
+                                </Grid.ColumnDefinitions>
+
+                                <!--  标注  -->
+                                <StackPanel Grid.Column="0" HorizontalAlignment="Center">
+                                    <Border
+                                        Width="36"
+                                        Height="36"
+                                        HorizontalAlignment="Center"
+                                        Background="#15845EF7"
+                                        CornerRadius="9">
+                                        <TextBlock
+                                            HorizontalAlignment="Center"
+                                            VerticalAlignment="Center"
+                                            FontFamily="{StaticResource SegoeFluent}"
+                                            FontSize="15"
+                                            Foreground="{DynamicResource AccentBrush}"
+                                            Text="{StaticResource Glyph_Annotate}" />
+                                    </Border>
+                                    <TextBlock
+                                        Margin="0,6,0,0"
+                                        HorizontalAlignment="Center"
+                                        FontSize="11"
+                                        Text="标注" />
+                                </StackPanel>
+
+                                <!--  裁剪  -->
+                                <StackPanel Grid.Column="1" HorizontalAlignment="Center">
+                                    <Border
+                                        Width="36"
+                                        Height="36"
+                                        HorizontalAlignment="Center"
+                                        Background="#15845EF7"
+                                        CornerRadius="9">
+                                        <TextBlock
+                                            HorizontalAlignment="Center"
+                                            VerticalAlignment="Center"
+                                            FontFamily="{StaticResource SegoeFluent}"
+                                            FontSize="15"
+                                            Foreground="{DynamicResource AccentBrush}"
+                                            Text="{StaticResource Glyph_Crop}" />
+                                    </Border>
+                                    <TextBlock
+                                        Margin="0,6,0,0"
+                                        HorizontalAlignment="Center"
+                                        FontSize="11"
+                                        Text="裁剪" />
+                                </StackPanel>
+
+                                <!--  AI 擦除  -->
+                                <StackPanel Grid.Column="2" HorizontalAlignment="Center">
+                                    <Border
+                                        Width="36"
+                                        Height="36"
+                                        HorizontalAlignment="Center"
+                                        Background="#1540C057"
+                                        CornerRadius="9">
+                                        <TextBlock
+                                            HorizontalAlignment="Center"
+                                            VerticalAlignment="Center"
+                                            FontFamily="{StaticResource SegoeFluent}"
+                                            FontSize="15"
+                                            Foreground="#40C057"
+                                            Text="{StaticResource Glyph_Eraser}" />
+                                    </Border>
+                                    <TextBlock
+                                        Margin="0,6,0,0"
+                                        HorizontalAlignment="Center"
+                                        FontSize="11"
+                                        Text="AI 擦除" />
+                                </StackPanel>
+
+                                <!--  去背景  -->
+                                <StackPanel Grid.Column="3" HorizontalAlignment="Center">
+                                    <Border
+                                        Width="36"
+                                        Height="36"
+                                        HorizontalAlignment="Center"
+                                        Background="#15F59F00"
+                                        CornerRadius="9">
+                                        <TextBlock
+                                            HorizontalAlignment="Center"
+                                            VerticalAlignment="Center"
+                                            FontFamily="{StaticResource SegoeFluent}"
+                                            FontSize="15"
+                                            Foreground="#F59F00"
+                                            Text="{StaticResource Glyph_Color}" />
+                                    </Border>
+                                    <TextBlock
+                                        Margin="0,6,0,0"
+                                        HorizontalAlignment="Center"
+                                        FontSize="11"
+                                        Text="去背景" />
+                                </StackPanel>
+
+                                <!--  超分  -->
+                                <StackPanel Grid.Column="4" HorizontalAlignment="Center">
+                                    <Border
+                                        Width="36"
+                                        Height="36"
+                                        HorizontalAlignment="Center"
+                                        Background="#1522B8CF"
+                                        CornerRadius="9">
+                                        <TextBlock
+                                            HorizontalAlignment="Center"
+                                            VerticalAlignment="Center"
+                                            FontFamily="{StaticResource SegoeFluent}"
+                                            FontSize="15"
+                                            Foreground="#22B8CF"
+                                            Text="{StaticResource Glyph_ZoomIn}" />
+                                    </Border>
+                                    <TextBlock
+                                        Margin="0,6,0,0"
+                                        HorizontalAlignment="Center"
+                                        FontSize="11"
+                                        Text="超分 4×" />
+                                </StackPanel>
+                            </Grid>
+                        </Border>
+
+                        <!--  ═══  快捷键提示  ═══  -->
+                        <TextBlock
+                            Margin="4,18,0,10"
+                            FontSize="13"
+                            Opacity="0.4"
+                            Text="快捷操作" />
+
+                        <Border
+                            Padding="0"
+                            Background="{DynamicResource SurfaceBrush}"
+                            CornerRadius="12">
+                            <StackPanel>
+                                <!--  行模板  -->
+                                <Border Padding="16,11">
+                                    <Grid>
+                                        <StackPanel Orientation="Horizontal">
+                                            <TextBlock
+                                                VerticalAlignment="Center"
+                                                FontFamily="{StaticResource SegoeFluent}"
+                                                FontSize="14"
+                                                Foreground="{DynamicResource AccentBrush}"
+                                                Text="{StaticResource Glyph_Maximize}" />
+                                            <TextBlock
+                                                Margin="10,0,0,0"
+                                                VerticalAlignment="Center"
+                                                FontSize="13"
+                                                Text="窗口截图" />
+                                        </StackPanel>
+                                        <TextBlock
+                                            HorizontalAlignment="Right"
+                                            VerticalAlignment="Center"
+                                            FontSize="12"
+                                            Opacity="0.4"
+                                            Text="左键单击" />
+                                    </Grid>
+                                </Border>
+                                <Border
+                                    Height="1"
+                                    Margin="40,0,16,0"
+                                    Background="{DynamicResource BorderBrush}" />
+                                <Border Padding="16,11">
+                                    <Grid>
+                                        <StackPanel Orientation="Horizontal">
+                                            <TextBlock
+                                                VerticalAlignment="Center"
+                                                FontFamily="{StaticResource SegoeFluent}"
+                                                FontSize="14"
+                                                Foreground="{DynamicResource AccentBrush}"
+                                                Text="{StaticResource Glyph_Crop}" />
+                                            <TextBlock
+                                                Margin="10,0,0,0"
+                                                VerticalAlignment="Center"
+                                                FontSize="13"
+                                                Text="矩形截图" />
+                                        </StackPanel>
+                                        <TextBlock
+                                            HorizontalAlignment="Right"
+                                            VerticalAlignment="Center"
+                                            FontSize="12"
+                                            Opacity="0.4"
+                                            Text="左键拖动" />
+                                    </Grid>
+                                </Border>
+                                <Border
+                                    Height="1"
+                                    Margin="40,0,16,0"
+                                    Background="{DynamicResource BorderBrush}" />
+                                <Border Padding="16,11">
+                                    <Grid>
+                                        <StackPanel Orientation="Horizontal">
+                                            <TextBlock
+                                                VerticalAlignment="Center"
+                                                FontFamily="{StaticResource SegoeFluent}"
+                                                FontSize="14"
+                                                Foreground="{DynamicResource AccentBrush}"
+                                                Text="{StaticResource Glyph_Resolution}" />
+                                            <TextBlock
+                                                Margin="10,0,0,0"
+                                                VerticalAlignment="Center"
+                                                FontSize="13"
+                                                Text="全屏截图" />
+                                        </StackPanel>
+                                        <TextBlock
+                                            HorizontalAlignment="Right"
+                                            VerticalAlignment="Center"
+                                            FontSize="12"
+                                            Opacity="0.4"
+                                            Text="Space" />
+                                    </Grid>
+                                </Border>
+                                <Border
+                                    Height="1"
+                                    Margin="40,0,16,0"
+                                    Background="{DynamicResource BorderBrush}" />
+                                <Border Padding="16,11">
+                                    <Grid>
+                                        <StackPanel Orientation="Horizontal">
+                                            <TextBlock
+                                                VerticalAlignment="Center"
+                                                FontFamily="{StaticResource SegoeFluent}"
+                                                FontSize="14"
+                                                Foreground="{DynamicResource AccentBrush}"
+                                                Text="{StaticResource Glyph_Close}" />
+                                            <TextBlock
+                                                Margin="10,0,0,0"
+                                                VerticalAlignment="Center"
+                                                FontSize="13"
+                                                Text="退出截图" />
+                                        </StackPanel>
+                                        <TextBlock
+                                            HorizontalAlignment="Right"
+                                            VerticalAlignment="Center"
+                                            FontSize="12"
+                                            Opacity="0.4"
+                                            Text="Esc / 右键" />
+                                    </Grid>
+                                </Border>
+                            </StackPanel>
+                        </Border>
+
+                    </StackPanel>
+                </ScrollViewer>
+            </DockPanel>
         </Grid>
     </Border>
 </mica:MicaWindow>

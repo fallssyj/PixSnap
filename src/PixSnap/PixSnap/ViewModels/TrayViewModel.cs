@@ -10,12 +10,14 @@ public partial class TrayViewModel : ObservableObject
     private readonly Action _captureAction;
     private readonly Action _showSettingsAction;
     private readonly Action _showAboutAction;
+    private readonly Action _showLogViewerAction;
 
-    public TrayViewModel(Action captureAction, Action showSettingsAction, Action showAboutAction)
+    public TrayViewModel(Action captureAction, Action showSettingsAction, Action showAboutAction, Action showLogViewerAction)
     {
         _captureAction = captureAction;
         _showSettingsAction = showSettingsAction;
         _showAboutAction = showAboutAction;
+        _showLogViewerAction = showLogViewerAction;
     }
 
     [RelayCommand]
@@ -26,6 +28,9 @@ public partial class TrayViewModel : ObservableObject
 
     [RelayCommand]
     private void ShowAbout() => _showAboutAction();
+
+    [RelayCommand]
+    private void ShowLogViewer() => _showLogViewerAction();
 
     [RelayCommand]
     private void Exit() => Application.Current.Shutdown();
