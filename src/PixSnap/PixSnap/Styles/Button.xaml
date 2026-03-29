@@ -291,7 +291,7 @@
             <Setter.Value>
                 <ControlTemplate TargetType="ToggleButton">
                     <Grid>
-                        <Border x:Name="bd"  />
+                        <Border x:Name="bd" />
                         <TextBlock
                             x:Name="icon"
                             HorizontalAlignment="Center"
