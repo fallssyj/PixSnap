@@ -349,7 +349,7 @@ public static class InpaintService
                     dstPtr[dstIdx] = (byte)Math.Clamp(srcPtr[srcIdx] * (1f - alpha) + genPtr[genIdx] * alpha, 0f, 255f);
                     dstPtr[dstIdx + 1] = (byte)Math.Clamp(srcPtr[srcIdx + 1] * (1f - alpha) + genPtr[genIdx + 1] * alpha, 0f, 255f);
                     dstPtr[dstIdx + 2] = (byte)Math.Clamp(srcPtr[srcIdx + 2] * (1f - alpha) + genPtr[genIdx + 2] * alpha, 0f, 255f);
-                    dstPtr[dstIdx + 3] = 255;               // A
+                    dstPtr[dstIdx + 3] = (byte)Math.Clamp(srcPtr[srcIdx + 3] * (1f - alpha) + 255f * alpha, 0f, 255f);
                 }
             }
         }
