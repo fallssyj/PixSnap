@@ -205,6 +205,27 @@ public partial class App : System.Windows.Application, IRecipient<ScreenshotCapt
     {
         try
         {
+            var notificationVm = new NotificationViewModel(message.Screenshot, message.CaptureMode);
+            notificationVm.OpenRequested += OpenPreviewWindow;
+
+            var notification = new NotificationWindow { DataContext = notificationVm };
+            notification.Show();
+        }
+        catch (Exception exception)
+        {
+            MessageBoxWindow.Show(
+                BuildExceptionMessage(exception),
+                "预览窗口打开失败",
+                MessageBoxButton.OK,
+                MessageBoxImage.Error);
+        }
+    }
+
+    private void OpenPreviewWindow(System.Windows.Media.Imaging.BitmapSource screenshot, string captureMode)
+    {
+        try
+        {
+            var message = new ScreenshotCapturedMessage(screenshot, captureMode);
             var previewViewModel = Services.GetRequiredService<ScreenshotPreviewViewModel>();
             previewViewModel.Receive(message);
 
