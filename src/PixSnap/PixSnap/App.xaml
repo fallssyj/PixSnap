@@ -36,7 +36,7 @@
             <tb:TaskbarIcon x:Key="TrayIcon" ToolTipText="PixSnap">
                 <tb:TaskbarIcon.ContextMenu>
                     <ContextMenu>
-                        <MenuItem Command="{Binding CaptureCommand}" Header="截图" />
+                        <MenuItem Command="{Binding CaptureCommand}" Header="截图/录屏" />
                         <Separator />
                         <MenuItem Command="{Binding ShowSettingsCommand}" Header="设置" />
                         <MenuItem Command="{Binding ShowLogViewerCommand}" Header="日志" />
