@@ -33,5 +33,15 @@ public partial class TrayViewModel : ObservableObject
     private void ShowLogViewer() => _showLogViewerAction();
 
     [RelayCommand]
-    private void Exit() => Application.Current.Shutdown();
+    private void Exit()
+    {
+        var result = Views.MessageBoxWindow.Show(
+            "确定要退出 PixSnap 吗？",
+            "退出确认",
+            MessageBoxButton.YesNo,
+            MessageBoxImage.Question);
+
+        if (result == MessageBoxResult.Yes)
+            Application.Current.Shutdown();
+    }
 }
