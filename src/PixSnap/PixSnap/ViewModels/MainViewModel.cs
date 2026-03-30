@@ -58,6 +58,8 @@ public partial class MainViewModel : ObservableObject
                 {
                     var (screenshot, mode) = await CaptureSelectionAsync(selection);
                     Log.Information("截图完成: 模式={Mode}, 尺寸={W}×{H}", mode, screenshot.PixelWidth, screenshot.PixelHeight);
+                    // 截图完成后自动复制到剪贴板
+                    System.Windows.Clipboard.SetImage(screenshot);
                     SendScreenshot(screenshot, mode);
                 }
             }
