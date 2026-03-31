@@ -26,6 +26,9 @@ public sealed class CaptureSelection
     public IntPtr WindowHandle { get; init; }
     public string WindowTitle { get; init; } = string.Empty;
     public Rect Region { get; init; }
+
+    /// <summary>窗口在屏幕物理像素坐标中的矩形（仅 Window 模式，用于从预截图裁剪）。</summary>
+    public Rect WindowRect { get; init; }
     public bool IsRecording { get; init; }
     public bool EnableMicrophone { get; init; }
     public bool EnableSystemAudio { get; init; }

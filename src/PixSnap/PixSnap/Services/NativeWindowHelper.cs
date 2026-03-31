@@ -55,6 +55,9 @@ internal static class NativeWindowHelper
     [DllImport("user32.dll", CharSet = CharSet.Unicode)]
     private static extern int GetWindowTextW(IntPtr hwnd, System.Text.StringBuilder lpString, int nMaxCount);
 
+    [DllImport("user32.dll", CharSet = CharSet.Unicode)]
+    private static extern int GetClassNameW(IntPtr hwnd, System.Text.StringBuilder lpClassName, int nMaxCount);
+
     [DllImport("user32")]
     private static extern IntPtr MonitorFromWindow(IntPtr hwnd, uint dwFlags);
 
@@ -201,6 +204,37 @@ internal static class NativeWindowHelper
             hwnd = GetWindow(hwnd, GW_HWNDNEXT);
         }
         return IntPtr.Zero;
+    }
+
+    /// <summary>
+    /// 按 Z 序从前到后快照所有可见窗口的矩形（包括无标题的弹窗：下拉菜单、工具提示等）。
+    /// 返回列表保持 Z 序（索引 0 = 最前层），用于在窗口已隐藏后仍能按位置匹配。
+    /// </summary>
+    public static List<(IntPtr Hwnd, Rect Rect, string Title, string ClassName)> SnapshotWindowRects(IntPtr excludeHwnd = default)
+    {
+        var result = new List<(IntPtr, Rect, string, string)>();
+        var hwnd = GetTopWindow(IntPtr.Zero);
+        while (hwnd != IntPtr.Zero)
+        {
+            if (hwnd != excludeHwnd
+                && IsVisibleTopLevelWindow(hwnd)
+                && TryGetWindowRect(hwnd, out var rect))
+            {
+                var titleBuf = new System.Text.StringBuilder(256);
+                GetWindowTextW(hwnd, titleBuf, titleBuf.Capacity);
+                var classBuf = new System.Text.StringBuilder(256);
+                GetClassNameW(hwnd, classBuf, classBuf.Capacity);
+                result.Add((hwnd, rect, titleBuf.ToString(), classBuf.ToString()));
+            }
+            hwnd = GetWindow(hwnd, GW_HWNDNEXT);
+        }
+        return result;
+    }
+
+    /// <summary>宽松过滤：仅要求可见、非最小化、非 Cloaked，不要求有标题（以包含弹窗/下拉菜单/工具提示）。</summary>
+    private static bool IsVisibleTopLevelWindow(IntPtr hwnd)
+    {
+        return IsWindowVisible(hwnd) && !IsIconic(hwnd) && !IsWindowCloaked(hwnd);
     }
 
     private static bool IsCapturableTopLevelWindow(IntPtr hwnd)

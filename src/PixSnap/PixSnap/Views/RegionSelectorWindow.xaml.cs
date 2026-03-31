@@ -6,6 +6,7 @@ using System.Windows.Controls;
 using System.Windows.Input;
 using System.Windows.Interop;
 using System.Windows.Media;
+using System.Windows.Media.Imaging;
 using Point = System.Windows.Point;
 
 namespace PixSnap.Views;
@@ -19,11 +20,14 @@ public partial class RegionSelectorWindow : Window
 
     private readonly IReadOnlyDictionary<IntPtr, WindowInfo> _windowsByHandle;
     private readonly IReadOnlyList<ScreenInfo> _screens;
+    private readonly Dictionary<int, BitmapSource>? _preCaptures;
+    private readonly IReadOnlyList<(IntPtr Hwnd, Rect Rect, string Title, string ClassName)>? _windowSnapshot;
     private readonly RegionSelectorViewModel _viewModel = new();
     private bool _isMouseDown;
     private bool _isDraggingSelection;
     private IntPtr _windowHandle;
     private WindowInfo? _hoveredWindow;
+    private Rect _hoveredWindowRect;
     private ScreenInfo? _hoveredScreen;
     private Point _mouseDownPoint;
     private Point _currentPoint;
@@ -31,12 +35,17 @@ public partial class RegionSelectorWindow : Window
     private List<double>? _snapXEdges;
     private List<double>? _snapYEdges;
 
-    public RegionSelectorWindow(IScreenCaptureService screenCaptureService)
+    public RegionSelectorWindow(
+        IScreenCaptureService screenCaptureService,
+        Dictionary<int, BitmapSource>? preCaptures = null,
+        IReadOnlyList<(IntPtr Hwnd, Rect Rect, string Title, string ClassName)>? windowSnapshot = null)
     {
         InitializeComponent();
         DataContext = _viewModel;
 
         _screens = screenCaptureService.GetScreens();
+        _preCaptures = preCaptures;
+        _windowSnapshot = windowSnapshot;
         _windowsByHandle = screenCaptureService
             .GetWindows()
             .GroupBy(window => window.Hwnd)
@@ -60,6 +69,33 @@ public partial class RegionSelectorWindow : Window
     private void OnLoaded(object sender, RoutedEventArgs e)
     {
         _windowHandle = new WindowInteropHelper(this).Handle;
+
+        // 将预截取的屏幕截图作为不透明背景插入到 Canvas 最底层，
+        // 这样即使选区窗口抢走了焦点，用户看到的仍然是截图前的桌面状态。
+        if (_preCaptures is not null)
+        {
+            int insertIndex = 0;
+            foreach (var screen in _screens)
+            {
+                if (_preCaptures.TryGetValue(screen.Index, out var capture))
+                {
+                    var bounds = screen.Bounds;
+                    var screenRect = new Rect(bounds.X, bounds.Y, bounds.Width, bounds.Height);
+                    var localRect = ScreenRectToLocalRect(screenRect);
+                    var image = new Image
+                    {
+                        Source = capture,
+                        Width = localRect.Width,
+                        Height = localRect.Height,
+                        Stretch = Stretch.Fill,
+                        IsHitTestVisible = false
+                    };
+                    Canvas.SetLeft(image, localRect.X);
+                    Canvas.SetTop(image, localRect.Y);
+                    RootCanvas.Children.Insert(insertIndex++, image);
+                }
+            }
+        }
 
         // Mask 和提示气泡属于纯视图层元素，初始化时直接按当前覆盖窗口尺寸定位。
         Mask.Width = Width;
@@ -151,13 +187,13 @@ public partial class RegionSelectorWindow : Window
 
         if (_hoveredWindow is not null)
         {
-            var windowPixels = NativeWindowHelper.TryGetWindowRect(_hoveredWindow.Hwnd, out var wr)
-                ? (long)wr.Width * (long)wr.Height : 0L;
+            var windowPixels = (long)_hoveredWindowRect.Width * (long)_hoveredWindowRect.Height;
             Selection = new CaptureSelection
             {
                 Mode = CaptureSelectionMode.Window,
                 WindowHandle = _hoveredWindow.Hwnd,
                 WindowTitle = string.IsNullOrWhiteSpace(_hoveredWindow.Title) ? _hoveredWindow.ClassName : _hoveredWindow.Title,
+                WindowRect = _hoveredWindowRect,
                 IsRecording = _viewModel.IsRecordingMode,
                 EnableMicrophone = _viewModel.EnableMicrophone,
                 EnableSystemAudio = _viewModel.EnableSystemAudio,
@@ -241,6 +277,18 @@ public partial class RegionSelectorWindow : Window
             yEdges.Add(local.Top);
             yEdges.Add(local.Bottom);
         }
+        // 预快照中可能包含已隐藏的焦点敏感窗口，也加入吸附边缘
+        if (_windowSnapshot is not null)
+        {
+            foreach (var (_, snapRect, _, _) in _windowSnapshot)
+            {
+                var local = ScreenRectToLocalRect(snapRect);
+                xEdges.Add(local.Left);
+                xEdges.Add(local.Right);
+                yEdges.Add(local.Top);
+                yEdges.Add(local.Bottom);
+            }
+        }
         // 也加入屏幕边缘
         foreach (var scr in _screens)
         {
@@ -278,12 +326,12 @@ public partial class RegionSelectorWindow : Window
     private void UpdateHover(Point screenPoint)
     {
         _hoveredScreen = FindScreen(screenPoint);
-        _hoveredWindow = FindWindowAtPoint(screenPoint);
+        _hoveredWindow = FindWindowAtPoint(screenPoint, out _hoveredWindowRect);
 
-        if (_hoveredWindow is not null && NativeWindowHelper.TryGetWindowRect(_hoveredWindow.Hwnd, out var windowRect))
+        if (_hoveredWindow is not null && _hoveredWindowRect is { Width: > 0, Height: > 0 })
         {
-            var localRect = ScreenRectToLocalRect(windowRect);
-            _viewModel.UpdateWindowHighlight(new Rect(windowRect.Left, windowRect.Top, windowRect.Width, windowRect.Height));
+            var localRect = ScreenRectToLocalRect(_hoveredWindowRect);
+            _viewModel.UpdateWindowHighlight(new Rect(_hoveredWindowRect.Left, _hoveredWindowRect.Top, _hoveredWindowRect.Width, _hoveredWindowRect.Height));
 
             // 高亮框的位置依赖 DPI 与窗口坐标换算，保留在 View 层处理更合适。
             WindowHighlightRect.Visibility = Visibility.Visible;
@@ -334,9 +382,51 @@ public partial class RegionSelectorWindow : Window
 
     private WindowInfo? FindWindowAtPoint(Point screenPoint)
     {
+        return FindWindowAtPoint(screenPoint, out _);
+    }
+
+    /// <summary>
+    /// 在指定屏幕坐标点查找窗口。
+    /// 截屏模式下使用预快照（反映截图瞬间的真实 Z 序），
+    /// 录屏模式下使用实时检测（录屏需要活窗口句柄）。
+    /// </summary>
+    private WindowInfo? FindWindowAtPoint(Point screenPoint, out Rect windowRect)
+    {
+        windowRect = Rect.Empty;
+
+        // 录屏模式必须使用实时检测（录屏 API 需要活窗口句柄）
+        bool useSnapshot = _windowSnapshot is not null && !_viewModel.IsRecordingMode;
+
+        if (useSnapshot)
+        {
+            foreach (var (snapHwnd, snapRect, snapTitle, snapClassName) in _windowSnapshot!)
+            {
+                if (snapHwnd != _windowHandle && snapRect.Contains(screenPoint))
+                {
+                    windowRect = snapRect;
+
+                    if (_windowsByHandle.TryGetValue(snapHwnd, out var snapWindow))
+                        return snapWindow;
+
+                    return new WindowInfo
+                    {
+                        Hwnd = snapHwnd,
+                        Title = snapTitle,
+                        ClassName = snapClassName
+                    };
+                }
+            }
+            return null;
+        }
+
+        // 无预快照或录屏模式：实时检测
         var hwnd = NativeWindowHelper.FindTopWindowAtPoint(screenPoint, _windowHandle);
         if (hwnd != IntPtr.Zero && _windowsByHandle.TryGetValue(hwnd, out var window))
-            return window;
+        {
+            if (NativeWindowHelper.TryGetWindowRect(hwnd, out windowRect))
+                return window;
+        }
+
         return null;
     }
 

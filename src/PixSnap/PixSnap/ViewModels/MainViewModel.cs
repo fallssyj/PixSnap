@@ -8,6 +8,7 @@ using Serilog;
 using System.IO;
 using System.Text;
 using System.Windows;
+using System.Windows.Media.Imaging;
 using Application = System.Windows.Application;
 
 namespace PixSnap.ViewModels;
@@ -43,10 +44,20 @@ public partial class MainViewModel : ObservableObject
         {
             IsCapturing = true;
 
+            // 在隐藏主窗口之前预截取所有屏幕并快照窗口 Z 序，
+            // 确保焦点相关 UI（下拉菜单、工具提示等）在截图瞬间仍然可见。
+            var screens = _screenCaptureService.GetScreens();
+            var preCaptures = new Dictionary<int, BitmapSource>();
+            foreach (var screen in screens)
+            {
+                preCaptures[screen.Index] = await _screenCaptureService.CaptureFullScreenAsync(screen.Index);
+            }
+            var windowSnapshot = NativeWindowHelper.SnapshotWindowRects();
+
             Application.Current.MainWindow?.Hide();
             await Task.Delay(120);
 
-            var selector = new RegionSelectorWindow(_screenCaptureService);
+            var selector = new RegionSelectorWindow(_screenCaptureService, preCaptures, windowSnapshot);
 
             if (selector.ShowDialog() == true && selector.Selection is { } selection)
             {
@@ -56,7 +67,7 @@ public partial class MainViewModel : ObservableObject
                 }
                 else
                 {
-                    var (screenshot, mode) = await CaptureSelectionAsync(selection);
+                    var (screenshot, mode) = CropFromPreCaptures(selection, preCaptures, screens);
                     Log.Information("截图完成: 模式={Mode}, 尺寸={W}×{H}", mode, screenshot.PixelWidth, screenshot.PixelHeight);
                     // 截图完成后自动复制到剪贴板
                     System.Windows.Clipboard.SetImage(screenshot);
@@ -84,22 +95,48 @@ public partial class MainViewModel : ObservableObject
         }
     }
 
-    /// <summary>根据用户选区模式执行对应的截图操作，返回截图及模式标识字符串。</summary>
-    private async Task<(System.Windows.Media.Imaging.BitmapSource Screenshot, string Mode)> CaptureSelectionAsync(CaptureSelection selection)
+    /// <summary>从预截取的全屏截图中裁剪出用户选区，避免选区窗口抢焦点导致截图内容变化。</summary>
+    private static (BitmapSource Screenshot, string Mode) CropFromPreCaptures(
+        CaptureSelection selection,
+        Dictionary<int, BitmapSource> preCaptures,
+        List<ScreenInfo> screens)
     {
-        return selection.Mode switch
+        if (selection.Mode == CaptureSelectionMode.FullScreen)
         {
-            CaptureSelectionMode.FullScreen => (
-                await _screenCaptureService.CaptureFullScreenAsync(selection.ScreenIndex),
-                "FullScreen"),
-            CaptureSelectionMode.Window => (
-                await _screenCaptureService.CaptureWindowAsync(selection.WindowHandle, includeBorder: false),
-                "Window"),
-            CaptureSelectionMode.Region => (
-                await _screenCaptureService.CaptureRegionAsync(selection.Region),
-                "Region"),
-            _ => throw new InvalidOperationException("不支持的截图模式。")
-        };
+            return (preCaptures[selection.ScreenIndex], "FullScreen");
+        }
+
+        var targetRect = selection.Mode == CaptureSelectionMode.Window
+            ? selection.WindowRect
+            : selection.Region;
+
+        var mode = selection.Mode == CaptureSelectionMode.Window ? "Window" : "Region";
+
+        // 找到包含目标矩形中心点的屏幕
+        var cx = targetRect.X + targetRect.Width / 2;
+        var cy = targetRect.Y + targetRect.Height / 2;
+        var screen = screens.FirstOrDefault(s =>
+            s.Bounds.Contains((int)cx, (int)cy)) ?? screens[0];
+
+        var capture = preCaptures[screen.Index];
+        var bounds = screen.Bounds;
+
+        int x = Math.Max(0, (int)Math.Round(targetRect.X - bounds.X));
+        int y = Math.Max(0, (int)Math.Round(targetRect.Y - bounds.Y));
+        int w = (int)Math.Round(targetRect.Width);
+        int h = (int)Math.Round(targetRect.Height);
+
+        w = Math.Min(w, capture.PixelWidth - x);
+        h = Math.Min(h, capture.PixelHeight - y);
+
+        if (w <= 0 || h <= 0)
+        {
+            return (capture, mode);
+        }
+
+        var cropped = new CroppedBitmap(capture, new Int32Rect(x, y, w, h));
+        cropped.Freeze();
+        return (cropped, mode);
     }
 
     /// <summary>启动录屏并显示录制控制窗口。</summary>
@@ -117,10 +154,11 @@ public partial class MainViewModel : ObservableObject
         var bitrate = selection.VideoBitrate;
         Log.Information("开始录制: 模式={Mode}, 临时文件={Path}, 麦克风={Mic}, 系统声音={Sys}, 码率={Bitrate}", selection.Mode, tempPath, mic, sys, bitrate);
 
+        RecordingControlWindow? controlWindow = null;
         try
         {
             // 先创建并显示控制窗口（避免与第一帧回调竞争）
-            var controlWindow = new RecordingControlWindow(
+            controlWindow = new RecordingControlWindow(
                 stopAction: async () =>
                 {
                     try
@@ -178,6 +216,8 @@ public partial class MainViewModel : ObservableObject
         catch (Exception ex)
         {
             Log.Error(ex, "启动录制失败");
+            // 关闭已显示的控制窗口
+            try { controlWindow?.Close(); } catch { }
             // 清理可能已创建的临时文件
             try { if (File.Exists(tempPath)) File.Delete(tempPath); }
             catch (Exception delEx) { Log.Warning(delEx, "清理录制临时文件失败: {Path}", tempPath); }
