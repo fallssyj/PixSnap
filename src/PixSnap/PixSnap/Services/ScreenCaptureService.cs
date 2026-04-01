@@ -6,9 +6,7 @@ using System.Collections.Generic;
 using System.Linq;
 using System.Threading.Tasks;
 using System.Windows;
-using System.Windows.Threading;
 using System.Windows.Media.Imaging;
-using Application = System.Windows.Application;
 
 using PixWindowInfo = PixSnap.Models.WindowInfo;
 
@@ -16,7 +14,7 @@ namespace PixSnap.Services;
 
 /// <summary>
 /// 屏幕截图与录屏服务实现：通过 NativeScreenCapturer （C++/CLI）调用 Windows Graphics Capture API。
-/// 所有截图操作均在 UI 线程上执行，以确保 BitmapSource 可直接用于 WPF 绑定。
+/// 截图操作在后台线程执行；native 层返回的 BitmapSource 已 Freeze，可安全跨线程传递。
 /// </summary>
 public sealed class ScreenCaptureService : IScreenCaptureService, IDisposable
 {
@@ -29,19 +27,19 @@ public sealed class ScreenCaptureService : IScreenCaptureService, IDisposable
     public Task<BitmapSource> CaptureFullScreenAsync(int screenIndex)
     {
         Log.Information("截取全屏: 显示器 {Index}", screenIndex);
-        return InvokeOnUiThreadAsync(() => _nativeCapturer.CaptureFullScreen(screenIndex));
+        return InvokeCaptureAsync(() => _nativeCapturer.CaptureFullScreen(screenIndex));
     }
 
     public Task<BitmapSource> CaptureWindowAsync(IntPtr hwnd, bool includeBorder = false)
     {
         Log.Information("截取窗口: HWND={Hwnd:X8}, 包含边框={IncludeBorder}", hwnd, includeBorder);
-        return InvokeOnUiThreadAsync(() => _nativeCapturer.CaptureWindow(hwnd, includeBorder));
+        return InvokeCaptureAsync(() => _nativeCapturer.CaptureWindow(hwnd, includeBorder));
     }
 
     public Task<BitmapSource> CaptureRegionAsync(Rect region)
     {
         Log.Information("截取区域: ({X},{Y}) {W}×{H}", (int)region.X, (int)region.Y, (int)region.Width, (int)region.Height);
-        return InvokeOnUiThreadAsync(() => _nativeCapturer.CaptureRegion(
+        return InvokeCaptureAsync(() => _nativeCapturer.CaptureRegion(
             (int)Math.Round(region.X),
             (int)Math.Round(region.Y),
             (int)Math.Round(region.Width),
@@ -137,14 +135,10 @@ public sealed class ScreenCaptureService : IScreenCaptureService, IDisposable
         _nativeCapturer.StopRecording();
     }
 
-    private static Task<BitmapSource> InvokeOnUiThreadAsync(Func<BitmapSource> captureAction)
+    private static Task<BitmapSource> InvokeCaptureAsync(Func<BitmapSource> captureAction)
     {
-        var dispatcher = Application.Current?.Dispatcher;
-        if (dispatcher is null || dispatcher.CheckAccess())
-        {
-            return Task.FromResult(captureAction());
-        }
-
-        return dispatcher.InvokeAsync(captureAction, DispatcherPriority.Send).Task;
+        // 保持使用 WGC，但避免在 STA UI 线程等待首帧导致窗口响应被阻塞。
+        // BitmapSource 在 native 层已 Freeze，可安全跨线程返回到 UI。
+        return Task.Run(captureAction);
     }
 }

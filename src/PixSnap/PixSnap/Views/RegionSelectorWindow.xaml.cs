@@ -46,10 +46,22 @@ public partial class RegionSelectorWindow : Window
         _screens = screenCaptureService.GetScreens();
         _preCaptures = preCaptures;
         _windowSnapshot = windowSnapshot;
-        _windowsByHandle = screenCaptureService
-            .GetWindows()
-            .GroupBy(window => window.Hwnd)
-            .ToDictionary(group => group.Key, group => group.First());
+        _windowsByHandle = _windowSnapshot is { Count: > 0 }
+            ? _windowSnapshot
+                .GroupBy(window => window.Hwnd)
+                .ToDictionary(
+                    group => group.Key,
+                    group => new WindowInfo
+                    {
+                        Hwnd = group.Key,
+                        Title = group.First().Title,
+                        ClassName = group.First().ClassName,
+                        Icon = null
+                    })
+            : screenCaptureService
+                .GetWindows()
+                .GroupBy(window => window.Hwnd)
+                .ToDictionary(group => group.Key, group => group.First());
 
         Left = SystemParameters.VirtualScreenLeft;
         Top = SystemParameters.VirtualScreenTop;

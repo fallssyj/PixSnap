@@ -7,6 +7,7 @@ using PixSnap.Views;
 using Serilog;
 using System.IO;
 using System.Text;
+using System.Threading.Tasks;
 using System.Windows;
 using System.Windows.Media.Imaging;
 using Application = System.Windows.Application;
@@ -44,20 +45,17 @@ public partial class MainViewModel : ObservableObject
         {
             IsCapturing = true;
 
-            // 在隐藏主窗口之前预截取所有屏幕并快照窗口 Z 序，
-            // 确保焦点相关 UI（下拉菜单、工具提示等）在截图瞬间仍然可见。
+            // 在隐藏主窗口之前并行启动预截图与窗口快照，
+            // 但不等待预截图完成，确保选区窗口可以立刻弹出。
             var screens = _screenCaptureService.GetScreens();
-            var preCaptures = new Dictionary<int, BitmapSource>();
-            foreach (var screen in screens)
-            {
-                preCaptures[screen.Index] = await _screenCaptureService.CaptureFullScreenAsync(screen.Index);
-            }
+            var preCaptureTasks = StartPreCaptureTasks(screens);
             var windowSnapshot = NativeWindowHelper.SnapshotWindowRects();
 
             Application.Current.MainWindow?.Hide();
             await Task.Delay(120);
 
-            var selector = new RegionSelectorWindow(_screenCaptureService, preCaptures, windowSnapshot);
+            var initialPreCaptures = CollectCompletedPreCaptures(preCaptureTasks);
+            var selector = new RegionSelectorWindow(_screenCaptureService, initialPreCaptures, windowSnapshot);
 
             if (selector.ShowDialog() == true && selector.Selection is { } selection)
             {
@@ -67,7 +65,11 @@ public partial class MainViewModel : ObservableObject
                 }
                 else
                 {
-                    var (screenshot, mode) = CropFromPreCaptures(selection, preCaptures, screens);
+                    var preCaptures = await ResolvePreCapturesAsync(preCaptureTasks, timeoutMs: 800);
+                    var (screenshot, mode) = preCaptures.Count == screens.Count
+                        ? CropFromPreCaptures(selection, preCaptures, screens)
+                        : await CaptureFromSelectionAsync(selection);
+
                     Log.Information("截图完成: 模式={Mode}, 尺寸={W}×{H}", mode, screenshot.PixelWidth, screenshot.PixelHeight);
                     // 截图完成后自动复制到剪贴板
                     System.Windows.Clipboard.SetImage(screenshot);
@@ -93,6 +95,60 @@ public partial class MainViewModel : ObservableObject
             IsCapturing = false;
             Log.Information("[录屏] StartCapture finally 块完成");
         }
+    }
+
+    private Dictionary<int, Task<BitmapSource>> StartPreCaptureTasks(IEnumerable<ScreenInfo> screens)
+    {
+        var tasks = new Dictionary<int, Task<BitmapSource>>();
+        foreach (var screen in screens)
+        {
+            tasks[screen.Index] = _screenCaptureService.CaptureFullScreenAsync(screen.Index);
+        }
+        return tasks;
+    }
+
+    private static Dictionary<int, BitmapSource> CollectCompletedPreCaptures(Dictionary<int, Task<BitmapSource>> preCaptureTasks)
+    {
+        var preCaptures = new Dictionary<int, BitmapSource>();
+        foreach (var (screenIndex, task) in preCaptureTasks)
+        {
+            if (task.IsCompletedSuccessfully)
+            {
+                preCaptures[screenIndex] = task.Result;
+            }
+        }
+        return preCaptures;
+    }
+
+    private static async Task<Dictionary<int, BitmapSource>> ResolvePreCapturesAsync(
+        Dictionary<int, Task<BitmapSource>> preCaptureTasks,
+        int timeoutMs)
+    {
+        try
+        {
+            await Task.WhenAll(preCaptureTasks.Values).WaitAsync(TimeSpan.FromMilliseconds(timeoutMs));
+        }
+        catch (Exception)
+        {
+            // 预截图超时或失败时，不阻塞交互流程，后续走实时 WGC 回退路径。
+        }
+
+        return CollectCompletedPreCaptures(preCaptureTasks);
+    }
+
+    private async Task<(BitmapSource Screenshot, string Mode)> CaptureFromSelectionAsync(CaptureSelection selection)
+    {
+        return selection.Mode switch
+        {
+            CaptureSelectionMode.FullScreen =>
+                (await _screenCaptureService.CaptureFullScreenAsync(selection.ScreenIndex), "FullScreen"),
+
+            CaptureSelectionMode.Window =>
+                (await _screenCaptureService.CaptureWindowAsync(selection.WindowHandle, includeBorder: false), "Window"),
+
+            _ =>
+                (await _screenCaptureService.CaptureRegionAsync(selection.Region), "Region")
+        };
     }
 
     /// <summary>从预截取的全屏截图中裁剪出用户选区，避免选区窗口抢焦点导致截图内容变化。</summary>
