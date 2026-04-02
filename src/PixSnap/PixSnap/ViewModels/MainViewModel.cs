@@ -219,7 +219,8 @@ public partial class MainViewModel : ObservableObject
                 {
                     try
                     {
-                        await Task.Run(() => _screenCaptureService.StopRecording());
+                        _screenCaptureService.StopRecording();
+                        await Task.CompletedTask;
                         Log.Information("录制完成: {Path}", tempPath);
 
                         if (File.Exists(tempPath))

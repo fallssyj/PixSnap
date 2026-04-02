@@ -39,6 +39,8 @@
 #include <cstdio>
 #include <csignal>
 #include <thread>
+#include <sstream>
+#include <iomanip>
 
 namespace Wgc = winrt::Windows::Graphics::Capture;
 namespace Wg = winrt::Windows::Graphics;
@@ -705,18 +707,17 @@ namespace
         return best;
     }
 
-    HRESULT InitializeMFSinkWriter(
+    HRESULT ConfigureMFSinkWriter(
         ScreenRecorderState* state,
-        const wchar_t* outputPath)
+        const wchar_t* outputPath,
+        bool enableHardwareTransforms)
     {
-        HRESULT hr = MFStartup(MF_VERSION);
-        if (FAILED(hr)) return hr;
-
+        HRESULT hr = S_OK;
         winrt::com_ptr<IMFAttributes> attrs;
         hr = MFCreateAttributes(attrs.put(), 1);
         if (FAILED(hr)) return hr;
 
-        attrs->SetUINT32(MF_READWRITE_ENABLE_HARDWARE_TRANSFORMS, TRUE);
+        attrs->SetUINT32(MF_READWRITE_ENABLE_HARDWARE_TRANSFORMS, enableHardwareTransforms ? TRUE : FALSE);
 
         hr = MFCreateSinkWriterFromURL(outputPath, nullptr, attrs.get(), state->sinkWriter.put());
         if (FAILED(hr)) return hr;
@@ -762,7 +763,6 @@ namespace
             audioOutputType->SetUINT32(MF_MT_AUDIO_BITS_PER_SAMPLE, 16);
             audioOutputType->SetUINT32(MF_MT_AUDIO_SAMPLES_PER_SECOND, ScreenRecorderState::kAudioSampleRate);
             audioOutputType->SetUINT32(MF_MT_AUDIO_NUM_CHANNELS, ScreenRecorderState::kAudioChannels);
-            audioOutputType->SetUINT32(MF_MT_AUDIO_AVG_BYTES_PER_SECOND, 32000);
 
             hr = state->sinkWriter->AddStream(audioOutputType.get(), &state->audioStreamIndex);
             if (FAILED(hr)) return hr;
@@ -786,6 +786,28 @@ namespace
 
         hr = state->sinkWriter->BeginWriting();
         return hr;
+    }
+
+    HRESULT InitializeMFSinkWriter(
+        ScreenRecorderState* state,
+        const wchar_t* outputPath)
+    {
+        HRESULT hr = MFStartup(MF_VERSION);
+        if (FAILED(hr)) return hr;
+
+        state->hasAudioStream = false;
+        state->sinkWriter = nullptr;
+
+        // 先尝试硬件编码路径，失败后回退到软件编码路径。
+        hr = ConfigureMFSinkWriter(state, outputPath, true);
+        if (SUCCEEDED(hr))
+        {
+            return hr;
+        }
+
+        state->hasAudioStream = false;
+        state->sinkWriter = nullptr;
+        return ConfigureMFSinkWriter(state, outputPath, false);
     }
 
     void WriteFrameToSinkWriter(
@@ -896,7 +918,13 @@ namespace
         // 初始化 MF Sink Writer
         auto hr = InitializeMFSinkWriter(state, outputPath);
         if (FAILED(hr))
-            throw std::runtime_error("Failed to initialize Media Foundation sink writer.");
+        {
+            std::ostringstream oss;
+            oss << "Failed to initialize Media Foundation sink writer. HRESULT=0x"
+                << std::uppercase << std::hex << std::setw(8) << std::setfill('0')
+                << static_cast<unsigned long>(hr);
+            throw std::runtime_error(oss.str());
+        }
 
         // 安装向量异常处理器以捕获硬件级崩溃
         if (!g_vehHandle)
@@ -930,6 +958,11 @@ namespace
                     catch (...)
                     {
                         state->recording.store(false);
+                        try { state->frameArrivedRevoker.revoke(); } catch (...) {}
+                        try { if (state->session != nullptr) state->session.Close(); } catch (...) {}
+                        try { if (state->framePool != nullptr) state->framePool.Close(); } catch (...) {}
+                        state->session = nullptr;
+                        state->framePool = nullptr;
                     }
                 });
 
@@ -1010,8 +1043,24 @@ namespace
 
     void StopRecordingState(ScreenRecorderState* state)
     {
-        if (!state->recording.exchange(false))
+        const bool wasRecording = state->recording.exchange(false);
+        const bool hasLiveResources =
+            state->session != nullptr ||
+            state->framePool != nullptr ||
+            state->sinkWriter != nullptr ||
+            state->audioRunning.load();
+
+        // 某些异常路径会先把 recording 置为 false（例如帧回调异常），
+        // 但 WGC session 仍然存活。若此处直接返回，Win10 黄色边框会一直残留。
+        if (!wasRecording && !hasLiveResources)
             return;
+
+        // 优先关闭 WGC 会话，确保 Win10 黄色边框第一时间回收。
+        try { state->frameArrivedRevoker.revoke(); } catch (...) {}
+        try { if (state->session != nullptr) state->session.Close(); } catch (...) {}
+        try { if (state->framePool != nullptr) state->framePool.Close(); } catch (...) {}
+        state->session = nullptr;
+        state->framePool = nullptr;
 
         state->paused.store(false);
         state->totalPausedDuration = 0;
@@ -1034,28 +1083,7 @@ namespace
         if (state->micFormat) { CoTaskMemFree(state->micFormat); state->micFormat = nullptr; }
         state->hasAudioStream = false;
 
-        // 断开帧回调
-        state->frameArrivedRevoker.revoke();
-
-        try
-        {
-            if (state->session != nullptr)
-            {
-                state->session.Close();
-                state->session = nullptr;
-            }
-        }
-        catch (...) {}
-
-        try
-        {
-            if (state->framePool != nullptr)
-            {
-                state->framePool.Close();
-                state->framePool = nullptr;
-            }
-        }
-        catch (...) {}
+        // 会话已在前面优先关闭，这里不再重复主路径关闭。
 
         {
             std::lock_guard lock(state->writerMutex);
@@ -1083,6 +1111,13 @@ namespace
         state->enableSystemAudio = false;
         state->totalAudioSamplesWritten = 0;
         state->audioInitFailed = false;
+
+        // Win10 兜底：某些异常路径下上面 Close 可能未真正执行到，
+        // 再次尝试关闭会话与帧池，确保黄色边框被 DWM 回收。
+        try { if (state->session != nullptr) state->session.Close(); } catch (...) {}
+        try { if (state->framePool != nullptr) state->framePool.Close(); } catch (...) {}
+        state->session = nullptr;
+        state->framePool = nullptr;
     }
 
     // ─── 纯 unmanaged 录屏入口（所有 WinRT 异常在此捕获转换） ────────────
