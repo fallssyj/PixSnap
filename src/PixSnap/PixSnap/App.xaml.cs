@@ -127,18 +127,24 @@ public partial class App : System.Windows.Application, IRecipient<ScreenshotCapt
     {
         Dispatcher.Invoke(() =>
         {
-            var dicts = Resources.MergedDictionaries;
-            for (var i = 0; i < dicts.Count; i++)
-            {
-                if (dicts[i].Source?.OriginalString?.Contains("Theme.xaml", StringComparison.Ordinal) == true)
-                {
-                    var source = dicts[i].Source;
-                    dicts.RemoveAt(i);
-                    dicts.Insert(i, new ResourceDictionary { Source = source });
-                    break;
-                }
-            }
+            RefreshMergedDictionary("Theme.xaml");
+            RefreshMergedDictionary("Overlay.xaml");
         });
+    }
+
+    private void RefreshMergedDictionary(string dictionaryFileName)
+    {
+        var dicts = Resources.MergedDictionaries;
+        for (var i = 0; i < dicts.Count; i++)
+        {
+            if (dicts[i].Source?.OriginalString?.Contains(dictionaryFileName, StringComparison.Ordinal) == true)
+            {
+                var source = dicts[i].Source;
+                dicts.RemoveAt(i);
+                dicts.Insert(i, new ResourceDictionary { Source = source });
+                return;
+            }
+        }
     }
 
     /// <summary>
