@@ -14,8 +14,8 @@
     WindowStyle="None">
     <Border
         Padding="14,8"
-        Background="{DynamicResource MicaWPF.Brushes.ApplicationBackgroundBrush}"
-        BorderBrush="{DynamicResource MicaWPF.Brushes.ControlElevationBorderBrush}"
+        Background="{DynamicResource OverlayFooterBackgroundBrush}"
+        BorderBrush="{DynamicResource BorderSubtleBrush}"
         BorderThickness="1"
         CornerRadius="12"
         MouseLeftButtonDown="Border_MouseLeftButtonDown">
