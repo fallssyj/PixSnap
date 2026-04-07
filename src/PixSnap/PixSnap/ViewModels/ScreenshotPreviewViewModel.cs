@@ -252,6 +252,10 @@ public partial class ScreenshotPreviewViewModel : ObservableRecipient, IRecipien
         {
             UpdateAnnotationToolSelection();
         }
+        else if (e.PropertyName is nameof(AnnotationViewModel.CanUndo) or nameof(AnnotationViewModel.CanRedo))
+        {
+            NotifyUndoRedoStateChanged();
+        }
     }
 
     private void UpdateAnnotationToolSelection()
@@ -786,24 +790,38 @@ public partial class ScreenshotPreviewViewModel : ObservableRecipient, IRecipien
         return _aiCts.Token;
     }
 
-    private bool CanUndo() => ScreenshotImage is not null && _history.CanUndo;
+    private bool CanUndo() => ScreenshotImage is not null && (IsAnnotateMode ? AnnotationPanel.CanUndo || _history.CanUndo : _history.CanUndo);
 
     [RelayCommand(CanExecute = nameof(CanUndo))]
     private void Undo()
     {
         if (!CanUndo() || ScreenshotImage is null) return;
 
+        if (IsAnnotateMode && AnnotationPanel.CanUndo)
+        {
+            AnnotationPanel.UndoAnnotationCommand.Execute(null);
+            NotifyUndoRedoStateChanged();
+            return;
+        }
+
         var previous = _history.Undo(ImageIOService.CreateFrozenSnapshot(ScreenshotImage));
         SetCurrentImage(previous, switchToFit: false);
         NotifyUndoRedoStateChanged();
     }
 
-    private bool CanRedo() => ScreenshotImage is not null && _history.CanRedo;
+    private bool CanRedo() => ScreenshotImage is not null && (IsAnnotateMode ? AnnotationPanel.CanRedo || _history.CanRedo : _history.CanRedo);
 
     [RelayCommand(CanExecute = nameof(CanRedo))]
     private void Redo()
     {
         if (!CanRedo() || ScreenshotImage is null) return;
+
+        if (IsAnnotateMode && AnnotationPanel.CanRedo)
+        {
+            AnnotationPanel.RedoAnnotationCommand.Execute(null);
+            NotifyUndoRedoStateChanged();
+            return;
+        }
 
         var next = _history.Redo(ImageIOService.CreateFrozenSnapshot(ScreenshotImage));
         SetCurrentImage(next, switchToFit: false);

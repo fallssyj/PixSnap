@@ -1,4 +1,3 @@
-using PixSnap.Controls;
 using PixSnap.ViewModels;
 using System.ComponentModel;
 using System.Windows;
@@ -510,12 +509,12 @@ public partial class ScreenshotPreviewWindow
 
         switch (item.Tool)
         {
-            case AnnotationTool.Arrow:    DrawArrow(item, brush, thickness, sx, sy, ex, ey); break;
+            case AnnotationTool.Arrow: DrawArrow(item, brush, thickness, sx, sy, ex, ey); break;
             case AnnotationTool.Rectangle: DrawRectangle(item, brush, thickness, d, sx, sy, ex, ey); break;
-            case AnnotationTool.Ellipse:  DrawEllipse(item, brush, thickness, sx, sy, ex, ey); break;
-            case AnnotationTool.Text:     DrawText(item, brush, d, sx, sy); break;
-            case AnnotationTool.Pen:      DrawPen(item, brush, thickness, d, iox, ioy); break;
-            case AnnotationTool.Blur:     DrawBlur(item, d, iox, ioy, sx, sy, ex, ey); break;
+            case AnnotationTool.Ellipse: DrawEllipse(item, brush, thickness, sx, sy, ex, ey); break;
+            case AnnotationTool.Text: DrawText(item, brush, d, sx, sy); break;
+            case AnnotationTool.Pen: DrawPen(item, brush, thickness, d, iox, ioy); break;
+            case AnnotationTool.Blur: DrawBlur(item, d, iox, ioy, sx, sy, ex, ey); break;
         }
 
         if (isSelected) DrawSelectionFrame(item, d);
@@ -536,9 +535,13 @@ public partial class ScreenshotPreviewWindow
     {
         var rect = new System.Windows.Shapes.Rectangle
         {
-            Width = Math.Abs(ex - sx), Height = Math.Abs(ey - sy),
-            Stroke = brush, StrokeThickness = thickness,
-            RadiusX = item.CornerRadius * d, RadiusY = item.CornerRadius * d, Tag = item
+            Width = Math.Abs(ex - sx),
+            Height = Math.Abs(ey - sy),
+            Stroke = brush,
+            StrokeThickness = thickness,
+            RadiusX = item.CornerRadius * d,
+            RadiusY = item.CornerRadius * d,
+            Tag = item
         };
         Canvas.SetLeft(rect, Math.Min(sx, ex));
         Canvas.SetTop(rect, Math.Min(sy, ey));
@@ -550,8 +553,11 @@ public partial class ScreenshotPreviewWindow
     {
         var ell = new System.Windows.Shapes.Ellipse
         {
-            Width = Math.Abs(ex - sx), Height = Math.Abs(ey - sy),
-            Stroke = brush, StrokeThickness = thickness, Tag = item
+            Width = Math.Abs(ex - sx),
+            Height = Math.Abs(ey - sy),
+            Stroke = brush,
+            StrokeThickness = thickness,
+            Tag = item
         };
         Canvas.SetLeft(ell, Math.Min(sx, ex));
         Canvas.SetTop(ell, Math.Min(sy, ey));
@@ -562,7 +568,8 @@ public partial class ScreenshotPreviewWindow
     {
         var tb = new TextBlock
         {
-            Text = item.Text, Foreground = brush,
+            Text = item.Text,
+            Foreground = brush,
             FontSize = item.FontSize * d,
             FontFamily = new System.Windows.Media.FontFamily(item.FontFamily),
             FontWeight = item.IsBold ? FontWeights.Bold : FontWeights.Normal,
@@ -584,8 +591,10 @@ public partial class ScreenshotPreviewWindow
         if (item.PenPoints.Count < 2) return;
         var polyline = new Polyline
         {
-            Stroke = brush, StrokeThickness = thickness,
-            StrokeLineJoin = PenLineJoin.Round, Tag = item
+            Stroke = brush,
+            StrokeThickness = thickness,
+            StrokeLineJoin = PenLineJoin.Round,
+            Tag = item
         };
         foreach (var pt in item.PenPoints)
             polyline.Points.Add(new Point(pt.X * d + iox, pt.Y * d + ioy));
@@ -611,7 +620,9 @@ public partial class ScreenshotPreviewWindow
                 var cropped = new CroppedBitmap(src, new Int32Rect(px, py, pw, ph));
                 var blurImage = new System.Windows.Controls.Image
                 {
-                    Source = cropped, Width = bw, Height = bh,
+                    Source = cropped,
+                    Width = bw,
+                    Height = bh,
                     Stretch = System.Windows.Media.Stretch.Fill,
                     Effect = new System.Windows.Media.Effects.BlurEffect { Radius = item.BlurRadius * d * 3 },
                     Tag = item
@@ -624,9 +635,13 @@ public partial class ScreenshotPreviewWindow
 
         var border = new System.Windows.Shapes.Rectangle
         {
-            Width = bw, Height = bh,
-            Stroke = System.Windows.Media.Brushes.DodgerBlue, StrokeThickness = 1,
-            StrokeDashArray = [4, 2], Fill = null, Tag = item
+            Width = bw,
+            Height = bh,
+            Stroke = System.Windows.Media.Brushes.DodgerBlue,
+            StrokeThickness = 1,
+            StrokeDashArray = [4, 2],
+            Fill = null,
+            Tag = item
         };
         Canvas.SetLeft(border, bx);
         Canvas.SetTop(border, by);
@@ -641,13 +656,48 @@ public partial class ScreenshotPreviewWindow
         bounds.Inflate(4, 4);
         var selRect = new System.Windows.Shapes.Rectangle
         {
-            Width = bounds.Width, Height = bounds.Height,
-            Stroke = System.Windows.Media.Brushes.DodgerBlue, StrokeThickness = 1.5,
-            StrokeDashArray = [4, 2], Fill = null, Tag = item
+            Width = bounds.Width,
+            Height = bounds.Height,
+            Stroke = System.Windows.Media.Brushes.DodgerBlue,
+            StrokeThickness = 1.5,
+            StrokeDashArray = [4, 2],
+            Fill = null,
+            Tag = item
         };
         Canvas.SetLeft(selRect, bounds.X);
         Canvas.SetTop(selRect, bounds.Y);
         AnnotationCanvas.Children.Add(selRect);
+
+        // ── 删除按钮（选中框右上角）──
+        const double btnSize = 50;
+        var deleteBtn = new Border
+        {
+            Width = btnSize,
+            Height = btnSize,
+            Margin = new Thickness(30, 0, 0, 0),
+            Cursor = Cursors.Hand,
+            ToolTip = "删除",
+            Tag = "_delete_"
+        };
+        var deleteIcon = new TextBlock
+        {
+            Text = "\uE74D",
+            FontFamily = (FontFamily)FindResource("SegoeFluent"),
+            FontSize = 40,
+            Foreground = Brushes.White,
+            HorizontalAlignment = HorizontalAlignment.Center,
+            VerticalAlignment = VerticalAlignment.Center
+        };
+        deleteBtn.Child = deleteIcon;
+        deleteBtn.MouseLeftButtonDown += (_, ev) =>
+        {
+            ev.Handled = true;
+            if (DataContext is ScreenshotPreviewViewModel vm)
+                vm.AnnotationPanel.DeleteSelectedAnnotationCommand.Execute(null);
+        };
+        Canvas.SetLeft(deleteBtn, bounds.X + bounds.Width - btnSize / 2);
+        Canvas.SetTop(deleteBtn, bounds.Y - btnSize / 2);
+        AnnotationCanvas.Children.Add(deleteBtn);
 
         const double hs = 7;
         double cx = bounds.X + bounds.Width / 2, cy = bounds.Y + bounds.Height / 2;
@@ -666,10 +716,12 @@ public partial class ScreenshotPreviewWindow
         {
             var handle = new System.Windows.Shapes.Rectangle
             {
-                Width = hs, Height = hs,
+                Width = hs,
+                Height = hs,
                 Fill = System.Windows.Media.Brushes.White,
                 Stroke = System.Windows.Media.Brushes.DodgerBlue,
-                StrokeThickness = 1.2, Tag = item
+                StrokeThickness = 1.2,
+                Tag = item
             };
             Canvas.SetLeft(handle, hp.X - hs / 2);
             Canvas.SetTop(handle, hp.Y - hs / 2);
@@ -767,9 +819,12 @@ public partial class ScreenshotPreviewWindow
         {
             var origSize = AnnotationViewModel.MeasureTextSize(new AnnotationItem
             {
-                Tool = AnnotationTool.Text, Text = item.Text,
-                FontSize = _resizeStartFontSize, FontFamily = item.FontFamily,
-                IsBold = item.IsBold, IsItalic = item.IsItalic
+                Tool = AnnotationTool.Text,
+                Text = item.Text,
+                FontSize = _resizeStartFontSize,
+                FontFamily = item.FontFamily,
+                IsBold = item.IsBold,
+                IsItalic = item.IsItalic
             });
             double ox = item.Offset.X, oy = item.Offset.Y;
             double sx = _resizeStartStart.X + ox;
@@ -789,10 +844,12 @@ public partial class ScreenshotPreviewWindow
                     double scaleH = origSize.Height > 1 ? newH / origSize.Height : 1;
                     scale = Math.Max(scaleW, scaleH);
                     break;
-                case 3: case 7: // R, L — 水平
+                case 3:
+                case 7: // R, L — 水平
                     scale = origSize.Width > 1 ? Math.Abs(imgPoint.X - sx) / origSize.Width : 1;
                     break;
-                case 1: case 5: // T, B — 垂直
+                case 1:
+                case 5: // T, B — 垂直
                     scale = origSize.Height > 1 ? Math.Abs(imgPoint.Y - sy) / origSize.Height : 1;
                     break;
             }
