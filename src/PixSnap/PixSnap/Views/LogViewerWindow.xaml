@@ -117,20 +117,7 @@
                     IsReadOnly="True"
                     Text="{Binding LogContent, Mode=OneWay}"
                     TextWrapping="NoWrap"
-                    VerticalScrollBarVisibility="Auto">
-                    <TextBox.Style>
-                        <Style TargetType="TextBox">
-                            <Setter Property="CaretBrush" Value="{DynamicResource AccentInfoBrush}" />
-                            <Setter Property="SelectionBrush" Value="{DynamicResource InputSelectionBrush}" />
-                            <Setter Property="SelectionOpacity" Value="0.5" />
-                            <Setter Property="SnapsToDevicePixels" Value="True" />
-                            <Setter Property="UseLayoutRounding" Value="True" />
-                            <Setter Property="Foreground" Value="{DynamicResource TextPrimaryBrush}" />
-                            <Setter Property="Background" Value="Transparent" />
-                            <Setter Property="BorderThickness" Value="0" />
-                        </Style>
-                    </TextBox.Style>
-                </TextBox>
+                    VerticalScrollBarVisibility="Auto" />
             </Grid>
         </DockPanel>
     </Border>

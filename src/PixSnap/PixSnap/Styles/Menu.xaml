@@ -68,6 +68,13 @@
                                 StrokeThickness="1"
                                 Visibility="Collapsed" />
                             <ContentPresenter
+                                x:Name="iconPresenter"
+                                Grid.Column="0"
+                                Margin="0,0,4,0"
+                                HorizontalAlignment="Center"
+                                VerticalAlignment="Center"
+                                ContentSource="Icon" />
+                            <ContentPresenter
                                 Grid.Column="1"
                                 Margin="5,0"
                                 VerticalAlignment="Center"
@@ -81,8 +88,12 @@
                         <Trigger Property="IsPressed" Value="True">
                             <Setter TargetName="border" Property="Background" Value="#505050" />
                         </Trigger>
+                        <Trigger Property="Icon" Value="{x:Null}">
+                            <Setter TargetName="iconPresenter" Property="Visibility" Value="Collapsed" />
+                        </Trigger>
                         <Trigger Property="IsChecked" Value="True">
                             <Setter TargetName="check" Property="Visibility" Value="Visible" />
+                            <Setter TargetName="iconPresenter" Property="Visibility" Value="Collapsed" />
                         </Trigger>
                         <Trigger Property="IsEnabled" Value="False">
                             <Setter Property="Foreground" Value="#666666" />

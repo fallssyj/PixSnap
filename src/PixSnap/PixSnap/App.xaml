@@ -36,16 +36,51 @@
             <tb:TaskbarIcon x:Key="TrayIcon" ToolTipText="PixSnap">
                 <tb:TaskbarIcon.ContextMenu>
                     <ContextMenu>
-                        <MenuItem Command="{Binding CaptureCommand}" Header="截图/录屏" />
+                        <MenuItem Command="{Binding CaptureCommand}" Header="截图/录屏">
+                            <MenuItem.Icon>
+                                <TextBlock
+                                    FontFamily="{StaticResource SegoeFluent}"
+                                    FontSize="13"
+                                    Text="{StaticResource Glyph_Crop}" />
+                            </MenuItem.Icon>
+                        </MenuItem>
                         <Separator />
-                        <MenuItem Command="{Binding ShowSettingsCommand}" Header="设置" />
-                        <MenuItem Command="{Binding ShowLogViewerCommand}" Header="日志" />
-                        <MenuItem Command="{Binding ShowAboutCommand}" Header="关于 PixSnap" />
+                        <MenuItem Command="{Binding ShowSettingsCommand}" Header="设置">
+                            <MenuItem.Icon>
+                                <TextBlock
+                                    FontFamily="{StaticResource SegoeFluent}"
+                                    FontSize="13"
+                                    Text="{StaticResource Glyph_Settings}" />
+                            </MenuItem.Icon>
+                        </MenuItem>
+                        <MenuItem Command="{Binding ShowLogViewerCommand}" Header="日志">
+                            <MenuItem.Icon>
+                                <TextBlock
+                                    FontFamily="{StaticResource SegoeFluent}"
+                                    FontSize="13"
+                                    Text="{StaticResource Glyph_Diagnostic}" />
+                            </MenuItem.Icon>
+                        </MenuItem>
+                        <MenuItem Command="{Binding ShowAboutCommand}" Header="关于 PixSnap">
+                            <MenuItem.Icon>
+                                <TextBlock
+                                    FontFamily="{StaticResource SegoeFluent}"
+                                    FontSize="13"
+                                    Text="{StaticResource Glyph_Preview}" />
+                            </MenuItem.Icon>
+                        </MenuItem>
                         <Separator />
                         <MenuItem
                             Command="{Binding ExitCommand}"
                             Foreground="{DynamicResource TextSecondaryBrush}"
-                            Header="退出" />
+                            Header="退出">
+                            <MenuItem.Icon>
+                                <TextBlock
+                                    FontFamily="{StaticResource SegoeFluent}"
+                                    FontSize="10"
+                                    Text="{StaticResource Glyph_Close}" />
+                            </MenuItem.Icon>
+                        </MenuItem>
                     </ContextMenu>
                 </tb:TaskbarIcon.ContextMenu>
             </tb:TaskbarIcon>
