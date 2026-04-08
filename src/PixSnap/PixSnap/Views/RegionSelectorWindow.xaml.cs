@@ -157,7 +157,8 @@ public partial class RegionSelectorWindow : Window
             }
         }
 
-        UpdateHover(LocalPointToScreenPoint(_currentPoint));
+        // 窗口命中使用 Win32 物理屏幕坐标，避免跨屏混合 DPI 时 PointToScreen 偶发偏移。
+        UpdateHover(NativeWindowHelper.GetCursorPosition());
     }
 
     private void OnMouseLeftButtonUp(object sender, MouseButtonEventArgs e)
@@ -195,7 +196,8 @@ public partial class RegionSelectorWindow : Window
             return;
         }
 
-        UpdateHover(LocalPointToScreenPoint(_currentPoint));
+        // 使用当前真实光标屏幕坐标做窗口命中，保证点击窗口模式稳定。
+        UpdateHover(NativeWindowHelper.GetCursorPosition());
 
         if (_hoveredWindow is not null)
         {

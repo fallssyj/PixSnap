@@ -154,7 +154,14 @@ internal static class NativeWindowHelper
     [return: MarshalAs(UnmanagedType.Bool)]
     private static extern bool GetCursorPos(out NATIVEPOINT point);
 
+    [DllImport("user32.dll")]
+    private static extern IntPtr WindowFromPoint(NATIVEPOINT point);
+
+    [DllImport("user32.dll")]
+    private static extern IntPtr GetAncestor(IntPtr hwnd, uint gaFlags);
+
     private const uint GW_HWNDNEXT = 2;
+    private const uint GA_ROOT = 2;
 
     /// <summary>获取指定窗口的屏幕矩形区域。</summary>
     public static bool TryGetWindowRect(IntPtr hwnd, out Rect rect)
@@ -191,6 +198,25 @@ internal static class NativeWindowHelper
     /// <summary>从顶层窗口开始枚举 Z 序，返回包含指定屏幕坐标点的第一个可见窗口句柄（排除指定句柄）。</summary>
     public static IntPtr FindTopWindowAtPoint(Point screenPoint, IntPtr excludeHwnd)
     {
+        // 优先使用系统命中测试，直接获取当前屏幕坐标下的窗口链路。
+        var nativePoint = new NATIVEPOINT
+        {
+            x = (int)Math.Round(screenPoint.X),
+            y = (int)Math.Round(screenPoint.Y)
+        };
+
+        var pointedWindow = WindowFromPoint(nativePoint);
+        if (pointedWindow != IntPtr.Zero)
+        {
+            var rootWindow = GetAncestor(pointedWindow, GA_ROOT);
+            if (rootWindow != IntPtr.Zero
+                && rootWindow != excludeHwnd
+                && IsCapturableTopLevelWindow(rootWindow))
+            {
+                return rootWindow;
+            }
+        }
+
         var hwnd = GetTopWindow(IntPtr.Zero);
         while (hwnd != IntPtr.Zero)
         {
