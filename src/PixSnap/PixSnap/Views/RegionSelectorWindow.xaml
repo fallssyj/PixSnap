@@ -5,7 +5,7 @@
     Title="Region Selector"
     AllowsTransparency="True"
     Background="Transparent"
-    Cursor="Cross"
+    Cursor="None"
     ResizeMode="NoResize"
     ShowInTaskbar="False"
     Topmost="True"
@@ -59,6 +59,18 @@
                 Text="左键单击高亮窗口截图，左键拖动截矩形，Space 截当前显示器，Esc / 右键退出"
                 TextWrapping="Wrap" />
         </Border>
+
+        <!--  自定义十字准星：全屏辅助线 + 中心十字（带间隙）  -->
+        <Line x:Name="GuideV" IsHitTestVisible="False" Opacity="0.4" Stroke="#55FFFFFF" StrokeThickness="1" StrokeDashArray="4 4" />
+        <Line x:Name="GuideH" IsHitTestVisible="False" Opacity="0.4" Stroke="#55FFFFFF" StrokeThickness="1" StrokeDashArray="4 4" />
+        <Line x:Name="CrossOT" IsHitTestVisible="False" Stroke="#CC000000" StrokeThickness="3" />
+        <Line x:Name="CrossOB" IsHitTestVisible="False" Stroke="#CC000000" StrokeThickness="3" />
+        <Line x:Name="CrossOL" IsHitTestVisible="False" Stroke="#CC000000" StrokeThickness="3" />
+        <Line x:Name="CrossOR" IsHitTestVisible="False" Stroke="#CC000000" StrokeThickness="3" />
+        <Line x:Name="CrossIT" IsHitTestVisible="False" Stroke="White" StrokeThickness="1" />
+        <Line x:Name="CrossIB" IsHitTestVisible="False" Stroke="White" StrokeThickness="1" />
+        <Line x:Name="CrossIL" IsHitTestVisible="False" Stroke="White" StrokeThickness="1" />
+        <Line x:Name="CrossIR" IsHitTestVisible="False" Stroke="White" StrokeThickness="1" />
 
         <!--  截屏 / 录屏 模式切换  -->
         <Border

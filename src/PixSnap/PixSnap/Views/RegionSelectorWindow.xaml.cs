@@ -7,6 +7,7 @@ using System.Windows.Input;
 using System.Windows.Interop;
 using System.Windows.Media;
 using System.Windows.Media.Imaging;
+using System.Windows.Shapes;
 using Point = System.Windows.Point;
 
 namespace PixSnap.Views;
@@ -17,6 +18,8 @@ public partial class RegionSelectorWindow : Window
 {
     private const double InfoBubbleMargin = 24;
     private const double SnapThreshold = 8;
+    private const double CrosshairSize = 15;
+    private const double CrosshairGap = 4;
 
     private readonly IReadOnlyDictionary<IntPtr, WindowInfo> _windowsByHandle;
     private readonly IReadOnlyList<ScreenInfo> _screens;
@@ -122,6 +125,7 @@ public partial class RegionSelectorWindow : Window
         Focus();
         var cursorPos = NativeWindowHelper.GetCursorPosition();
         UpdateHover(cursorPos);
+        UpdateCrosshair(ScreenPointToLocalPoint(cursorPos));
     }
 
     private void OnMouseLeftButtonDown(object sender, MouseButtonEventArgs e)
@@ -140,6 +144,8 @@ public partial class RegionSelectorWindow : Window
     private void OnMouseMove(object sender, System.Windows.Input.MouseEventArgs e)
     {
         _currentPoint = e.GetPosition(this);
+
+        UpdateCrosshair(_currentPoint);
 
         if (_isMouseDown)
         {
@@ -477,6 +483,29 @@ public partial class RegionSelectorWindow : Window
     {
         return Math.Abs(current.X - start.X) >= SystemParameters.MinimumHorizontalDragDistance
             || Math.Abs(current.Y - start.Y) >= SystemParameters.MinimumVerticalDragDistance;
+    }
+
+    private void UpdateCrosshair(Point p)
+    {
+        double cx = p.X, cy = p.Y;
+        double w = RootCanvas.ActualWidth > 0 ? RootCanvas.ActualWidth : Width;
+        double h = RootCanvas.ActualHeight > 0 ? RootCanvas.ActualHeight : Height;
+
+        // 全屏虚线辅助线
+        GuideV.X1 = cx; GuideV.X2 = cx; GuideV.Y1 = 0; GuideV.Y2 = h;
+        GuideH.X1 = 0; GuideH.X2 = w; GuideH.Y1 = cy; GuideH.Y2 = cy;
+
+        // 中心十字臂（带间隙）—— 外层深色描边
+        CrossOT.X1 = cx; CrossOT.X2 = cx; CrossOT.Y1 = cy - CrosshairSize; CrossOT.Y2 = cy - CrosshairGap;
+        CrossOB.X1 = cx; CrossOB.X2 = cx; CrossOB.Y1 = cy + CrosshairGap; CrossOB.Y2 = cy + CrosshairSize;
+        CrossOL.X1 = cx - CrosshairSize; CrossOL.X2 = cx - CrosshairGap; CrossOL.Y1 = cy; CrossOL.Y2 = cy;
+        CrossOR.X1 = cx + CrosshairGap; CrossOR.X2 = cx + CrosshairSize; CrossOR.Y1 = cy; CrossOR.Y2 = cy;
+
+        // 中心十字臂（带间隙）—— 内层白色
+        CrossIT.X1 = cx; CrossIT.X2 = cx; CrossIT.Y1 = cy - CrosshairSize; CrossIT.Y2 = cy - CrosshairGap;
+        CrossIB.X1 = cx; CrossIB.X2 = cx; CrossIB.Y1 = cy + CrosshairGap; CrossIB.Y2 = cy + CrosshairSize;
+        CrossIL.X1 = cx - CrosshairSize; CrossIL.X2 = cx - CrosshairGap; CrossIL.Y1 = cy; CrossIL.Y2 = cy;
+        CrossIR.X1 = cx + CrosshairGap; CrossIR.X2 = cx + CrosshairSize; CrossIR.Y1 = cy; CrossIR.Y2 = cy;
     }
 
     private static Rect NormalizeRect(Point start, Point end)
