@@ -114,7 +114,7 @@
                         <Trigger Property="IsEnabled" Value="False">
                             <Setter TargetName="IconContent" Property="Opacity" Value="0.5" />
                         </Trigger>
-                        <DataTrigger Binding="{Binding WindowState, RelativeSource={RelativeSource AncestorType=Window}}" Value="Maximized">
+                        <DataTrigger Binding="{Binding WindowState, RelativeSource={RelativeSource AncestorType={x:Type Window}}}" Value="Maximized">
                             <Setter TargetName="ButtonRoot" Property="CornerRadius" Value="0" />
                         </DataTrigger>
                     </ControlTemplate.Triggers>
