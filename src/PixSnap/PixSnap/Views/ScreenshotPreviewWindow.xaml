@@ -178,19 +178,19 @@
                             ToolTip="设置" />
                         <Button
                             Command="{Binding MinimizeCommand}"
-                            CommandParameter="{Binding RelativeSource={RelativeSource AncestorType=Window}}"
+                            CommandParameter="{Binding RelativeSource={RelativeSource AncestorType={x:Type Window}}}"
                             Content="{StaticResource Glyph_Minimize}"
                             Style="{StaticResource WindowIconButtonStyle}"
                             ToolTip="最小化" />
                         <Button
                             Command="{Binding MaximizeCommand}"
-                            CommandParameter="{Binding RelativeSource={RelativeSource AncestorType=Window}}"
+                            CommandParameter="{Binding RelativeSource={RelativeSource AncestorType={x:Type Window}}}"
                             Style="{StaticResource PreviewWindowStateButtonStyle}">
                             <TextBlock Style="{StaticResource PreviewWindowStateGlyphStyle}" />
                         </Button>
                         <Button
                             Command="{Binding CloseCommand}"
-                            CommandParameter="{Binding RelativeSource={RelativeSource AncestorType=Window}}"
+                            CommandParameter="{Binding RelativeSource={RelativeSource AncestorType={x:Type Window}}}"
                             Content="{StaticResource Glyph_Close}"
                             Style="{StaticResource CloseWindowIconButtonStyle}"
                             ToolTip="关闭" />
@@ -286,7 +286,7 @@
                                     <DataTemplate>
                                         <Button
                                             Margin="0,0,4,4"
-                                            Command="{Binding DataContext.CropPanel.SetAspectRatioFromParamCommand, RelativeSource={RelativeSource AncestorType=Window}}"
+                                            Command="{Binding DataContext.CropPanel.SetAspectRatioFromParamCommand, RelativeSource={RelativeSource AncestorType={x:Type Window}}}"
                                             CommandParameter="{Binding Parameter}"
                                             Content="{Binding Content}"
                                             Style="{StaticResource PanelCancelButtonStyle}"
