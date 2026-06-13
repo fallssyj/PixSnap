@@ -11,6 +11,7 @@ using Serilog;
 using System.Diagnostics;
 using System.Drawing;
 using System.IO;
+using System.Reflection;
 using System.Runtime.InteropServices;
 using System.Text;
 using System.Windows;
@@ -24,6 +25,24 @@ public partial class App : System.Windows.Application, IRecipient<ScreenshotCapt
 {
     // 全局互斥体，防止同一用户会话下多次启动
     private static readonly Mutex _instanceMutex = new(initiallyOwned: true, name: "Local\\PixSnap_SingleInstance");
+
+    static App()
+    {
+        PreloadUiAutomationAssemblies();
+    }
+
+    private static void PreloadUiAutomationAssemblies()
+    {
+        try
+        {
+            Assembly.Load(new AssemblyName("UIAutomationProvider"));
+            Assembly.Load(new AssemblyName("UIAutomationTypes"));
+        }
+        catch
+        {
+            // Non-fatal: core capture/edit features do not depend on UI Automation.
+        }
+    }
 
     private MainWindow? _mainWindow;
     private TaskbarIcon? _taskbarIcon;
@@ -256,6 +275,13 @@ public partial class App : System.Windows.Application, IRecipient<ScreenshotCapt
 
     private void OnDispatcherUnhandledException(object sender, DispatcherUnhandledExceptionEventArgs e)
     {
+        if (IsBenignUiAutomationException(e.Exception))
+        {
+            Log.Warning(e.Exception, "UI Automation 组件加载失败（已忽略，不影响截图/录屏功能）");
+            e.Handled = true;
+            return;
+        }
+
         Log.Error(e.Exception, "未处理的 UI 线程异常");
         MessageBoxWindow.Show(
             BuildExceptionMessage(e.Exception),
@@ -263,6 +289,31 @@ public partial class App : System.Windows.Application, IRecipient<ScreenshotCapt
             MessageBoxButton.OK,
             MessageBoxImage.Error);
         e.Handled = true;
+    }
+
+    /// <summary>
+    /// WPF 在焦点切换时会触发 AutomationPeer，若 UIAutomationProvider 未能加载则抛出此异常。
+    /// 该问题通常由 .NET Desktop Runtime 不完整或更新中断引起，与 PixSnap 核心功能无关。
+    /// </summary>
+    private static bool IsBenignUiAutomationException(Exception? exception)
+    {
+        for (var current = exception; current is not null; current = current.InnerException)
+        {
+            if (current is FileNotFoundException fileNotFound &&
+                fileNotFound.FileName?.Contains("UIAutomationProvider", StringComparison.OrdinalIgnoreCase) == true)
+            {
+                return true;
+            }
+
+            if (current is TypeInitializationException typeInit &&
+                typeInit.TypeName?.Contains("AutomationPeer", StringComparison.Ordinal) == true &&
+                IsBenignUiAutomationException(typeInit.InnerException))
+            {
+                return true;
+            }
+        }
+
+        return false;
     }
 
     private void OnCurrentDomainUnhandledException(object? sender, UnhandledExceptionEventArgs e)
