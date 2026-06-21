@@ -1,5 +1,4 @@
 using System.Windows;
-using System.Windows.Controls.Primitives;
 using System.Windows.Threading;
 using PixSnap.Services;
 using PixSnap.ViewModels;
@@ -113,9 +112,4 @@ public partial class VideoPlayerWindow
         }
     }
 
-    private void OnSliderDragStarted(object sender, DragStartedEventArgs e)
-        => ViewModel?.DragStartedCommand.Execute(null);
-
-    private void OnSliderDragCompleted(object sender, DragCompletedEventArgs e)
-        => ViewModel?.DragCompletedCommand.Execute(null);
 }

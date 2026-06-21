@@ -32,11 +32,15 @@ public sealed partial class AnnotationToolItem : ObservableObject
     private bool _isSelected;
 }
 
-public sealed class AnnotationColorItem
+public sealed partial class AnnotationColorItem : ObservableObject
 {
     public required string ColorValue { get; init; }
+    public required Color WpfColor { get; init; }
     public required string ToolTip { get; init; }
     public required ICommand Command { get; init; }
+
+    [ObservableProperty]
+    private bool _isSelected;
 }
 
 public sealed class CropAspectRatioPresetItem
@@ -52,6 +56,7 @@ public partial class ScreenshotPreviewViewModel : ObservableRecipient, IRecipien
     public const double MaxZoomFactor = 8.0;
     private const long ExactFileSizePixelThreshold = 16_000_000;
 
+    private readonly INavigationService _navigation;
     private readonly UndoRedoManager _history = new();
     private readonly SemaphoreSlim _imageApplySemaphore = new(1, 1);
     private CancellationTokenSource? _fileSizeUpdateCts;
@@ -82,9 +87,6 @@ public partial class ScreenshotPreviewViewModel : ObservableRecipient, IRecipien
 
     [ObservableProperty]
     private string _captureMode = string.Empty;
-
-    [ObservableProperty]
-    private bool _isMaximized;
 
     [ObservableProperty]
     private bool _isPinned;
@@ -167,7 +169,14 @@ public partial class ScreenshotPreviewViewModel : ObservableRecipient, IRecipien
 
     public string PreviewScaleModeText => IsActualSize ? "缩放以适应" : "缩放以原始";
     public string ZoomDisplayText => string.Format("缩放 {0:P0}", IsActualSize ? ZoomFactor : FitZoomFactor);
-    public string ZoomCompactText => $"{(IsActualSize ? ZoomFactor : FitZoomFactor):P0}";
+    public string ZoomCompactText
+    {
+        get
+        {
+            var percent = (IsActualSize ? ZoomFactor : FitZoomFactor) * 100.0;
+            return $"{Math.Round(percent):0}%";
+        }
+    }
     public string CaptureTitleDisplay => MiddleEllipsis(CaptureTime, 24);
     public bool IsAnyAiProcessing => EraserPanel.IsProcessing || IsAiModuleProcessing || IsFileOperationProcessing || CropPanel.IsCropProcessing || RoundCornerPanel.IsProcessing || IsRotating;
 
@@ -198,8 +207,9 @@ public partial class ScreenshotPreviewViewModel : ObservableRecipient, IRecipien
         set => SetManualZoomFactor(value / 100.0);
     }
 
-    public ScreenshotPreviewViewModel()
+    public ScreenshotPreviewViewModel(INavigationService navigation)
     {
+        _navigation = navigation;
         AnnotationTools =
         [
             new() { Tool = AnnotationTool.Pointer, Glyph = "\uE8B0", ToolTip = "选择 / 移动", Command = AnnotationPanel.SelectPointerCommand },
@@ -212,16 +222,16 @@ public partial class ScreenshotPreviewViewModel : ObservableRecipient, IRecipien
         ];
         AnnotationColors =
         [
-            new() { ColorValue = "#FFFF0000", ToolTip = "红色", Command = AnnotationPanel.SetColorRedCommand },
-            new() { ColorValue = "#FF3399FF", ToolTip = "蓝色", Command = AnnotationPanel.SetColorBlueCommand },
-            new() { ColorValue = "#FF22CC55", ToolTip = "绿色", Command = AnnotationPanel.SetColorGreenCommand },
-            new() { ColorValue = "#FFFFCC00", ToolTip = "黄色", Command = AnnotationPanel.SetColorYellowCommand },
-            new() { ColorValue = "#FFFFFFFF", ToolTip = "白色", Command = AnnotationPanel.SetColorWhiteCommand },
-            new() { ColorValue = "#FF000000", ToolTip = "黑色", Command = AnnotationPanel.SetColorBlackCommand },
-            new() { ColorValue = "#FFFF8800", ToolTip = "橙色", Command = AnnotationPanel.SetColorOrangeCommand },
-            new() { ColorValue = "#FFAA44FF", ToolTip = "紫色", Command = AnnotationPanel.SetColorPurpleCommand },
-            new() { ColorValue = "#FFFF66B2", ToolTip = "粉色", Command = AnnotationPanel.SetColorPinkCommand },
-            new() { ColorValue = "#FF888888", ToolTip = "灰色", Command = AnnotationPanel.SetColorGrayCommand }
+            new() { ColorValue = "#FFFF0000", WpfColor = Colors.Red, ToolTip = "红色", Command = AnnotationPanel.SetColorRedCommand },
+            new() { ColorValue = "#FF3399FF", WpfColor = Color.FromRgb(0x33, 0x99, 0xFF), ToolTip = "蓝色", Command = AnnotationPanel.SetColorBlueCommand },
+            new() { ColorValue = "#FF22CC55", WpfColor = Color.FromRgb(0x22, 0xCC, 0x55), ToolTip = "绿色", Command = AnnotationPanel.SetColorGreenCommand },
+            new() { ColorValue = "#FFFFCC00", WpfColor = Color.FromRgb(0xFF, 0xCC, 0x00), ToolTip = "黄色", Command = AnnotationPanel.SetColorYellowCommand },
+            new() { ColorValue = "#FFFFFFFF", WpfColor = Colors.White, ToolTip = "白色", Command = AnnotationPanel.SetColorWhiteCommand },
+            new() { ColorValue = "#FF000000", WpfColor = Colors.Black, ToolTip = "黑色", Command = AnnotationPanel.SetColorBlackCommand },
+            new() { ColorValue = "#FFFF8800", WpfColor = Color.FromRgb(0xFF, 0x88, 0x00), ToolTip = "橙色", Command = AnnotationPanel.SetColorOrangeCommand },
+            new() { ColorValue = "#FFAA44FF", WpfColor = Color.FromRgb(0xAA, 0x44, 0xFF), ToolTip = "紫色", Command = AnnotationPanel.SetColorPurpleCommand },
+            new() { ColorValue = "#FFFF66B2", WpfColor = Color.FromRgb(0xFF, 0x66, 0xB2), ToolTip = "粉色", Command = AnnotationPanel.SetColorPinkCommand },
+            new() { ColorValue = "#FF888888", WpfColor = Color.FromRgb(0x88, 0x88, 0x88), ToolTip = "灰色", Command = AnnotationPanel.SetColorGrayCommand }
         ];
         CropAspectRatioPresets =
         [
@@ -242,6 +252,7 @@ public partial class ScreenshotPreviewViewModel : ObservableRecipient, IRecipien
         AnnotationPanel.AnnotationApplied += OnAnnotationApplied;
         AnnotationPanel.AnnotationCancelled += OnAnnotationCancelled;
         UpdateAnnotationToolSelection();
+        UpdateAnnotationColorSelection();
     }
 
     private void OnAnnotationCancelled() => ExitEditMode();
@@ -251,6 +262,10 @@ public partial class ScreenshotPreviewViewModel : ObservableRecipient, IRecipien
         if (e.PropertyName == nameof(AnnotationViewModel.SelectedTool))
         {
             UpdateAnnotationToolSelection();
+        }
+        else if (e.PropertyName == nameof(AnnotationViewModel.StrokeColor))
+        {
+            UpdateAnnotationColorSelection();
         }
         else if (e.PropertyName is nameof(AnnotationViewModel.CanUndo) or nameof(AnnotationViewModel.CanRedo))
         {
@@ -263,6 +278,18 @@ public partial class ScreenshotPreviewViewModel : ObservableRecipient, IRecipien
         foreach (var tool in AnnotationTools)
         {
             tool.IsSelected = tool.Tool == AnnotationPanel.SelectedTool;
+        }
+    }
+
+    private void UpdateAnnotationColorSelection()
+    {
+        var current = AnnotationPanel.StrokeColor;
+        foreach (var color in AnnotationColors)
+        {
+            color.IsSelected = color.WpfColor.R == current.R
+                && color.WpfColor.G == current.G
+                && color.WpfColor.B == current.B
+                && color.WpfColor.A == current.A;
         }
     }
 
@@ -414,7 +441,7 @@ public partial class ScreenshotPreviewViewModel : ObservableRecipient, IRecipien
         catch (Exception ex)
         {
             Log.Error(ex, "加载图片失败: {FilePath}", dialog.FileName);
-            MessageBoxWindow.Show(
+            AppMessageBox.Show(
                 string.Format("加载失败：{0}", ex.Message),
                 "PixSnap 错误",
                 MessageBoxButton.OK,
@@ -472,7 +499,7 @@ public partial class ScreenshotPreviewViewModel : ObservableRecipient, IRecipien
         catch (Exception ex)
         {
             Log.Error(ex, "保存图片失败: {FilePath}", dialog.FileName);
-            MessageBoxWindow.Show(
+            AppMessageBox.Show(
                 string.Format("保存失败：{0}", ex.Message),
                 "PixSnap 错误",
                 MessageBoxButton.OK,
@@ -703,7 +730,7 @@ public partial class ScreenshotPreviewViewModel : ObservableRecipient, IRecipien
         {
             Log.Error(ex, "去除背景模型缺失");
             AiModuleProgressText = string.Empty;
-            MessageBoxWindow.Show(
+            AppMessageBox.Show(
                 string.Format("AI 模型文件缺失，无法执行去除背景。\n\n{0}", ex.Message),
                 "模型缺失",
                 MessageBoxButton.OK,
@@ -713,7 +740,7 @@ public partial class ScreenshotPreviewViewModel : ObservableRecipient, IRecipien
         {
             Log.Error(ex, "去除背景失败");
             AiModuleProgressText = string.Empty;
-            MessageBoxWindow.Show(
+            AppMessageBox.Show(
                 string.Format("去除背景失败：{0}", ex.Message),
                 "操作失败",
                 MessageBoxButton.OK,
@@ -759,7 +786,7 @@ public partial class ScreenshotPreviewViewModel : ObservableRecipient, IRecipien
         {
             Log.Error(ex, "超分辨率模型缺失");
             AiModuleProgressText = string.Empty;
-            MessageBoxWindow.Show(
+            AppMessageBox.Show(
                 string.Format("AI 模型文件缺失，无法执行超分辨率。\n\n{0}", ex.Message),
                 "模型缺失",
                 MessageBoxButton.OK,
@@ -769,7 +796,7 @@ public partial class ScreenshotPreviewViewModel : ObservableRecipient, IRecipien
         {
             Log.Error(ex, "超分辨率失败");
             AiModuleProgressText = string.Empty;
-            MessageBoxWindow.Show(
+            AppMessageBox.Show(
                 string.Format("超分辨率失败：{0}", ex.Message),
                 "操作失败",
                 MessageBoxButton.OK,
@@ -849,20 +876,10 @@ public partial class ScreenshotPreviewViewModel : ObservableRecipient, IRecipien
     }
 
     [RelayCommand]
-    private static void OpenSettings()
-    {
-        if (Application.Current is App app)
-        {
-            app.ShowSettingsWindow();
-        }
-    }
+    private void OpenSettings() => _navigation.ShowSettings();
 
     [RelayCommand]
-    private static void OpenLogFolder()
-    {
-        if (Application.Current is App app)
-            app.ShowLogViewer();
-    }
+    private void OpenLogFolder() => _navigation.ShowLogViewer();
 
     /// <summary>从文件路径加载图片（拖拽打开时使用）。</summary>
     public async Task LoadFromFileAsync(string filePath)
@@ -888,7 +905,7 @@ public partial class ScreenshotPreviewViewModel : ObservableRecipient, IRecipien
         catch (Exception ex)
         {
             Log.Error(ex, "拖拽加载图片失败: {FilePath}", filePath);
-            MessageBoxWindow.Show(
+            AppMessageBox.Show(
                 string.Format("加载失败：{0}", ex.Message),
                 "PixSnap 错误",
                 MessageBoxButton.OK,
@@ -901,39 +918,7 @@ public partial class ScreenshotPreviewViewModel : ObservableRecipient, IRecipien
     }
 
     [RelayCommand]
-    private void Close(Window? window)
-    {
-        if (window is null) return;
-        window.Close();
-    }
-
-    [RelayCommand]
-    private void Minimize(Window? window)
-    {
-        if (window is null) return;
-        window.WindowState = WindowState.Minimized;
-        IsMaximized = false;
-    }
-
-    [RelayCommand]
-    private void Maximize(Window? window)
-    {
-        if (window is null) return;
-        var nextState = window.WindowState == WindowState.Maximized
-            ? WindowState.Normal
-            : WindowState.Maximized;
-        window.WindowState = nextState;
-        IsMaximized = nextState == WindowState.Maximized;
-    }
-
-    /// <summary>通知宿主窗口关闭当前预览并立即启动新一轮截图。</summary>
-    public event Action? RecaptureRequested;
-
-    [RelayCommand]
-    private void Recapture()
-    {
-        RecaptureRequested?.Invoke();
-    }
+    private void Recapture() => _navigation.Recapture();
 
     /// <summary>
     /// 窗口关闭时调用：注销 Messenger、释放图像引用，阻止 GC 根保留。

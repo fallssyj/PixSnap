@@ -1,4 +1,4 @@
-﻿<Project Sdk="Microsoft.NET.Sdk">
+<Project Sdk="Microsoft.NET.Sdk">
 
   <PropertyGroup>
     <OutputType>WinExe</OutputType>
@@ -18,15 +18,12 @@
   </PropertyGroup>
 
   <ItemGroup>
-    <None Remove="Assets\fonts\MiSans-Normal.ttf" />
-    <None Remove="Assets\fonts\Segoe Fluent Icons.ttf" />
     <None Remove="Assets\icons\app.png" />
     <None Remove="Assets\icons\picture.png" />
     <None Remove="Assets\icons\video.png" />
   </ItemGroup>
 
   <ItemGroup>
-    <Resource Include="Assets\fonts\Segoe Fluent Icons.ttf" />
     <Resource Include="Assets\icons\app.ico">
       <CopyToOutputDirectory>Never</CopyToOutputDirectory>
     </Resource>
@@ -34,7 +31,8 @@
 
   <ItemGroup>
     <PackageReference Include="CommunityToolkit.Mvvm" Version="8.4.2" />
-    <PackageReference Include="MicaWPF" Version="6.3.2" />
+    <PackageReference Include="iNKORE.UI.WPF" Version="1.2.8" />
+    <PackageReference Include="iNKORE.UI.WPF.Modern" Version="0.10.2.1" />
     <PackageReference Include="Hardcodet.NotifyIcon.Wpf" Version="2.0.1" />
     <PackageReference Include="Microsoft.Extensions.DependencyInjection" Version="10.0.5" />
     <PackageReference Include="Microsoft.ML.OnnxRuntime.DirectML" Version="1.24.4" />
@@ -50,7 +48,6 @@
   </ItemGroup>
 
   <ItemGroup>
-    <Resource Include="Assets\fonts\MiSans-Normal.ttf" />
     <Resource Include="Assets\icons\app.png" />
     <Resource Include="Assets\icons\picture.png" />
     <Resource Include="Assets\icons\video.png" />

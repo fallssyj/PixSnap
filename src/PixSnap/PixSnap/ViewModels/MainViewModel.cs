@@ -6,7 +6,6 @@ using PixSnap.Services;
 using PixSnap.Views;
 using Serilog;
 using System.IO;
-using System.Text;
 using System.Threading.Tasks;
 using System.Windows;
 using System.Windows.Media.Imaging;
@@ -80,7 +79,7 @@ public partial class MainViewModel : ObservableObject
         catch (Exception ex)
         {
             Log.Error(ex, "截图/录屏失败");
-            ShowError(BuildExceptionMessage("操作失败", ex));
+            ShowError(ExceptionMessageFormatter.Format("操作失败", ex));
         }
         finally
         {
@@ -214,7 +213,7 @@ public partial class MainViewModel : ObservableObject
         try
         {
             // 先创建并显示控制窗口（避免与第一帧回调竞争）
-            controlWindow = new RecordingControlWindow(
+            var recordingVm = new RecordingControlViewModel(
                 stopAction: async () =>
                 {
                     try
@@ -233,15 +232,16 @@ public partial class MainViewModel : ObservableObject
                     catch (Exception ex)
                     {
                         Log.Error(ex, "停止录制失败");
-                        ShowError(BuildExceptionMessage("停止录制失败", ex));
+                        ShowError(ExceptionMessageFormatter.Format("停止录制失败", ex));
                     }
                 },
                 pauseAction: () => _screenCaptureService.PauseRecording(),
-                resumeAction: () => _screenCaptureService.ResumeRecording()
-            )
+                resumeAction: () => _screenCaptureService.ResumeRecording())
             {
                 OutputFilePath = tempPath
             };
+
+            controlWindow = new RecordingControlWindow(recordingVm);
 
             Log.Information("[录屏] 控制窗口已创建，即将 Show()");
             controlWindow.Show();
@@ -267,7 +267,7 @@ public partial class MainViewModel : ObservableObject
             if ((mic || sys) && _screenCaptureService.AudioInitFailed)
             {
                 Log.Warning("音频设备初始化失败，录制将无声音");
-                controlWindow.ShowAudioWarning();
+                controlWindow.SetAudioWarningVisible();
             }
         }
         catch (Exception ex)
@@ -278,7 +278,7 @@ public partial class MainViewModel : ObservableObject
             // 清理可能已创建的临时文件
             try { if (File.Exists(tempPath)) File.Delete(tempPath); }
             catch (Exception delEx) { Log.Warning(delEx, "清理录制临时文件失败: {Path}", tempPath); }
-            ShowError(BuildExceptionMessage("启动录制失败", ex));
+            ShowError(ExceptionMessageFormatter.Format("启动录制失败", ex));
         }
     }
 
@@ -303,40 +303,10 @@ public partial class MainViewModel : ObservableObject
 
     private static void ShowError(string message)
     {
-        MessageBoxWindow.Show(
+        AppMessageBox.Show(
             message,
             "PixSnap 错误",
             MessageBoxButton.OK,
             MessageBoxImage.Error);
-    }
-
-    private static string BuildExceptionMessage(string prefix, Exception exception)
-    {
-        var builder = new StringBuilder();
-        builder.AppendLine(prefix);
-
-        var current = exception;
-        var depth = 0;
-        while (current is not null)
-        {
-            builder.AppendLine($"[{depth}] {current.GetType().FullName}");
-            builder.AppendLine(current.Message);
-            builder.AppendLine($"HRESULT: 0x{current.HResult:X8}");
-
-            if (!string.IsNullOrWhiteSpace(current.StackTrace))
-            {
-                builder.AppendLine("StackTrace:");
-                builder.AppendLine(current.StackTrace);
-            }
-
-            current = current.InnerException;
-            depth++;
-            if (current is not null)
-            {
-                builder.AppendLine("InnerException:");
-            }
-        }
-
-        return builder.ToString().TrimEnd();
     }
 }

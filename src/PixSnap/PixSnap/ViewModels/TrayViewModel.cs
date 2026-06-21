@@ -1,5 +1,6 @@
 using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
+using PixSnap.Services;
 using System;
 using System.Windows;
 
@@ -7,41 +8,45 @@ namespace PixSnap.ViewModels;
 
 public partial class TrayViewModel : ObservableObject
 {
-    private readonly Action _captureAction;
-    private readonly Action _showSettingsAction;
-    private readonly Action _showAboutAction;
-    private readonly Action _showLogViewerAction;
+    private readonly INavigationService _navigation;
+    private readonly TrayMenuService _trayMenu;
 
-    public TrayViewModel(Action captureAction, Action showSettingsAction, Action showAboutAction, Action showLogViewerAction)
+    public TrayViewModel(INavigationService navigation, TrayMenuService trayMenu)
     {
-        _captureAction = captureAction;
-        _showSettingsAction = showSettingsAction;
-        _showAboutAction = showAboutAction;
-        _showLogViewerAction = showLogViewerAction;
+        _navigation = navigation;
+        _trayMenu = trayMenu;
     }
 
     [RelayCommand]
-    private void Capture() => _captureAction();
+    private void Capture() => RunNavigation(_navigation.StartCapture);
 
     [RelayCommand]
-    private void ShowSettings() => _showSettingsAction();
+    private void ShowSettings() => RunNavigation(_navigation.ShowSettings);
 
     [RelayCommand]
-    private void ShowAbout() => _showAboutAction();
+    private void ShowAbout() => RunNavigation(_navigation.ShowAbout);
 
     [RelayCommand]
-    private void ShowLogViewer() => _showLogViewerAction();
+    private void ShowLogViewer() => RunNavigation(_navigation.ShowLogViewer);
 
     [RelayCommand]
     private void Exit()
     {
-        var result = Views.MessageBoxWindow.Show(
+        _trayMenu.Close();
+
+        var result = AppMessageBox.Show(
             "确定要退出 PixSnap 吗？",
             "退出确认",
             MessageBoxButton.YesNo,
             MessageBoxImage.Question);
 
         if (result == MessageBoxResult.Yes)
-            Application.Current.Shutdown();
+            _navigation.ShutdownApplication();
+    }
+
+    private void RunNavigation(Action action)
+    {
+        _trayMenu.Close();
+        action();
     }
 }

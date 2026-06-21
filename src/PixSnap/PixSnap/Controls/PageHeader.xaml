@@ -1,0 +1,30 @@
+<UserControl
+    x:Class="PixSnap.Controls.PageHeader"
+    xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+    xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+    xmlns:ui="http://schemas.inkore.net/lib/ui/wpf/modern">
+    <StackPanel Orientation="Horizontal">
+        <Border Style="{StaticResource SettingsPageHeaderIconHostStyle}">
+            <ContentPresenter
+                HorizontalAlignment="Center"
+                VerticalAlignment="Center"
+                Content="{Binding IconContent, RelativeSource={RelativeSource AncestorType=UserControl}}" />
+        </Border>
+        <StackPanel Margin="12,0,0,0" VerticalAlignment="Center">
+            <TextBlock
+                Style="{StaticResource SettingsPageHeaderTitleStyle}"
+                Text="{Binding Title, RelativeSource={RelativeSource AncestorType=UserControl}}" />
+            <TextBlock Text="{Binding Subtitle, RelativeSource={RelativeSource AncestorType=UserControl}}">
+                <TextBlock.Style>
+                    <Style BasedOn="{StaticResource SettingsPageHeaderSubtitleStyle}" TargetType="TextBlock">
+                        <Style.Triggers>
+                            <Trigger Property="Text" Value="">
+                                <Setter Property="Visibility" Value="Collapsed" />
+                            </Trigger>
+                        </Style.Triggers>
+                    </Style>
+                </TextBlock.Style>
+            </TextBlock>
+        </StackPanel>
+    </StackPanel>
+</UserControl>

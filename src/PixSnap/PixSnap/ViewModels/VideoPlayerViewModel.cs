@@ -30,16 +30,10 @@ public partial class VideoPlayerViewModel : ObservableObject
     private string _durationText = "00:00";
 
     [ObservableProperty]
-    private string _playPauseIcon = "\uE768"; // Play
-
-    [ObservableProperty]
     private double _sliderValue;
 
     [ObservableProperty]
     private double _volume = 1.0;
-
-    [ObservableProperty]
-    private string _volumeIcon = "\uE767"; // Speaker
 
     [ObservableProperty]
     private bool _isMuted;
@@ -82,7 +76,7 @@ public partial class VideoPlayerViewModel : ObservableObject
         catch (Exception ex)
         {
             Log.Error(ex, "保存录屏失败");
-            MessageBoxWindow.Show(
+            AppMessageBox.Show(
                 $"保存失败：{ex.Message}",
                 "PixSnap 错误",
                 MessageBoxButton.OK,
@@ -141,7 +135,6 @@ public partial class VideoPlayerViewModel : ObservableObject
 
     partial void OnIsMutedChanged(bool value)
     {
-        VolumeIcon = value ? "\uE74F" : "\uE767"; // Mute : Speaker
         VolumeChanged?.Invoke(value ? 0 : Volume);
     }
 
@@ -161,11 +154,6 @@ public partial class VideoPlayerViewModel : ObservableObject
     public void OnMediaEnded()
     {
         IsPlaying = false;
-    }
-
-    partial void OnIsPlayingChanged(bool value)
-    {
-        PlayPauseIcon = value ? "\uE769" : "\uE768"; // Pause : Play
     }
 
     partial void OnPositionChanged(TimeSpan value) => PositionText = FormatTime(value);

@@ -1,383 +1,305 @@
-<mica:MicaWindow
+﻿<Window
     x:Class="PixSnap.Views.SettingsWindow"
     xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
     xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
-    xmlns:mica="clr-namespace:MicaWPF.Controls;assembly=MicaWPF"
+    xmlns:behaviors="clr-namespace:PixSnap.Behaviors"
+    xmlns:controls="clr-namespace:PixSnap.Controls"
+    xmlns:ui="http://schemas.inkore.net/lib/ui/wpf/modern"
     Title="设置"
-    Width="480"
-    Height="600"
-    ResizeMode="NoResize"
+    Width="560"
+    Height="720"
+    MinWidth="500"
+    MinHeight="560"
+    ResizeMode="CanResize"
+    SizeToContent="Manual"
     TextOptions.TextFormattingMode="Display"
     UseLayoutRounding="True"
     WindowStartupLocation="CenterScreen"
-    WindowStyle="None">
-    <WindowChrome.WindowChrome>
-        <WindowChrome
-            CaptionHeight="0"
-            CornerRadius="0"
-            GlassFrameThickness="-1"
-            ResizeBorderThickness="0"
-            UseAeroCaptionButtons="False" />
-    </WindowChrome.WindowChrome>
+    ui:WindowHelper.FixMaximizedWindow="True"
+    ui:WindowHelper.SystemBackdropType="Mica"
+    ui:WindowHelper.UseModernWindowStyle="True"
+    ui:TitleBar.Height="36">
 
-    <mica:MicaWindow.Resources>
-        <!--  分组卡片  -->
-        <Style x:Key="GroupCardStyle" TargetType="Border">
-            <Setter Property="Background" Value="{DynamicResource SurfaceBrush}" />
-            <Setter Property="CornerRadius" Value="10" />
-            <Setter Property="Margin" Value="0,0,0,12" />
-        </Style>
-        <!--  分组内分隔线  -->
-        <Style x:Key="CardSeparatorStyle" TargetType="Border">
-            <Setter Property="Height" Value="1" />
-            <Setter Property="Margin" Value="44,0,16,0" />
-            <Setter Property="Background" Value="{DynamicResource BorderBrush}" />
-        </Style>
-        <!--  分组内每行  -->
-        <Style x:Key="CardRowStyle" TargetType="Border">
-            <Setter Property="Padding" Value="16,14" />
-        </Style>
-        <!--  节标题  -->
-        <Style x:Key="SectionHeaderStyle" TargetType="TextBlock">
-            <Setter Property="Margin" Value="4,0,0,8" />
-            <Setter Property="FontSize" Value="13" />
-            <Setter Property="Opacity" Value="0.45" />
-        </Style>
-        <!--  行图标  -->
-        <Style x:Key="RowIconStyle" TargetType="TextBlock">
-            <Setter Property="VerticalAlignment" Value="Center" />
-            <Setter Property="FontFamily" Value="{StaticResource SegoeFluent}" />
-            <Setter Property="FontSize" Value="16" />
-            <Setter Property="Foreground" Value="{DynamicResource AccentBrush}" />
-            <Setter Property="Width" Value="20" />
-            <Setter Property="TextAlignment" Value="Center" />
-        </Style>
-        <!--  行主文本  -->
-        <Style x:Key="RowTitleStyle" TargetType="TextBlock">
-            <Setter Property="FontSize" Value="14" />
-        </Style>
-        <!--  行副文本  -->
-        <Style x:Key="RowDescStyle" TargetType="TextBlock">
-            <Setter Property="Margin" Value="0,2,0,0" />
-            <Setter Property="FontSize" Value="12" />
-            <Setter Property="Opacity" Value="0.45" />
-        </Style>
-        <!--  开关滑轨  -->
-        <Style x:Key="ToggleSwitchStyle" TargetType="ToggleButton">
-            <Setter Property="FocusVisualStyle" Value="{x:Null}" />
-            <Setter Property="Cursor" Value="Hand" />
-            <Setter Property="Template">
-                <Setter.Value>
-                    <ControlTemplate TargetType="ToggleButton">
-                        <Border
-                            x:Name="Track"
-                            Width="42"
-                            Height="24"
-                            Background="#3E3E3E"
-                            CornerRadius="12">
-                            <Ellipse
-                                x:Name="Thumb"
-                                Width="16"
-                                Height="16"
-                                Margin="4,0,0,0"
-                                HorizontalAlignment="Left"
-                                Fill="White" />
-                        </Border>
-                        <ControlTemplate.Triggers>
-                            <Trigger Property="IsChecked" Value="True">
-                                <Setter TargetName="Track" Property="Background" Value="{DynamicResource AccentBrush}" />
-                                <Setter TargetName="Thumb" Property="HorizontalAlignment" Value="Right" />
-                                <Setter TargetName="Thumb" Property="Margin" Value="0,0,4,0" />
-                            </Trigger>
-                            <Trigger Property="IsMouseOver" Value="True">
-                                <Setter TargetName="Track" Property="Opacity" Value="0.85" />
-                            </Trigger>
-                            <Trigger Property="IsPressed" Value="True">
-                                <Setter TargetName="Track" Property="Opacity" Value="0.7" />
-                            </Trigger>
-                        </ControlTemplate.Triggers>
-                    </ControlTemplate>
-                </Setter.Value>
-            </Setter>
-        </Style>
-    </mica:MicaWindow.Resources>
+    <Grid>
+        <Grid.RowDefinitions>
+            <RowDefinition Height="Auto" />
+            <RowDefinition Height="Auto" />
+            <RowDefinition Height="*" />
+            <RowDefinition Height="Auto" />
+        </Grid.RowDefinitions>
 
-    <Border>
-        <Grid>
-            <!--  关闭按钮  -->
-            <Button
-                Width="44"
-                Height="36"
-                HorizontalAlignment="Right"
-                VerticalAlignment="Top"
-                Panel.ZIndex="10"
-                Command="{Binding CancelCommand}"
-                Content="{StaticResource Glyph_Close}"
-                Style="{StaticResource CloseWindowIconButtonStyle}" />
+        <Border Grid.Row="0" Padding="28,20,28,12">
+            <controls:PageHeader Subtitle="自定义你的 PixSnap" Title="设置">
+                <controls:PageHeader.IconContent>
+                    <ui:FontIcon
+                        FontSize="18"
+                        Foreground="{DynamicResource SystemControlForegroundAccentBrush}"
+                        Icon="{x:Static ui:SegoeFluentIcons.Settings}" />
+                </controls:PageHeader.IconContent>
+            </controls:PageHeader>
+        </Border>
 
-            <DockPanel>
-                <!--  标题栏  -->
-                <Border
-                    Padding="24,20,24,16"
-                    DockPanel.Dock="Top"
-                    MouseLeftButtonDown="OnTitleBarMouseDown">
-                    <StackPanel Orientation="Horizontal">
-                        <Border
-                            Width="36"
-                            Height="36"
-                            Background="#15845EF7"
-                            CornerRadius="10">
-                            <TextBlock
-                                HorizontalAlignment="Center"
-                                VerticalAlignment="Center"
-                                FontFamily="{StaticResource SegoeFluent}"
-                                FontSize="16"
-                                Foreground="{DynamicResource AccentBrush}"
-                                Text="{StaticResource Glyph_Settings}" />
-                        </Border>
-                        <StackPanel Margin="12,0,0,0" VerticalAlignment="Center">
-                            <TextBlock FontSize="16" Text="设置" />
-                            <TextBlock
-                                Margin="0,2,0,0"
-                                FontSize="13"
-                                Opacity="0.45"
-                                Text="自定义你的 PixSnap" />
-                        </StackPanel>
-                    </StackPanel>
-                </Border>
+        <Border
+            Grid.Row="1"
+            Height="1"
+            Margin="28,0"
+            Background="{DynamicResource DividerStrokeColorDefaultBrush}" />
 
-                <!--  分隔线  -->
-                <Border
-                    Height="1"
-                    Margin="20,0"
-                    Background="{DynamicResource BorderBrush}"
-                    DockPanel.Dock="Top" />
+        <ScrollViewer
+            Grid.Row="2"
+            Padding="28,12,28,8"
+            HorizontalScrollBarVisibility="Disabled"
+            VerticalScrollBarVisibility="Auto">
+            <StackPanel>
 
-                <!--  底部按钮（固定不滚动）  -->
-                <Border Padding="24,16,24,20" DockPanel.Dock="Bottom">
-                    <Grid>
-                        <Grid.ColumnDefinitions>
-                            <ColumnDefinition Width="*" />
-                            <ColumnDefinition Width="Auto" />
-                            <ColumnDefinition Width="Auto" />
-                        </Grid.ColumnDefinitions>
-                        <Button
-                            Grid.Column="1"
-                            Width="88"
-                            Height="36"
-                            Command="{Binding CancelCommand}"
-                            Content="取消" />
-                        <Button
-                            Grid.Column="2"
-                            Width="88"
-                            Height="36"
-                            Margin="8,0,0,0"
-                            Command="{Binding SaveCommand}"
-                            Content="保存">
-                            <Button.Style>
-                                <Style BasedOn="{StaticResource {x:Type Button}}" TargetType="Button">
-                                    <Setter Property="Background" Value="{DynamicResource AccentBrush}" />
-                                    <Setter Property="Foreground" Value="#111111" />
-                                    <Setter Property="BorderThickness" Value="0" />
-                                </Style>
-                            </Button.Style>
-                        </Button>
-                    </Grid>
-                </Border>
-
-                <!--  可滚动内容区  -->
-                <ScrollViewer
-                    Padding="24,16,24,4"
-                    HorizontalScrollBarVisibility="Disabled"
-                    VerticalScrollBarVisibility="Auto">
+                <TextBlock Margin="4,0,0,8" Style="{StaticResource SectionHeaderStyle}" Text="常规" />
+                <Border Style="{StaticResource GroupCardStyle}">
                     <StackPanel>
-
-                        <!--  ═══ 常规 ═══  -->
-                        <TextBlock Style="{StaticResource SectionHeaderStyle}" Text="常规" />
-                        <Border Style="{StaticResource GroupCardStyle}">
-                            <StackPanel>
-                                <!--  开机启动  -->
-                                <Border Style="{StaticResource CardRowStyle}">
-                                    <Grid>
-                                        <StackPanel Orientation="Horizontal">
-                                            <TextBlock Style="{StaticResource RowIconStyle}" Text="&#xE7E8;" />
-                                            <StackPanel Margin="12,0,0,0" VerticalAlignment="Center">
-                                                <TextBlock Style="{StaticResource RowTitleStyle}" Text="开机启动" />
-                                                <TextBlock Style="{StaticResource RowDescStyle}" Text="登录后自动在后台启动" />
-                                            </StackPanel>
-                                        </StackPanel>
-                                        <ToggleButton
-                                            HorizontalAlignment="Right"
-                                            VerticalAlignment="Center"
-                                            IsChecked="{Binding IsStartupEnabled}"
-                                            Style="{StaticResource ToggleSwitchStyle}" />
-                                    </Grid>
-                                </Border>
-                                <Border Style="{StaticResource CardSeparatorStyle}" />
-                                <!--  主题  -->
-                                <Border Style="{StaticResource CardRowStyle}">
-                                    <Grid>
-                                        <StackPanel Orientation="Horizontal">
-                                            <TextBlock Style="{StaticResource RowIconStyle}" Text="{StaticResource Glyph_Color}" />
-                                            <StackPanel Margin="12,0,0,0" VerticalAlignment="Center">
-                                                <TextBlock Style="{StaticResource RowTitleStyle}" Text="主题" />
-                                                <TextBlock Style="{StaticResource RowDescStyle}" Text="选择应用的外观主题" />
-                                            </StackPanel>
-                                        </StackPanel>
-                                        <ComboBox
-                                            Width="100"
-                                            HorizontalAlignment="Right"
-                                            VerticalAlignment="Center"
-                                            SelectedIndex="{Binding SelectedThemeIndex}">
-                                            <ComboBoxItem Content="自动" />
-                                            <ComboBoxItem Content="深色" />
-                                            <ComboBoxItem Content="浅色" />
-                                        </ComboBox>
-                                    </Grid>
-                                </Border>
-                            </StackPanel>
-                        </Border>
-
-                        <!--  ═══ 快捷键 ═══  -->
-                        <TextBlock Style="{StaticResource SectionHeaderStyle}" Text="快捷键" />
-                        <Border Style="{StaticResource GroupCardStyle}">
-                            <Border Style="{StaticResource CardRowStyle}">
-                                <StackPanel>
-                                    <StackPanel Orientation="Horizontal">
-                                        <TextBlock Style="{StaticResource RowIconStyle}" Text="&#xE765;" />
-                                        <StackPanel Margin="12,0,0,0" VerticalAlignment="Center">
-                                            <TextBlock Style="{StaticResource RowTitleStyle}" Text="截图/录制快捷键" />
-                                            <TextBlock Style="{StaticResource RowDescStyle}" Text="点击输入框按下组合键录制，Esc 取消" />
-                                        </StackPanel>
-                                    </StackPanel>
-                                    <Grid Margin="0,12,0,0">
-                                        <Grid.ColumnDefinitions>
-                                            <ColumnDefinition Width="*" />
-                                            <ColumnDefinition Width="Auto" />
-                                        </Grid.ColumnDefinitions>
-                                        <TextBox
-                                            x:Name="HotkeyInputBox"
-                                            Grid.Column="0"
-                                            Padding="12,8"
-                                            Cursor="Hand"
-                                            GotFocus="HotkeyInputBox_GotFocus"
-                                            IsReadOnly="True"
-                                            LostFocus="HotkeyInputBox_LostFocus"
-                                            PreviewKeyDown="HotkeyInputBox_PreviewKeyDown"
-                                            Text="{Binding HotkeyDisplayText, Mode=OneWay}" />
-                                        <Button
-                                            Grid.Column="1"
-                                            Height="38"
-                                            Margin="8,0,0,0"
-                                            Padding="14,0"
-                                            Command="{Binding ClearHotkeyCommand}"
-                                            Content="清除"
-                                            FontSize="12" />
-                                    </Grid>
+                        <Border Style="{StaticResource CardRowStyle}">
+                            <Grid>
+                                <Grid.ColumnDefinitions>
+                                    <ColumnDefinition Width="32" />
+                                    <ColumnDefinition Width="*" MinWidth="160" />
+                                    <ColumnDefinition Width="Auto" />
+                                </Grid.ColumnDefinitions>
+                                <ui:FontIcon
+                                    Grid.Column="0"
+                                    VerticalAlignment="Center"
+                                    Style="{StaticResource RowIconStyle}"
+                                    Icon="{x:Static ui:SegoeFluentIcons.PowerButton}" />
+                                <StackPanel Grid.Column="1" Margin="12,0,12,0" VerticalAlignment="Center">
+                                    <TextBlock Style="{StaticResource RowTitleStyle}" Text="开机启动" />
+                                    <TextBlock Style="{StaticResource RowDescStyle}" Text="登录后自动在后台启动" />
                                 </StackPanel>
-                            </Border>
+                                <ui:ToggleSwitch
+                                    Grid.Column="2"
+                                    VerticalAlignment="Center"
+                                    IsOn="{Binding IsStartupEnabled}"
+                                    Style="{StaticResource SettingsToggleSwitchStyle}" />
+                            </Grid>
                         </Border>
 
-                        <!--  ═══ 存储 ═══  -->
-                        <TextBlock Style="{StaticResource SectionHeaderStyle}" Text="存储" />
-                        <Border Style="{StaticResource GroupCardStyle}">
-                            <StackPanel>
-                                <!--  自动保存  -->
-                                <Border Style="{StaticResource CardRowStyle}">
-                                    <StackPanel>
-                                        <Grid>
-                                            <StackPanel Orientation="Horizontal">
-                                                <TextBlock Style="{StaticResource RowIconStyle}" Text="&#xE74E;" />
-                                                <StackPanel Margin="12,0,0,0" VerticalAlignment="Center">
-                                                    <TextBlock Style="{StaticResource RowTitleStyle}" Text="自动保存" />
-                                                    <TextBlock Style="{StaticResource RowDescStyle}" Text="截图后自动保存到指定目录" />
-                                                </StackPanel>
-                                            </StackPanel>
-                                            <ToggleButton
-                                                HorizontalAlignment="Right"
-                                                VerticalAlignment="Center"
-                                                IsChecked="{Binding IsAutoSaveEnabled}"
-                                                Style="{StaticResource ToggleSwitchStyle}" />
-                                        </Grid>
-                                        <Grid Margin="0,12,0,0">
-                                            <Grid.ColumnDefinitions>
-                                                <ColumnDefinition Width="*" />
-                                                <ColumnDefinition Width="Auto" />
-                                                <ColumnDefinition Width="Auto" />
-                                            </Grid.ColumnDefinitions>
-                                            <TextBox
-                                                Grid.Column="0"
-                                                Padding="12,8"
-                                                IsReadOnly="True"
-                                                Text="{Binding SaveDirectory, Mode=OneWay}" />
-                                            <Button
-                                                Grid.Column="1"
-                                                Height="38"
-                                                Margin="8,0,0,0"
-                                                Padding="14,0"
-                                                Command="{Binding BrowseSaveDirectoryCommand}"
-                                                Content="浏览"
-                                                FontSize="12" />
-                                            <Button
-                                                Grid.Column="2"
-                                                Height="38"
-                                                Margin="4,0,0,0"
-                                                Padding="10,0"
-                                                Command="{Binding OpenSaveDirectoryCommand}"
-                                                Content="{StaticResource Glyph_File}"
-                                                Style="{StaticResource ToolbarIconButtonStyle}"
-                                                ToolTip="打开目录" />
-                                        </Grid>
-                                    </StackPanel>
-                                </Border>
-                                <Border Style="{StaticResource CardSeparatorStyle}" />
-                                <!--  录屏临时目录  -->
-                                <Border Style="{StaticResource CardRowStyle}">
-                                    <StackPanel>
-                                        <StackPanel Orientation="Horizontal">
-                                            <TextBlock Style="{StaticResource RowIconStyle}" Text="&#xE714;" />
-                                            <StackPanel Margin="12,0,0,0" VerticalAlignment="Center">
-                                                <TextBlock Style="{StaticResource RowTitleStyle}" Text="录屏临时目录" />
-                                                <TextBlock Style="{StaticResource RowDescStyle}" Text="录制文件的临时存放位置" />
-                                            </StackPanel>
-                                        </StackPanel>
-                                        <Grid Margin="0,12,0,0">
-                                            <Grid.ColumnDefinitions>
-                                                <ColumnDefinition Width="*" />
-                                                <ColumnDefinition Width="Auto" />
-                                                <ColumnDefinition Width="Auto" />
-                                            </Grid.ColumnDefinitions>
-                                            <TextBox
-                                                Grid.Column="0"
-                                                Padding="12,8"
-                                                IsReadOnly="True"
-                                                Text="{Binding RecordingTempDirectory, Mode=OneWay}" />
-                                            <Button
-                                                Grid.Column="1"
-                                                Height="38"
-                                                Margin="8,0,0,0"
-                                                Padding="14,0"
-                                                Command="{Binding BrowseRecordingTempDirectoryCommand}"
-                                                Content="浏览"
-                                                FontSize="12" />
-                                            <Button
-                                                Grid.Column="2"
-                                                Height="38"
-                                                Margin="4,0,0,0"
-                                                Padding="10,0"
-                                                Command="{Binding OpenRecordingTempDirectoryCommand}"
-                                                Content="{StaticResource Glyph_File}"
-                                                Style="{StaticResource ToolbarIconButtonStyle}"
-                                                ToolTip="打开目录" />
-                                        </Grid>
-                                    </StackPanel>
-                                </Border>
-                            </StackPanel>
-                        </Border>
+                        <Border Style="{StaticResource CardSeparatorStyle}" />
 
+                        <Border Style="{StaticResource CardRowStyle}">
+                            <Grid>
+                                <Grid.ColumnDefinitions>
+                                    <ColumnDefinition Width="32" />
+                                    <ColumnDefinition Width="*" MinWidth="160" />
+                                    <ColumnDefinition Width="Auto" />
+                                </Grid.ColumnDefinitions>
+                                <ui:FontIcon
+                                    Grid.Column="0"
+                                    VerticalAlignment="Center"
+                                    Style="{StaticResource RowIconStyle}"
+                                    Icon="{x:Static ui:SegoeFluentIcons.Color}" />
+                                <StackPanel Grid.Column="1" Margin="12,0,12,0" VerticalAlignment="Center">
+                                    <TextBlock Style="{StaticResource RowTitleStyle}" Text="主题" />
+                                    <TextBlock Style="{StaticResource RowDescStyle}" Text="选择应用的外观主题" />
+                                </StackPanel>
+                                <ComboBox
+                                    Grid.Column="2"
+                                    MinWidth="96"
+                                    VerticalAlignment="Center"
+                                    SelectedIndex="{Binding SelectedThemeIndex}">
+                                    <ComboBoxItem Content="自动" />
+                                    <ComboBoxItem Content="深色" />
+                                    <ComboBoxItem Content="浅色" />
+                                </ComboBox>
+                            </Grid>
+                        </Border>
                     </StackPanel>
-                </ScrollViewer>
-            </DockPanel>
-        </Grid>
-    </Border>
-</mica:MicaWindow>
+                </Border>
+
+                <TextBlock Style="{StaticResource SectionHeaderStyle}" Text="快捷键" />
+                <Border Style="{StaticResource GroupCardStyle}">
+                    <Border Style="{StaticResource CardRowStyle}">
+                        <Grid>
+                            <Grid.ColumnDefinitions>
+                                <ColumnDefinition Width="32" />
+                                <ColumnDefinition Width="*" />
+                            </Grid.ColumnDefinitions>
+                            <Grid.RowDefinitions>
+                                <RowDefinition Height="Auto" />
+                                <RowDefinition Height="Auto" />
+                            </Grid.RowDefinitions>
+                            <ui:FontIcon
+                                Grid.Row="0"
+                                Grid.Column="0"
+                                VerticalAlignment="Top"
+                                Margin="0,2,0,0"
+                                Style="{StaticResource RowIconStyle}"
+                                Icon="{x:Static ui:SegoeFluentIcons.KeyboardClassic}" />
+                            <StackPanel Grid.Row="0" Grid.Column="1" Margin="12,0,0,0">
+                                <TextBlock Style="{StaticResource RowTitleStyle}" Text="截图/录制快捷键" />
+                                <TextBlock Style="{StaticResource RowDescStyle}" Text="点击输入框后按下组合键，Esc 取消" />
+                            </StackPanel>
+                            <Grid Grid.Row="1" Grid.Column="1" Margin="12,12,0,0">
+                                <Grid.ColumnDefinitions>
+                                    <ColumnDefinition Width="*" MinWidth="120" />
+                                    <ColumnDefinition Width="Auto" />
+                                </Grid.ColumnDefinitions>
+                                <TextBox
+                                    Style="{StaticResource SettingsPathTextBoxStyle}"
+                                    behaviors:HotkeyRecordBehavior.IsEnabled="True"
+                                    Cursor="Hand"
+                                    IsReadOnly="True"
+                                    Text="{Binding HotkeyDisplayText, Mode=OneWay}" />
+                                <Button
+                                    Grid.Column="1"
+                                    Margin="8,0,0,0"
+                                    Command="{Binding ClearHotkeyCommand}"
+                                    Content="清除"
+                                    Style="{StaticResource SettingsActionButtonStyle}" />
+                            </Grid>
+                        </Grid>
+                    </Border>
+                </Border>
+
+                <TextBlock Style="{StaticResource SectionHeaderStyle}" Text="存储" />
+                <Border Style="{StaticResource GroupCardStyle}">
+                    <StackPanel>
+                        <Border Style="{StaticResource CardRowStyle}">
+                            <Grid>
+                                <Grid.ColumnDefinitions>
+                                    <ColumnDefinition Width="32" />
+                                    <ColumnDefinition Width="*" />
+                                </Grid.ColumnDefinitions>
+                                <Grid.RowDefinitions>
+                                    <RowDefinition Height="Auto" />
+                                    <RowDefinition Height="Auto" />
+                                </Grid.RowDefinitions>
+                                <ui:FontIcon
+                                    Grid.Row="0"
+                                    Grid.Column="0"
+                                    Grid.RowSpan="2"
+                                    VerticalAlignment="Top"
+                                    Margin="0,2,0,0"
+                                    Style="{StaticResource RowIconStyle}"
+                                    Icon="{x:Static ui:SegoeFluentIcons.Save}" />
+                                <Grid Grid.Row="0" Grid.Column="1" Margin="12,0,0,0">
+                                    <Grid.ColumnDefinitions>
+                                        <ColumnDefinition Width="*" MinWidth="120" />
+                                        <ColumnDefinition Width="Auto" />
+                                    </Grid.ColumnDefinitions>
+                                    <StackPanel Grid.Column="0" Margin="0,0,12,0" VerticalAlignment="Center">
+                                        <TextBlock Style="{StaticResource RowTitleStyle}" Text="自动保存" />
+                                        <TextBlock Style="{StaticResource RowDescStyle}" Text="截图后自动保存到指定目录" />
+                                    </StackPanel>
+                                    <ui:ToggleSwitch
+                                        Grid.Column="1"
+                                        VerticalAlignment="Center"
+                                        IsOn="{Binding IsAutoSaveEnabled}"
+                                        Style="{StaticResource SettingsToggleSwitchStyle}" />
+                                </Grid>
+                                <Grid Grid.Row="1" Grid.Column="1" Margin="12,12,0,0">
+                                    <Grid.ColumnDefinitions>
+                                        <ColumnDefinition Width="*" MinWidth="120" />
+                                        <ColumnDefinition Width="Auto" />
+                                        <ColumnDefinition Width="Auto" />
+                                    </Grid.ColumnDefinitions>
+                                    <TextBox
+                                        Grid.Column="0"
+                                        Style="{StaticResource SettingsPathTextBoxStyle}"
+                                        IsReadOnly="True"
+                                        Text="{Binding SaveDirectory, Mode=OneWay}" />
+                                    <Button
+                                        Grid.Column="1"
+                                        Margin="8,0,0,0"
+                                        Command="{Binding BrowseSaveDirectoryCommand}"
+                                        Content="浏览"
+                                        Style="{StaticResource SettingsActionButtonStyle}" />
+                                    <Button
+                                        Grid.Column="2"
+                                        Margin="4,0,0,0"
+                                        Command="{Binding OpenSaveDirectoryCommand}"
+                                        Style="{StaticResource SettingsIconButtonStyle}"
+                                        ToolTip="打开目录">
+                                        <ui:FontIcon FontSize="14" Icon="{x:Static ui:SegoeFluentIcons.Folder}" />
+                                    </Button>
+                                </Grid>
+                            </Grid>
+                        </Border>
+
+                        <Border Style="{StaticResource CardSeparatorStyle}" />
+
+                        <Border Style="{StaticResource CardRowStyle}">
+                            <Grid>
+                                <Grid.ColumnDefinitions>
+                                    <ColumnDefinition Width="32" />
+                                    <ColumnDefinition Width="*" />
+                                </Grid.ColumnDefinitions>
+                                <Grid.RowDefinitions>
+                                    <RowDefinition Height="Auto" />
+                                    <RowDefinition Height="Auto" />
+                                </Grid.RowDefinitions>
+                                <ui:FontIcon
+                                    Grid.Row="0"
+                                    Grid.Column="0"
+                                    Grid.RowSpan="2"
+                                    VerticalAlignment="Top"
+                                    Margin="0,2,0,0"
+                                    Style="{StaticResource RowIconStyle}"
+                                    Icon="{x:Static ui:SegoeFluentIcons.Video}" />
+                                <StackPanel Grid.Row="0" Grid.Column="1" Margin="12,0,0,0">
+                                    <TextBlock Style="{StaticResource RowTitleStyle}" Text="录屏临时目录" />
+                                    <TextBlock Style="{StaticResource RowDescStyle}" Text="录制文件的临时存放位置" />
+                                </StackPanel>
+                                <Grid Grid.Row="1" Grid.Column="1" Margin="12,12,0,0">
+                                    <Grid.ColumnDefinitions>
+                                        <ColumnDefinition Width="*" MinWidth="120" />
+                                        <ColumnDefinition Width="Auto" />
+                                        <ColumnDefinition Width="Auto" />
+                                    </Grid.ColumnDefinitions>
+                                    <TextBox
+                                        Grid.Column="0"
+                                        Style="{StaticResource SettingsPathTextBoxStyle}"
+                                        IsReadOnly="True"
+                                        Text="{Binding RecordingTempDirectory, Mode=OneWay}" />
+                                    <Button
+                                        Grid.Column="1"
+                                        Margin="8,0,0,0"
+                                        Command="{Binding BrowseRecordingTempDirectoryCommand}"
+                                        Content="浏览"
+                                        Style="{StaticResource SettingsActionButtonStyle}" />
+                                    <Button
+                                        Grid.Column="2"
+                                        Margin="4,0,0,0"
+                                        Command="{Binding OpenRecordingTempDirectoryCommand}"
+                                        Style="{StaticResource SettingsIconButtonStyle}"
+                                        ToolTip="打开目录">
+                                        <ui:FontIcon FontSize="14" Icon="{x:Static ui:SegoeFluentIcons.Folder}" />
+                                    </Button>
+                                </Grid>
+                            </Grid>
+                        </Border>
+                    </StackPanel>
+                </Border>
+
+            </StackPanel>
+        </ScrollViewer>
+
+        <Border
+            Grid.Row="3"
+            Padding="28,14,28,20"
+            Background="{DynamicResource CardBackgroundFillColorDefaultBrush}"
+            BorderBrush="{DynamicResource DividerStrokeColorDefaultBrush}"
+            BorderThickness="0,1,0,0">
+            <StackPanel HorizontalAlignment="Right" Orientation="Horizontal">
+                <Button
+                    MinWidth="88"
+                    Height="36"
+                    Command="{Binding CancelCommand}"
+                    Content="取消"
+                    Style="{StaticResource PixSnapButtonStyle}" />
+                <Button
+                    MinWidth="88"
+                    Height="36"
+                    Margin="8,0,0,0"
+                    Command="{Binding SaveCommand}"
+                    Content="保存"
+                    Style="{StaticResource PixSnapAccentButtonStyle}" />
+            </StackPanel>
+        </Border>
+    </Grid>
+</Window>

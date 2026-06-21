@@ -1,4 +1,4 @@
-using System.Windows;
+﻿using System.Windows;
 using System.Windows.Controls;
 using System.Windows.Input;
 using System.Windows.Media;
@@ -78,7 +78,7 @@ public class CropOverlayControl : Canvas
         _maskLeft = CreateMask(maskBrush);
         _maskRight = CreateMask(maskBrush);
 
-        var strokeBrush = (SolidColorBrush)FindResource("AccentBrush");
+        var strokeBrush = (SolidColorBrush)FindResource("SystemControlForegroundAccentBrush");
         _cropRect = new Rectangle
         {
             Stroke = strokeBrush,

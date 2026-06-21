@@ -4,7 +4,7 @@ using System.Windows.Controls;
 namespace PixSnap.Controls;
 
 /// <summary>复合控件：标签 + 数字输入框 + 滑块，用于浮动面板中的数值参数编辑。</summary>
-public class SliderField : Control
+public partial class SliderField : UserControl
 {
     public static readonly DependencyProperty LabelProperty =
         DependencyProperty.Register(nameof(Label), typeof(string), typeof(SliderField), new PropertyMetadata(string.Empty));
@@ -30,6 +30,11 @@ public class SliderField : Control
 
     public static readonly DependencyProperty LargeChangeProperty =
         DependencyProperty.Register(nameof(LargeChange), typeof(double), typeof(SliderField), new PropertyMetadata(10.0));
+
+    public SliderField()
+    {
+        InitializeComponent();
+    }
 
     public string Label { get => (string)GetValue(LabelProperty); set => SetValue(LabelProperty, value); }
     public string Unit { get => (string)GetValue(UnitProperty); set => SetValue(UnitProperty, value); }

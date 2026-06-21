@@ -1,0 +1,22 @@
+<UserControl
+    x:Class="PixSnap.Controls.AiContextMenuPopup"
+    xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+    xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+    xmlns:ui="http://schemas.inkore.net/lib/ui/wpf/modern">
+    <Border Style="{StaticResource FlyoutMenuCardStyle}">
+        <StackPanel>
+            <Button Command="{Binding RemoveBackgroundCommand}" Style="{StaticResource FlyoutMenuButtonStyle}">
+                <StackPanel Orientation="Horizontal">
+                    <ui:FontIcon Icon="{x:Static ui:SegoeFluentIcons.Color}" Style="{StaticResource FlyoutMenuIconAccentStyle}" />
+                    <TextBlock Margin="10,0,0,0" Style="{StaticResource FlyoutMenuTextStyle}" Text="去除背景" />
+                </StackPanel>
+            </Button>
+            <Button Command="{Binding SuperResolutionCommand}" Style="{StaticResource FlyoutMenuButtonStyle}">
+                <StackPanel Orientation="Horizontal">
+                    <ui:FontIcon Icon="{x:Static ui:SegoeFluentIcons.ZoomIn}" Style="{StaticResource FlyoutMenuIconAccentStyle}" />
+                    <TextBlock Margin="10,0,0,0" Style="{StaticResource FlyoutMenuTextStyle}" Text="超分四倍" />
+                </StackPanel>
+            </Button>
+        </StackPanel>
+    </Border>
+</UserControl>

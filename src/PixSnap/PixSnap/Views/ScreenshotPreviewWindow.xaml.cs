@@ -1,4 +1,3 @@
-using PixSnap.Controls;
 using PixSnap.Services;
 using PixSnap.ViewModels;
 using System.ComponentModel;
@@ -7,19 +6,16 @@ using System.Windows.Controls;
 using System.Windows.Controls.Primitives;
 using System.Windows.Data;
 using System.Windows.Input;
-using System.Windows.Interop;
 using System.Windows.Media;
 using System.Windows.Media.Imaging;
-using System.Windows.Shapes;
 using System.Windows.Threading;
-using MicaWPF.Controls;
 using Cursors = System.Windows.Input.Cursors;
 using Point = System.Windows.Point;
 using ScrollBar = System.Windows.Controls.Primitives.ScrollBar;
 
 namespace PixSnap.Views;
 
-public partial class ScreenshotPreviewWindow : MicaWindow
+public partial class ScreenshotPreviewWindow : Window
 {
     // ── 窗口尺寸常量（XAML 通过 x:Static 引用）─────────────────────────
     public static readonly double DefaultWidth = 1040;
@@ -28,7 +24,6 @@ public partial class ScreenshotPreviewWindow : MicaWindow
     public static readonly double MinWindowHeight = 520;
 
     // ── 内部常量 ──────────────────────────────────────────────────────
-    private const int ResizeBorderThickness = 5;
     private const double OverscrollPadding = 200;
     private const double ZoomStepFactor = 1.1;
     private const double EraserSampleStepRatio = 0.30;
@@ -37,9 +32,6 @@ public partial class ScreenshotPreviewWindow : MicaWindow
     private const double ColorGridWidth = 132;
 
     #region 字段
-
-    // ── 窗口 / 生命周期 ──────────────────────────────────────────────
-    private HwndSourceHook? _wndProcHook;
 
     // ── 缩放 / 平移 ──────────────────────────────────────────────────
     private bool _zoomTriggeredModeSwitch;
@@ -59,7 +51,6 @@ public partial class ScreenshotPreviewWindow : MicaWindow
         Loaded += OnLoaded;
         DataContextChanged += OnDataContextChanged;
         Closed += OnClosed;
-        StateChanged += OnWindowStateChanged;
         AllowDrop = true;
         Drop += OnDrop;
         DragOver += OnDragOver;
@@ -104,26 +95,23 @@ public partial class ScreenshotPreviewWindow : MicaWindow
 
     private void OnClosed(object? sender, EventArgs e)
     {
-        // 1. 移除 WndProc 钩子，断开 HwndSource → Window 引用链
-        RemoveWndProcHook();
-
-        // 2. 断开所有事件订阅，释放 ViewModel 内部引用
+        // 1. 断开所有事件订阅，释放 ViewModel 内部引用
         var viewModel = DataContext as ScreenshotPreviewViewModel;
         DetachViewModelHandlers(viewModel);
         viewModel?.Cleanup();
 
-        // 3. 彻底移除 WPF 绑定表达式（光设 Source=null 只是覆盖值，绑定对象本身仍存在）
+        // 2. 彻底移除 WPF 绑定表达式（光设 Source=null 只是覆盖值，绑定对象本身仍存在）
         BindingOperations.ClearBinding(ActualSizeImage, Image.SourceProperty);
         ActualSizeImage.Source = null;
 
-        // 4. 清除擦除画布视觉元素
+        // 3. 清除擦除画布视觉元素
         ClearEraserVisualStrokes();
 
-        // 5. 断开整个可视化树 + DataContext，强制 WPF 渲染线程释放 MIL composition 资源
+        // 4. 断开整个可视化树 + DataContext，强制 WPF 渲染线程释放 MIL composition 资源
         Content = null;
         DataContext = null;
 
-        // 6. GC 回收 + 释放工作集
+        // 5. GC 回收 + 释放工作集
         MemoryManagementService.ReleaseMemory();
     }
 
@@ -132,7 +120,6 @@ public partial class ScreenshotPreviewWindow : MicaWindow
         AttachViewModelHandlers(DataContext as ScreenshotPreviewViewModel);
         UpdatePreviewModeVisibility();
         UpdateFitZoomFactor();
-        SyncWindowStateToViewModel();
     }
 
     private void OnDataContextChanged(object sender, DependencyPropertyChangedEventArgs e)
@@ -141,7 +128,6 @@ public partial class ScreenshotPreviewWindow : MicaWindow
         AttachViewModelHandlers(e.NewValue as ScreenshotPreviewViewModel);
         UpdatePreviewModeVisibility();
         UpdateFitZoomFactor();
-        SyncWindowStateToViewModel();
     }
 
     private void OnViewModelPropertyChanged(object? sender, PropertyChangedEventArgs e)
@@ -155,29 +141,15 @@ public partial class ScreenshotPreviewWindow : MicaWindow
             case nameof(ScreenshotPreviewViewModel.ScreenshotImage):
                 UpdateFitZoomFactor();
                 if (DataContext is ScreenshotPreviewViewModel vmImg)
-                {
-                    UpdateAnnotationCanvasSize(vmImg);
                     UpdateEraserCanvasSize(vmImg);
-                }
                 break;
 
             case nameof(ScreenshotPreviewViewModel.IsCropMode):
-                UpdateCropOverlayVisibility();
-                break;
-
-            case nameof(ScreenshotPreviewViewModel.IsRoundCornerMode):
-                RoundCornerPanel.Visibility = (DataContext is ScreenshotPreviewViewModel vm && vm.IsRoundCornerMode)
-                    ? Visibility.Visible : Visibility.Collapsed;
-                if (RoundCornerPanel.Visibility == Visibility.Visible)
-                    RoundCornerPanel.ResetPosition();
+                UpdateCropOverlayState();
                 break;
 
             case nameof(ScreenshotPreviewViewModel.IsEraserMode):
                 UpdateEraserCanvasState();
-                break;
-
-            case nameof(ScreenshotPreviewViewModel.IsAnnotateMode):
-                UpdateAnnotationCanvasState();
                 break;
 
             case nameof(ScreenshotPreviewViewModel.IsPinned):
@@ -191,7 +163,6 @@ public partial class ScreenshotPreviewWindow : MicaWindow
         if (viewModel is not null)
         {
             viewModel.PropertyChanged += OnViewModelPropertyChanged;
-            viewModel.RecaptureRequested += OnRecaptureRequested;
             viewModel.CropPanel.CropApplied += OnCropApplied;
             viewModel.CropPanel.CropCancelled += OnCropCancelled;
             viewModel.CropPanel.PropertyChanged += OnCropPanelPropertyChanged;
@@ -199,14 +170,10 @@ public partial class ScreenshotPreviewWindow : MicaWindow
             viewModel.RoundCornerPanel.RoundCornerCancelled += OnRoundCornerCancelled;
             viewModel.EraserPanel.StrokesCleared += OnEraserStrokesCleared;
             viewModel.EraserPanel.InpaintApplied += OnEraserInpaintApplied;
-            viewModel.AnnotationPanel.PropertyChanged += OnAnnotationPanelPropertyChanged;
-            viewModel.AnnotationPanel.RequestRedraw += OnAnnotationRequestRedraw;
 
             CropOverlay.CropRectChanged += OnCropOverlayRectChanged;
             CropOverlay.EnterPressed += OnCropOverlayEnter;
             CropOverlay.EscapePressed += OnCropOverlayEscape;
-
-            ActualSizeScrollViewer.ScrollChanged += OnScrollViewerScrollChanged;
         }
     }
 
@@ -215,7 +182,6 @@ public partial class ScreenshotPreviewWindow : MicaWindow
         if (viewModel is not null)
         {
             viewModel.PropertyChanged -= OnViewModelPropertyChanged;
-            viewModel.RecaptureRequested -= OnRecaptureRequested;
             viewModel.CropPanel.CropApplied -= OnCropApplied;
             viewModel.CropPanel.CropCancelled -= OnCropCancelled;
             viewModel.CropPanel.PropertyChanged -= OnCropPanelPropertyChanged;
@@ -223,22 +189,11 @@ public partial class ScreenshotPreviewWindow : MicaWindow
             viewModel.RoundCornerPanel.RoundCornerCancelled -= OnRoundCornerCancelled;
             viewModel.EraserPanel.StrokesCleared -= OnEraserStrokesCleared;
             viewModel.EraserPanel.InpaintApplied -= OnEraserInpaintApplied;
-            viewModel.AnnotationPanel.PropertyChanged -= OnAnnotationPanelPropertyChanged;
-            viewModel.AnnotationPanel.RequestRedraw -= OnAnnotationRequestRedraw;
 
             CropOverlay.CropRectChanged -= OnCropOverlayRectChanged;
             CropOverlay.EnterPressed -= OnCropOverlayEnter;
             CropOverlay.EscapePressed -= OnCropOverlayEscape;
-
-            ActualSizeScrollViewer.ScrollChanged -= OnScrollViewerScrollChanged;
         }
-    }
-
-    private async void OnRecaptureRequested()
-    {
-        Close();
-        if (Application.Current.MainWindow?.DataContext is MainViewModel mainVm)
-            await mainVm.StartCaptureCommand.ExecuteAsync(null);
     }
 
     private void PreviewViewport_SizeChanged(object sender, SizeChangedEventArgs e)
@@ -465,14 +420,11 @@ public partial class ScreenshotPreviewWindow : MicaWindow
     // 裁剪覆盖层（委托给 CropOverlayControl）
     // ══════════════════════════════════════════════════════════════════════════
 
-    private void UpdateCropOverlayVisibility()
+    private void UpdateCropOverlayState()
     {
         if (DataContext is not ScreenshotPreviewViewModel vm) return;
         if (vm.IsCropMode)
         {
-            CropOverlay.Visibility = Visibility.Visible;
-            CropPanel.Visibility = Visibility.Visible;
-            CropPanel.ResetPosition();
             CropOverlay.LockedAspectRatio = vm.CropPanel.LockedAspectRatio;
             Dispatcher.InvokeAsync(() =>
             {
@@ -482,11 +434,6 @@ public partial class ScreenshotPreviewWindow : MicaWindow
                 CropOverlay.Initialize(imgRect, img.PixelWidth, img.PixelHeight);
                 CropOverlay.Focus();
             }, DispatcherPriority.Loaded);
-        }
-        else
-        {
-            CropOverlay.Visibility = Visibility.Collapsed;
-            CropPanel.Visibility = Visibility.Collapsed;
         }
     }
 
@@ -570,7 +517,15 @@ public partial class ScreenshotPreviewWindow : MicaWindow
         }
     }
 
-    /// <summary>将鼠标在 AnnotationCanvas 的本地坐标（即图片像素坐标）进行边界检查。</summary>
+    /// <summary>DPI 缩放因子：Canvas DIP → Image Pixel。</summary>
+    private double GetAnnotationDpiScale()
+    {
+        if (DataContext is ScreenshotPreviewViewModel vm && vm.ScreenshotImage is not null)
+            return vm.ScreenshotImage.DpiX / 96.0;
+        return 1.0;
+    }
+
+    /// <summary>将鼠标在擦除/标注 Canvas 的本地坐标转换为图片像素坐标。</summary>
     private bool TryGetImagePixelPoint(Point canvasPos, out Point imgPixelPoint)
     {
         imgPixelPoint = default;
@@ -618,67 +573,6 @@ public partial class ScreenshotPreviewWindow : MicaWindow
     {
         if (DataContext is ScreenshotPreviewViewModel vm)
             vm.ExitEditMode();
-    }
-
-    private void OnWindowStateChanged(object? sender, EventArgs e)
-    {
-        SyncWindowStateToViewModel();
-    }
-
-    private void SyncWindowStateToViewModel()
-    {
-        if (DataContext is ScreenshotPreviewViewModel viewModel)
-        {
-            viewModel.IsMaximized = WindowState == WindowState.Maximized;
-        }
-    }
-
-    // 注册 WndProc 钩子，实现边缘缩放
-    protected override void OnSourceInitialized(EventArgs e)
-    {
-        base.OnSourceInitialized(e);
-        _wndProcHook = WndProc;
-        var source = HwndSource.FromHwnd(new WindowInteropHelper(this).Handle);
-        source?.AddHook(_wndProcHook);
-    }
-
-    private void RemoveWndProcHook()
-    {
-        if (_wndProcHook is null) return;
-        var helper = new WindowInteropHelper(this);
-        if (helper.Handle != IntPtr.Zero)
-        {
-            var source = HwndSource.FromHwnd(helper.Handle);
-            source?.RemoveHook(_wndProcHook);
-        }
-        _wndProcHook = null;
-    }
-
-    private IntPtr WndProc(IntPtr hwnd, int msg, IntPtr wParam, IntPtr lParam, ref bool handled)
-    {
-        if (msg == NativeWindowHelper.WM_NCHITTEST)
-        {
-            int hit = NativeWindowHelper.GetResizeHitTest(this, lParam, ResizeBorderThickness);
-            if (!NativeWindowHelper.IsClientHit(hit))
-            {
-                handled = true;
-                return new IntPtr(hit);
-            }
-        }
-        else if (msg == NativeWindowHelper.WM_GETMINMAXINFO)
-        {
-            NativeWindowHelper.HandleGetMinMaxInfo(this, hwnd, lParam);
-            handled = true;
-        }
-        return IntPtr.Zero;
-    }
-
-    // 拖拽移动：挂在外层 Border 的 MouseLeftButtonDown
-    // Button 会标记事件为 Handled，因此点击按钮不会触发此方法
-    private void OnWindowDragMove(object sender, MouseButtonEventArgs e)
-    {
-        if (e.ButtonState == MouseButtonState.Pressed)
-            DragMove();
     }
 
     private void PreviewViewport_MouseRightButtonUp(object sender, MouseButtonEventArgs e)

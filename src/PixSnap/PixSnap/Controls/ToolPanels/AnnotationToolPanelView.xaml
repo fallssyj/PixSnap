@@ -1,0 +1,195 @@
+<UserControl
+    x:Class="PixSnap.Controls.ToolPanels.AnnotationToolPanelView"
+    xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+    xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+    xmlns:controls="clr-namespace:PixSnap.Controls"
+    xmlns:ui="http://schemas.inkore.net/lib/ui/wpf/modern"
+    xmlns:vm="clr-namespace:PixSnap.ViewModels">
+    <UserControl.Resources>
+        <BooleanToVisibilityConverter x:Key="BoolToVisibility" />
+    </UserControl.Resources>
+
+    <controls:FloatingPanel
+        Title="标注"
+        MinWidth="280"
+        MaxWidth="288">
+        <StackPanel>
+            <!--  工具栏：4×2 网格  -->
+            <Border Style="{StaticResource PanelInnerCardStyle}">
+                <StackPanel>
+                    <ItemsControl ItemsSource="{Binding AnnotationTools}">
+                        <ItemsControl.ItemsPanel>
+                            <ItemsPanelTemplate>
+                                <UniformGrid Columns="4" Rows="2" />
+                            </ItemsPanelTemplate>
+                        </ItemsControl.ItemsPanel>
+                        <ItemsControl.ItemTemplate>
+                            <DataTemplate DataType="{x:Type vm:AnnotationToolItem}">
+                                <Button
+                                    Command="{Binding Command}"
+                                    Style="{StaticResource AnnotationPanelToolButtonStyle}"
+                                    ToolTip="{Binding ToolTip}">
+                                    <ui:FontIcon FontSize="14" Glyph="{Binding Glyph}" />
+                                </Button>
+                            </DataTemplate>
+                        </ItemsControl.ItemTemplate>
+                    </ItemsControl>
+
+                    <Button
+                        Command="{Binding AnnotationPanel.DeleteSelectedAnnotationCommand}"
+                        Style="{StaticResource PanelGhostButtonStyle}"
+                        Visibility="{Binding AnnotationPanel.HasSelectedAnnotation, Converter={StaticResource BoolToVisibility}}">
+                        <StackPanel Orientation="Horizontal">
+                            <ui:FontIcon
+                                FontSize="12"
+                                Foreground="{DynamicResource TextFillColorSecondaryBrush}"
+                                Icon="{x:Static ui:SegoeFluentIcons.Delete}" />
+                            <TextBlock Margin="6,0,0,0" Text="删除选中" />
+                        </StackPanel>
+                    </Button>
+                </StackPanel>
+            </Border>
+
+            <!--  属性：随工具/选中对象动态切换  -->
+            <Border Style="{StaticResource PanelInnerCardStyle}" Visibility="{Binding AnnotationPanel.IsPropertyPanelVisible, Converter={StaticResource BoolToVisibility}}">
+                <StackPanel>
+                    <ItemsControl Visibility="{Binding AnnotationPanel.IsColorSettingsVisible, Converter={StaticResource BoolToVisibility}}">
+                        <ItemsControl.ItemsPanel>
+                            <ItemsPanelTemplate>
+                                <UniformGrid Columns="5" Rows="2" />
+                            </ItemsPanelTemplate>
+                        </ItemsControl.ItemsPanel>
+                        <ItemsControl.ItemTemplate>
+                            <DataTemplate DataType="{x:Type vm:AnnotationColorItem}">
+                                <Button
+                                    Margin="2"
+                                    Background="{Binding ColorValue}"
+                                    Command="{Binding Command}"
+                                    Style="{StaticResource ColorPresetButtonStyle}"
+                                    ToolTip="{Binding ToolTip}" />
+                            </DataTemplate>
+                        </ItemsControl.ItemTemplate>
+                    </ItemsControl>
+
+                    <StackPanel Margin="0,8,0,0" Visibility="{Binding AnnotationPanel.IsShapeSettingsVisible, Converter={StaticResource BoolToVisibility}}">
+                        <controls:SliderField
+                            Label="线宽"
+                            LargeChange="2"
+                            Maximum="20"
+                            Minimum="1"
+                            SmallChange="1"
+                            TickFrequency="1"
+                            Value="{Binding AnnotationPanel.StrokeWidth, Mode=TwoWay}" />
+                        <controls:SliderField
+                            Margin="0,6,0,0"
+                            Label="圆角"
+                            LargeChange="5"
+                            Maximum="50"
+                            Minimum="0"
+                            SmallChange="1"
+                            TickFrequency="1"
+                            Unit="px"
+                            Visibility="{Binding AnnotationPanel.IsRectangleSettingsVisible, Converter={StaticResource BoolToVisibility}}"
+                            Value="{Binding AnnotationPanel.CornerRadius, Mode=TwoWay}" />
+                    </StackPanel>
+
+                    <controls:SliderField
+                        Margin="0,8,0,0"
+                        Label="模糊"
+                        LargeChange="5"
+                        Maximum="50"
+                        Minimum="1"
+                        SmallChange="1"
+                        TickFrequency="1"
+                        Visibility="{Binding AnnotationPanel.IsBlurSettingsVisible, Converter={StaticResource BoolToVisibility}}"
+                        Value="{Binding AnnotationPanel.BlurRadius, Mode=TwoWay}" />
+
+                    <StackPanel Margin="0,8,0,0" Visibility="{Binding AnnotationPanel.IsTextSettingsVisible, Converter={StaticResource BoolToVisibility}}">
+                        <ComboBox
+                            Height="28"
+                            FontSize="13"
+                            ItemsSource="{Binding AnnotationPanel.FontFamilies}"
+                            SelectedItem="{Binding AnnotationPanel.FontFamily, Mode=TwoWay}" />
+                        <Grid Margin="0,8,0,0">
+                            <Grid.ColumnDefinitions>
+                                <ColumnDefinition Width="52" />
+                                <ColumnDefinition Width="*" />
+                            </Grid.ColumnDefinitions>
+                            <TextBox
+                                FontSize="13"
+                                Style="{StaticResource FieldInputStyle}"
+                                Text="{Binding AnnotationPanel.FontSize, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}"
+                                ToolTip="字号 (px)" />
+                            <UniformGrid
+                                Grid.Column="1"
+                                Margin="6,0,0,0"
+                                Columns="4">
+                                <ToggleButton
+                                    Height="28"
+                                    IsChecked="{Binding AnnotationPanel.IsBold, Mode=TwoWay}"
+                                    Style="{StaticResource PanelToggleButtonStyle}"
+                                    ToolTip="粗体">
+                                    <TextBlock
+                                        FontSize="13"
+                                        FontWeight="Bold"
+                                        Text="B" />
+                                </ToggleButton>
+                                <ToggleButton
+                                    Height="28"
+                                    IsChecked="{Binding AnnotationPanel.IsItalic, Mode=TwoWay}"
+                                    Style="{StaticResource PanelToggleButtonStyle}"
+                                    ToolTip="斜体">
+                                    <TextBlock
+                                        FontSize="13"
+                                        FontStyle="Italic"
+                                        Text="I" />
+                                </ToggleButton>
+                                <ToggleButton
+                                    Height="28"
+                                    IsChecked="{Binding AnnotationPanel.IsUnderline, Mode=TwoWay}"
+                                    Style="{StaticResource PanelToggleButtonStyle}"
+                                    ToolTip="下划线">
+                                    <TextBlock
+                                        FontSize="13"
+                                        Text="U"
+                                        TextDecorations="Underline" />
+                                </ToggleButton>
+                                <ToggleButton
+                                    Height="28"
+                                    IsChecked="{Binding AnnotationPanel.IsStrikethrough, Mode=TwoWay}"
+                                    Style="{StaticResource PanelToggleButtonStyle}"
+                                    ToolTip="删除线">
+                                    <TextBlock
+                                        FontSize="13"
+                                        Text="S"
+                                        TextDecorations="Strikethrough" />
+                                </ToggleButton>
+                            </UniformGrid>
+                        </Grid>
+                    </StackPanel>
+                </StackPanel>
+            </Border>
+
+            <!--  底部操作：等宽双按钮  -->
+            <Grid Margin="0,2,0,0">
+                <Grid.ColumnDefinitions>
+                    <ColumnDefinition Width="*" />
+                    <ColumnDefinition Width="8" />
+                    <ColumnDefinition Width="*" />
+                </Grid.ColumnDefinitions>
+                <Button
+                    Grid.Column="0"
+                    HorizontalAlignment="Stretch"
+                    Command="{Binding ExitAnnotationModeCommand}"
+                    Content="取消"
+                    Style="{StaticResource PanelCancelButtonStyle}" />
+                <Button
+                    Grid.Column="2"
+                    HorizontalAlignment="Stretch"
+                    Command="{Binding ApplyAnnotationCommand}"
+                    Content="应用"
+                    Style="{StaticResource PanelApplyButtonStyle}" />
+            </Grid>
+        </StackPanel>
+    </controls:FloatingPanel>
+</UserControl>

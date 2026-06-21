@@ -1,6 +1,7 @@
 using PixSnap.Models;
 using PixSnap.Services;
 using PixSnap.ViewModels;
+using System.ComponentModel;
 using System.Windows;
 using System.Windows.Controls;
 using System.Windows.Input;
@@ -45,6 +46,7 @@ public partial class RegionSelectorWindow : Window
     {
         InitializeComponent();
         DataContext = _viewModel;
+        _viewModel.PropertyChanged += OnViewModelPropertyChanged;
 
         _screens = screenCaptureService.GetScreens();
         _preCaptures = preCaptures;
@@ -255,7 +257,6 @@ public partial class RegionSelectorWindow : Window
         if (e.Key == Key.Tab)
         {
             _viewModel.IsRecordingMode = !_viewModel.IsRecordingMode;
-            ApplyModeToggleVisuals();
             e.Handled = true;
         }
     }
@@ -571,129 +572,17 @@ public partial class RegionSelectorWindow : Window
         return new Size(width, height);
     }
 
-    // ── 截屏 / 录屏 模式切换 ─────────────────────────────────────────────────
-
-    private void ScreenshotModeBtn_MouseDown(object sender, MouseButtonEventArgs e)
+    private void OnViewModelPropertyChanged(object? sender, PropertyChangedEventArgs e)
     {
-        _viewModel.IsRecordingMode = false;
-        ApplyModeToggleVisuals();
-        e.Handled = true;
-    }
+        if (e.PropertyName != nameof(RegionSelectorViewModel.IsRecordingMode))
+            return;
 
-    private void RecordingModeBtn_MouseDown(object sender, MouseButtonEventArgs e)
-    {
-        _viewModel.IsRecordingMode = true;
-        ApplyModeToggleVisuals();
-        e.Handled = true;
-    }
-
-    private void ApplyModeToggleVisuals()
-    {
-        var accent = FindResource("OverlaySelectionStrokeBrush") as Brush ?? Brushes.CornflowerBlue;
-        var recording = _viewModel.IsRecordingMode;
-
-        ScreenshotModeBtn.Background = recording ? Brushes.Transparent : accent;
-        ScreenshotModeBtnText.Foreground = recording ? (FindResource("OverlayFooterForegroundBrush") as Brush ?? Brushes.White) : Brushes.White;
-
-        RecordingModeBtn.Background = recording ? accent : Brushes.Transparent;
-        RecordingModeBtnText.Foreground = recording ? Brushes.White : (FindResource("OverlayFooterForegroundBrush") as Brush ?? Brushes.White);
-
-        FooterHintText.Text = recording
-            ? "左键单击高亮窗口录屏，左键拖动录矩形，Space 录当前显示器，Tab 切换模式，Esc / 右键退出"
-            : "左键单击高亮窗口截图，左键拖动截矩形，Space 截当前显示器，Tab 切换模式，Esc / 右键退出";
-
-        // 音频按钮仅在录屏模式显示
-        var audioVisibility = recording ? Visibility.Visible : Visibility.Collapsed;
-        AudioSeparator.Visibility = audioVisibility;
-        MicToggleBtn.Visibility = audioVisibility;
-        SysAudioToggleBtn.Visibility = audioVisibility;
-
-        // 画质按钮仅在录屏模式显示
-        QualitySeparator.Visibility = audioVisibility;
-        QualityStandardBtn.Visibility = audioVisibility;
-        QualityHighBtn.Visibility = audioVisibility;
-        QualityOriginalBtn.Visibility = audioVisibility;
-
-        if (recording)
+        Dispatcher.BeginInvoke(() =>
         {
-            ApplyAudioToggleVisuals();
-            ApplyQualityToggleVisuals();
-        }
-
-        // 重新定位（尺寸可能变化）
-        PositionModeTogglePanel();
-
-        // 切换后刷新悬停提示文本
-        var cursorPos = NativeWindowHelper.GetCursorPosition();
-        UpdateHover(cursorPos);
-    }
-
-    private void MicToggleBtn_MouseDown(object sender, MouseButtonEventArgs e)
-    {
-        _viewModel.EnableMicrophone = !_viewModel.EnableMicrophone;
-        ApplyAudioToggleVisuals();
-        e.Handled = true;
-    }
-
-    private void SysAudioToggleBtn_MouseDown(object sender, MouseButtonEventArgs e)
-    {
-        _viewModel.EnableSystemAudio = !_viewModel.EnableSystemAudio;
-        ApplyAudioToggleVisuals();
-        e.Handled = true;
-    }
-
-    private void ApplyAudioToggleVisuals()
-    {
-        var accent = FindResource("OverlaySelectionStrokeBrush") as Brush ?? Brushes.CornflowerBlue;
-        var dimFg = FindResource("OverlayFooterForegroundBrush") as Brush ?? Brushes.White;
-
-        MicToggleBtn.Background = _viewModel.EnableMicrophone ? accent : Brushes.Transparent;
-        MicToggleIcon.Foreground = _viewModel.EnableMicrophone ? Brushes.White : dimFg;
-        MicToggleIcon.Opacity = _viewModel.EnableMicrophone ? 1.0 : 0.5;
-
-        SysAudioToggleBtn.Background = _viewModel.EnableSystemAudio ? accent : Brushes.Transparent;
-        SysAudioToggleIcon.Foreground = _viewModel.EnableSystemAudio ? Brushes.White : dimFg;
-        SysAudioToggleIcon.Opacity = _viewModel.EnableSystemAudio ? 1.0 : 0.5;
-    }
-
-    private void QualityStandardBtn_MouseDown(object sender, MouseButtonEventArgs e)
-    {
-        _viewModel.RecordingQuality = RecordingQuality.Standard;
-        ApplyQualityToggleVisuals();
-        e.Handled = true;
-    }
-
-    private void QualityHighBtn_MouseDown(object sender, MouseButtonEventArgs e)
-    {
-        _viewModel.RecordingQuality = RecordingQuality.High;
-        ApplyQualityToggleVisuals();
-        e.Handled = true;
-    }
-
-    private void QualityOriginalBtn_MouseDown(object sender, MouseButtonEventArgs e)
-    {
-        _viewModel.RecordingQuality = RecordingQuality.Original;
-        ApplyQualityToggleVisuals();
-        e.Handled = true;
-    }
-
-    private void ApplyQualityToggleVisuals()
-    {
-        var accent = FindResource("OverlaySelectionStrokeBrush") as Brush ?? Brushes.CornflowerBlue;
-        var dimFg = FindResource("OverlayFooterForegroundBrush") as Brush ?? Brushes.White;
-        var quality = _viewModel.RecordingQuality;
-
-        QualityStandardBtn.Background = quality == RecordingQuality.Standard ? accent : Brushes.Transparent;
-        QualityStandardText.Foreground = quality == RecordingQuality.Standard ? Brushes.White : dimFg;
-        QualityStandardText.Opacity = quality == RecordingQuality.Standard ? 1.0 : 0.5;
-
-        QualityHighBtn.Background = quality == RecordingQuality.High ? accent : Brushes.Transparent;
-        QualityHighText.Foreground = quality == RecordingQuality.High ? Brushes.White : dimFg;
-        QualityHighText.Opacity = quality == RecordingQuality.High ? 1.0 : 0.5;
-
-        QualityOriginalBtn.Background = quality == RecordingQuality.Original ? accent : Brushes.Transparent;
-        QualityOriginalText.Foreground = quality == RecordingQuality.Original ? Brushes.White : dimFg;
-        QualityOriginalText.Opacity = quality == RecordingQuality.Original ? 1.0 : 0.5;
+            PositionModeTogglePanel();
+            var cursorPos = NativeWindowHelper.GetCursorPosition();
+            UpdateHover(cursorPos);
+        });
     }
 
     private void PositionModeTogglePanel()

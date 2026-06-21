@@ -1,5 +1,4 @@
 using CommunityToolkit.Mvvm.ComponentModel;
-using CommunityToolkit.Mvvm.Input;
 using System.Collections.ObjectModel;
 using System.IO;
 
@@ -25,15 +24,10 @@ public partial class LogViewerViewModel : ObservableObject
     [ObservableProperty]
     private string _selectedFileName = string.Empty;
 
-    public event Action? RequestClose;
-
     public LogViewerViewModel()
     {
         LoadLogTree();
     }
-
-    [RelayCommand]
-    private void Close() => RequestClose?.Invoke();
 
     public void SelectLogFile(string? filePath)
     {
@@ -51,6 +45,15 @@ public partial class LogViewerViewModel : ObservableObject
             LogContent = "无法读取文件。";
         }
     }
+
+    partial void OnSelectedLogItemChanged(LogDateGroup? value)
+    {
+        if (value?.FilePath is { } path)
+            SelectLogFile(path);
+    }
+
+    [ObservableProperty]
+    private LogDateGroup? _selectedLogItem;
 
     private void LoadLogTree()
     {
@@ -132,5 +135,25 @@ public partial class LogViewerViewModel : ObservableObject
                 FilePath = nativeCrashLog
             });
         }
+
+        SelectedLogItem = FindFirstLogFile(LogTree);
+    }
+
+    private static LogDateGroup? FindFirstLogFile(IEnumerable<LogDateGroup> nodes)
+    {
+        foreach (var node in nodes)
+        {
+            if (!string.IsNullOrEmpty(node.FilePath))
+                return node;
+
+            if (node.Children is { Count: > 0 } children)
+            {
+                var nested = FindFirstLogFile(children);
+                if (nested is not null)
+                    return nested;
+            }
+        }
+
+        return null;
     }
 }

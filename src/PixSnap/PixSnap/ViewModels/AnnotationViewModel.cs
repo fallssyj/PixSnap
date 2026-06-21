@@ -142,6 +142,9 @@ public partial class AnnotationViewModel : ObservableObject
     [NotifyPropertyChangedFor(nameof(IsTextSettingsVisible))]
     [NotifyPropertyChangedFor(nameof(IsRectangleSettingsVisible))]
     [NotifyPropertyChangedFor(nameof(IsBlurSettingsVisible))]
+    [NotifyPropertyChangedFor(nameof(IsShapeSettingsVisible))]
+    [NotifyPropertyChangedFor(nameof(IsColorSettingsVisible))]
+    [NotifyPropertyChangedFor(nameof(IsPropertyPanelVisible))]
     private AnnotationTool _selectedTool = AnnotationTool.Arrow;
 
     partial void OnSelectedToolChanged(AnnotationTool value)
@@ -152,6 +155,12 @@ public partial class AnnotationViewModel : ObservableObject
         CommitStrokeWidthEdit(item);
         CommitCornerRadiusEdit(item);
         CommitBlurRadiusEdit(item);
+        OnPropertyChanged(nameof(IsShapeSettingsVisible));
+        OnPropertyChanged(nameof(IsColorSettingsVisible));
+        OnPropertyChanged(nameof(IsTextSettingsVisible));
+        OnPropertyChanged(nameof(IsRectangleSettingsVisible));
+        OnPropertyChanged(nameof(IsBlurSettingsVisible));
+        OnPropertyChanged(nameof(IsPropertyPanelVisible));
     }
 
     [ObservableProperty]
@@ -194,7 +203,14 @@ public partial class AnnotationViewModel : ObservableObject
     [NotifyPropertyChangedFor(nameof(IsTextSettingsVisible))]
     [NotifyPropertyChangedFor(nameof(IsRectangleSettingsVisible))]
     [NotifyPropertyChangedFor(nameof(IsBlurSettingsVisible))]
+    [NotifyPropertyChangedFor(nameof(IsShapeSettingsVisible))]
+    [NotifyPropertyChangedFor(nameof(IsColorSettingsVisible))]
+    [NotifyPropertyChangedFor(nameof(HasSelectedAnnotation))]
+    [NotifyPropertyChangedFor(nameof(IsPropertyPanelVisible))]
     private AnnotationItem? _selectedAnnotation;
+
+    [ObservableProperty]
+    private bool _isColorPickerOpen;
 
     /// <summary>文字设置面板是否可见：选中文本工具 或 选中了一个文本标注。</summary>
     public bool IsTextSettingsVisible =>
@@ -210,6 +226,19 @@ public partial class AnnotationViewModel : ObservableObject
     public bool IsBlurSettingsVisible =>
         SelectedTool == AnnotationTool.Blur ||
         (SelectedAnnotation is not null && SelectedAnnotation.Tool == AnnotationTool.Blur);
+
+    /// <summary>线宽/圆角等形状属性是否可见。</summary>
+    public bool IsShapeSettingsVisible => !IsTextSettingsVisible && !IsBlurSettingsVisible;
+
+    /// <summary>颜色设置是否可见（模糊工具不使用描边色）。</summary>
+    public bool IsColorSettingsVisible => !IsBlurSettingsVisible;
+
+    /// <summary>是否选中了可编辑的标注对象。</summary>
+    public bool HasSelectedAnnotation => SelectedAnnotation is not null;
+
+    /// <summary>属性区是否有内容可展示。</summary>
+    public bool IsPropertyPanelVisible =>
+        IsColorSettingsVisible || IsShapeSettingsVisible || IsBlurSettingsVisible || IsTextSettingsVisible;
 
     private bool _syncingProperties;
 
@@ -231,9 +260,12 @@ public partial class AnnotationViewModel : ObservableObject
         OnPropertyChanged(nameof(IsTextSettingsVisible));
         OnPropertyChanged(nameof(IsRectangleSettingsVisible));
         OnPropertyChanged(nameof(IsBlurSettingsVisible));
+        OnPropertyChanged(nameof(IsShapeSettingsVisible));
+        OnPropertyChanged(nameof(IsColorSettingsVisible));
+        OnPropertyChanged(nameof(HasSelectedAnnotation));
+        OnPropertyChanged(nameof(IsPropertyPanelVisible));
     }
 
-    /// <summary>将标注属性同步到面板（不触发 Apply 回写）。</summary>
     private void SyncPanelFromAnnotation(AnnotationItem? item)
     {
         _syncingProperties = true;
@@ -443,7 +475,11 @@ public partial class AnnotationViewModel : ObservableObject
         _hasBlurRadiusSnapshot = false;
     }
 
-    partial void OnStrokeColorChanged(Color value) => ApplyColorToSelected();
+    partial void OnStrokeColorChanged(Color value)
+    {
+        IsColorPickerOpen = false;
+        ApplyColorToSelected();
+    }
     partial void OnStrokeWidthChanged(double value) => ApplyStrokeWidthToSelected();
     partial void OnCornerRadiusChanged(double value) => ApplyCornerRadiusToSelected();
     partial void OnBlurRadiusChanged(double value) => ApplyBlurRadiusToSelected();
@@ -506,6 +542,8 @@ public partial class AnnotationViewModel : ObservableObject
             IsUnderline = IsUnderline,
             IsStrikethrough = IsStrikethrough
         };
+        if (SelectedTool == AnnotationTool.Pen)
+            CurrentAnnotation.PenPoints.Add(imagePoint);
         IsAnnotating = true;
     }
 
@@ -523,6 +561,13 @@ public partial class AnnotationViewModel : ObservableObject
 
         if (CurrentAnnotation.Tool == AnnotationTool.Text)
         {
+            IsAnnotating = false;
+            return;
+        }
+
+        if (CurrentAnnotation.Tool == AnnotationTool.Pen && CurrentAnnotation.PenPoints.Count < 2)
+        {
+            CurrentAnnotation = null;
             IsAnnotating = false;
             return;
         }
@@ -806,6 +851,9 @@ public partial class AnnotationViewModel : ObservableObject
     private void SelectPen() => SelectedTool = AnnotationTool.Pen;
     [RelayCommand]
     private void SelectBlur() => SelectedTool = AnnotationTool.Blur;
+
+    [RelayCommand]
+    private void ToggleColorPicker() => IsColorPickerOpen = !IsColorPickerOpen;
 
     [RelayCommand]
     private void SetColorRed() => StrokeColor = Colors.Red;

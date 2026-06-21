@@ -1,0 +1,31 @@
+<UserControl
+    x:Class="PixSnap.Controls.ToolPanels.RoundCornerToolPanelView"
+    xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+    xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+    xmlns:controls="clr-namespace:PixSnap.Controls">
+    <controls:FloatingPanel Title="圆角">
+        <StackPanel>
+            <controls:SliderField
+                Label="圆角半径"
+                LargeChange="5"
+                Maximum="120"
+                Minimum="0"
+                SmallChange="1"
+                TickFrequency="1"
+                Unit="px"
+                Value="{Binding RoundCornerPanel.CornerRadius, Mode=TwoWay}" />
+            <StackPanel Style="{StaticResource PanelActionBarStyle}">
+                <Button
+                    Margin="0,0,6,0"
+                    Command="{Binding RoundCornerPanel.CancelCommand}"
+                    Content="取消"
+                    Style="{StaticResource PanelCancelButtonStyle}" />
+                <Button
+                    Command="{Binding RoundCornerPanel.ApplyCommand}"
+                    CommandParameter="{Binding ScreenshotImage}"
+                    Content="应用"
+                    Style="{StaticResource PanelApplyButtonStyle}" />
+            </StackPanel>
+        </StackPanel>
+    </controls:FloatingPanel>
+</UserControl>

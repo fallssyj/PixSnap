@@ -1,18 +1,18 @@
 <ResourceDictionary xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation" xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml">
-    <SolidColorBrush x:Key="HeroBadgeBackgroundBrush" Color="{DynamicResource MicaWPF.Colors.CardBackgroundFillColorDefault}" />
-    <SolidColorBrush x:Key="HeroBadgeIndicatorBrush" Color="{DynamicResource MicaWPF.Colors.TextFillColorSecondary}" />
-    <SolidColorBrush x:Key="HeroBadgeForegroundBrush" Color="{DynamicResource MicaWPF.Colors.TextFillColorPrimary}" />
+    <SolidColorBrush x:Key="HeroBadgeBackgroundBrush" Color="{DynamicResource CardBackgroundFillColorDefault}" />
+    <SolidColorBrush x:Key="HeroBadgeIndicatorBrush" Color="{DynamicResource TextFillColorSecondary}" />
+    <SolidColorBrush x:Key="HeroBadgeForegroundBrush" Color="{DynamicResource TextFillColorPrimary}" />
 
-    <SolidColorBrush x:Key="FeatureWindowBackgroundBrush" Color="{DynamicResource MicaWPF.Colors.CardBackgroundFillColorDefault}" />
-    <SolidColorBrush x:Key="FeatureWindowForegroundBrush" Color="{DynamicResource MicaWPF.Colors.TextFillColorPrimary}" />
-    <SolidColorBrush x:Key="FeatureWindowDescriptionBrush" Color="{DynamicResource MicaWPF.Colors.TextFillColorSecondary}" />
-    <SolidColorBrush x:Key="FeatureRegionBackgroundBrush" Color="{DynamicResource MicaWPF.Colors.CardBackgroundFillColorSecondary}" />
-    <SolidColorBrush x:Key="FeatureRegionForegroundBrush" Color="{DynamicResource MicaWPF.Colors.TextFillColorPrimary}" />
-    <SolidColorBrush x:Key="FeatureRegionDescriptionBrush" Color="{DynamicResource MicaWPF.Colors.TextFillColorSecondary}" />
-    <SolidColorBrush x:Key="FeatureMonitorBackgroundBrush" Color="{DynamicResource MicaWPF.Colors.CardBackgroundFillColorDefault}" />
-    <SolidColorBrush x:Key="FeatureMonitorForegroundBrush" Color="{DynamicResource MicaWPF.Colors.TextFillColorPrimary}" />
-    <SolidColorBrush x:Key="FeatureMonitorDescriptionBrush" Color="{DynamicResource MicaWPF.Colors.TextFillColorSecondary}" />
-    <SolidColorBrush x:Key="FeatureExitBackgroundBrush" Color="{DynamicResource MicaWPF.Colors.CardBackgroundFillColorSecondary}" />
-    <SolidColorBrush x:Key="FeatureExitForegroundBrush" Color="{DynamicResource MicaWPF.Colors.TextFillColorPrimary}" />
-    <SolidColorBrush x:Key="FeatureExitDescriptionBrush" Color="{DynamicResource MicaWPF.Colors.TextFillColorSecondary}" />
+    <SolidColorBrush x:Key="FeatureWindowBackgroundBrush" Color="{DynamicResource CardBackgroundFillColorDefault}" />
+    <SolidColorBrush x:Key="FeatureWindowForegroundBrush" Color="{DynamicResource TextFillColorPrimary}" />
+    <SolidColorBrush x:Key="FeatureWindowDescriptionBrush" Color="{DynamicResource TextFillColorSecondary}" />
+    <SolidColorBrush x:Key="FeatureRegionBackgroundBrush" Color="{DynamicResource CardBackgroundFillColorSecondary}" />
+    <SolidColorBrush x:Key="FeatureRegionForegroundBrush" Color="{DynamicResource TextFillColorPrimary}" />
+    <SolidColorBrush x:Key="FeatureRegionDescriptionBrush" Color="{DynamicResource TextFillColorSecondary}" />
+    <SolidColorBrush x:Key="FeatureMonitorBackgroundBrush" Color="{DynamicResource CardBackgroundFillColorDefault}" />
+    <SolidColorBrush x:Key="FeatureMonitorForegroundBrush" Color="{DynamicResource TextFillColorPrimary}" />
+    <SolidColorBrush x:Key="FeatureMonitorDescriptionBrush" Color="{DynamicResource TextFillColorSecondary}" />
+    <SolidColorBrush x:Key="FeatureExitBackgroundBrush" Color="{DynamicResource CardBackgroundFillColorSecondary}" />
+    <SolidColorBrush x:Key="FeatureExitForegroundBrush" Color="{DynamicResource TextFillColorPrimary}" />
+    <SolidColorBrush x:Key="FeatureExitDescriptionBrush" Color="{DynamicResource TextFillColorSecondary}" />
 </ResourceDictionary>

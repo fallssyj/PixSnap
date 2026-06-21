@@ -1,0 +1,103 @@
+<UserControl
+    x:Class="PixSnap.Controls.ToolPanels.CropToolPanelView"
+    xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+    xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+    xmlns:controls="clr-namespace:PixSnap.Controls"
+    xmlns:ui="http://schemas.inkore.net/lib/ui/wpf/modern">
+    <controls:FloatingPanel Title="裁剪">
+        <StackPanel>
+            <TextBlock
+                Margin="0,0,0,8"
+                FontSize="12"
+                Foreground="{DynamicResource TextFillColorSecondaryBrush}"
+                Text="比例预设" />
+            <ItemsControl ItemsSource="{Binding CropAspectRatioPresets}">
+                <ItemsControl.ItemsPanel>
+                    <ItemsPanelTemplate>
+                        <WrapPanel />
+                    </ItemsPanelTemplate>
+                </ItemsControl.ItemsPanel>
+                <ItemsControl.ItemTemplate>
+                    <DataTemplate>
+                        <Button
+                            Margin="0,0,6,6"
+                            Command="{Binding DataContext.CropPanel.SetAspectRatioFromParamCommand, RelativeSource={RelativeSource AncestorType=UserControl}}"
+                            CommandParameter="{Binding Parameter}"
+                            Content="{Binding Content}"
+                            Style="{StaticResource PanelCancelButtonStyle}"
+                            ToolTip="{Binding ToolTip}" />
+                    </DataTemplate>
+                </ItemsControl.ItemTemplate>
+            </ItemsControl>
+            <TextBlock
+                Margin="0,0,0,10"
+                FontSize="12"
+                Foreground="{DynamicResource TextFillColorSecondaryBrush}"
+                Text="{Binding CropPanel.AspectRatioDisplayText}" />
+            <Grid>
+                <Grid.ColumnDefinitions>
+                    <ColumnDefinition Width="*" />
+                    <ColumnDefinition Width="10" />
+                    <ColumnDefinition Width="*" />
+                </Grid.ColumnDefinitions>
+                <Grid.RowDefinitions>
+                    <RowDefinition Height="Auto" />
+                    <RowDefinition Height="8" />
+                    <RowDefinition Height="Auto" />
+                </Grid.RowDefinitions>
+                <StackPanel
+                    Grid.Row="0"
+                    Grid.Column="0"
+                    Orientation="Horizontal">
+                    <TextBlock Style="{StaticResource FieldLabelStyle}" Text="X" />
+                    <TextBox
+                        Margin="6,0,0,0"
+                        Style="{StaticResource FieldInputStyle}"
+                        Text="{Binding CropPanel.CropX, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}" />
+                </StackPanel>
+                <StackPanel
+                    Grid.Row="0"
+                    Grid.Column="2"
+                    Orientation="Horizontal">
+                    <TextBlock Style="{StaticResource FieldLabelStyle}" Text="Y" />
+                    <TextBox
+                        Margin="6,0,0,0"
+                        Style="{StaticResource FieldInputStyle}"
+                        Text="{Binding CropPanel.CropY, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}" />
+                </StackPanel>
+                <StackPanel
+                    Grid.Row="2"
+                    Grid.Column="0"
+                    Orientation="Horizontal">
+                    <TextBlock Style="{StaticResource FieldLabelStyle}" Text="宽" />
+                    <TextBox
+                        Margin="6,0,0,0"
+                        Style="{StaticResource FieldInputStyle}"
+                        Text="{Binding CropPanel.CropWidth, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}" />
+                </StackPanel>
+                <StackPanel
+                    Grid.Row="2"
+                    Grid.Column="2"
+                    Orientation="Horizontal">
+                    <TextBlock Style="{StaticResource FieldLabelStyle}" Text="高" />
+                    <TextBox
+                        Margin="6,0,0,0"
+                        Style="{StaticResource FieldInputStyle}"
+                        Text="{Binding CropPanel.CropHeight, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}" />
+                </StackPanel>
+            </Grid>
+            <StackPanel Style="{StaticResource PanelActionBarStyle}">
+                <Button
+                    Margin="0,0,6,0"
+                    Command="{Binding CropPanel.CancelCommand}"
+                    Content="取消"
+                    Style="{StaticResource PanelCancelButtonStyle}" />
+                <Button
+                    Command="{Binding CropPanel.ApplyCommand}"
+                    CommandParameter="{Binding ScreenshotImage}"
+                    Content="应用"
+                    Style="{StaticResource PanelApplyButtonStyle}" />
+            </StackPanel>
+        </StackPanel>
+    </controls:FloatingPanel>
+</UserControl>

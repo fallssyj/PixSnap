@@ -29,13 +29,9 @@ public partial class ScreenshotPreviewWindow
         var active = vm.IsEraserMode;
 
         EraserCanvas.IsHitTestVisible = active;
-        EraserFloatingPanel.Visibility = active ? Visibility.Visible : Visibility.Collapsed;
 
         if (active)
-        {
             UpdateEraserCanvasSize(vm);
-            EraserFloatingPanel.ResetPosition();
-        }
         else
         {
             // 退出时隐藏光标指示器、清除视觉笔画

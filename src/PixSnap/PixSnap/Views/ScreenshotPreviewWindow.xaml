@@ -1,30 +1,29 @@
-﻿<mica:MicaWindow
+﻿<Window
     x:Class="PixSnap.Views.ScreenshotPreviewWindow"
     xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
     xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
     xmlns:controls="clr-namespace:PixSnap.Controls"
     xmlns:converters="clr-namespace:PixSnap.Converters"
     xmlns:local="clr-namespace:PixSnap.Views"
-    xmlns:mica="clr-namespace:MicaWPF.Controls;assembly=MicaWPF"
+    xmlns:shell="clr-namespace:System.Windows.Shell;assembly=PresentationFramework"
+    xmlns:toolPanels="clr-namespace:PixSnap.Controls.ToolPanels"
+    xmlns:ui="http://schemas.inkore.net/lib/ui/wpf/modern"
     Title="截图预览"
     Width="{x:Static local:ScreenshotPreviewWindow.DefaultWidth}"
     Height="{x:Static local:ScreenshotPreviewWindow.DefaultHeight}"
     MinWidth="{x:Static local:ScreenshotPreviewWindow.MinWindowWidth}"
     MinHeight="{x:Static local:ScreenshotPreviewWindow.MinWindowHeight}"
+    ui:TitleBar.ExtendViewIntoTitleBar="True"
+    ui:TitleBar.Height="36"
+    ui:TitleBar.IsIconVisible="False"
+    ui:WindowHelper.FixMaximizedWindow="True"
+    ui:WindowHelper.SystemBackdropType="Mica"
+    ui:WindowHelper.UseModernWindowStyle="True"
     Icon="/Assets/icons/picture.png"
     TextOptions.TextFormattingMode="Display"
     UseLayoutRounding="True"
-    WindowStartupLocation="CenterScreen"
-    WindowStyle="None">
-    <WindowChrome.WindowChrome>
-        <WindowChrome
-            CaptionHeight="0"
-            CornerRadius="0"
-            GlassFrameThickness="-1"
-            ResizeBorderThickness="0"
-            UseAeroCaptionButtons="False" />
-    </WindowChrome.WindowChrome>
-    <mica:MicaWindow.InputBindings>
+    WindowStartupLocation="CenterScreen">
+    <Window.InputBindings>
         <KeyBinding
             Key="S"
             Command="{Binding SaveToFileCommand}"
@@ -49,786 +48,269 @@
             Key="O"
             Command="{Binding OpenFileCommand}"
             Modifiers="Ctrl" />
-    </mica:MicaWindow.InputBindings>
+    </Window.InputBindings>
 
-    <mica:MicaWindow.Resources>
+    <Window.Resources>
         <BooleanToVisibilityConverter x:Key="BooleanToVisibilityConverter" />
         <converters:InverseBooleanToVisibilityConverter x:Key="InverseBoolToVisibility" />
-    </mica:MicaWindow.Resources>
+        <converters:TitleBarInsetMarginConverter x:Key="TitleBarInsetMarginConverter" />
+    </Window.Resources>
 
-    <Border Background="{DynamicResource AppBackgroundBrush}" MouseLeftButtonDown="OnWindowDragMove">
-        <Grid>
-            <Grid>
-                <Grid.RowDefinitions>
-                    <RowDefinition Height="Auto" />
-                    <RowDefinition Height="*" />
-                    <RowDefinition Height="Auto" />
-                </Grid.RowDefinitions>
-                <!--  顶部控制  -->
-                <Grid Grid.Row="0">
-                    <StackPanel
-                        Margin="0,4,0,0"
-                        HorizontalAlignment="Left"
-                        Orientation="Horizontal">
-                        <Button
-                            Command="{Binding OpenFileCommand}"
-                            Style="{StaticResource PreviewPrimaryActionButtonStyle}"
-                            ToolTip="打开文件">
-                            <StackPanel Orientation="Horizontal">
-                                <TextBlock
-                                    VerticalAlignment="Center"
-                                    FontFamily="{StaticResource SegoeFluent}"
-                                    FontSize="14"
-                                    Text="{StaticResource Glyph_OpenImage}" />
-                                <TextBlock
-                                    Margin="6,0,0,0"
-                                    VerticalAlignment="Center"
-                                    FontSize="13"
-                                    Text="打开" />
-                            </StackPanel>
-                        </Button>
-                        <Button
-                            Margin="20,0,2,0"
-                            Command="{Binding SaveToFileCommand}"
-                            Content="{StaticResource Glyph_Save}"
-                            Style="{StaticResource ToolbarIconButtonStyle}"
-                            ToolTip="保存" />
-                        <Button
-                            Command="{Binding UndoCommand}"
-                            Content="{StaticResource Glyph_Undo}"
-                            Style="{StaticResource ToolbarIconButtonStyle}"
-                            ToolTip="撤销" />
-                        <Button
-                            Command="{Binding RedoCommand}"
-                            Content="{StaticResource Glyph_Redo}"
-                            Style="{StaticResource ToolbarIconButtonStyle}"
-                            ToolTip="重做" />
-                        <Border Style="{StaticResource PreviewToolbarSeparatorStyle}" />
-                        <Button
-                            Command="{Binding RotateImageCommand}"
-                            Content="{StaticResource Glyph_Rotate}"
-                            Style="{StaticResource ToolbarIconButtonStyle}"
-                            ToolTip="旋转" />
-                        <Button
-                            Command="{Binding CopyToClipboardCommand}"
-                            Content="{StaticResource Glyph_Copy}"
-                            Style="{StaticResource ToolbarIconButtonStyle}"
-                            ToolTip="复制到剪切板" />
-                        <Border Style="{StaticResource PreviewToolbarSeparatorStyle}" />
-                        <Button
-                            Command="{Binding ToggleCropCommand}"
-                            Content="{StaticResource Glyph_Crop}"
-                            Style="{StaticResource ToolbarIconButtonStyle}"
-                            ToolTip="裁剪" />
-                        <Button
-                            Command="{Binding ToggleRoundCornerCommand}"
-                            Content="{StaticResource Glyph_RoundCorner}"
-                            Style="{StaticResource ToolbarIconButtonStyle}"
-                            ToolTip="圆角" />
-                        <Button
-                            Command="{Binding ToggleEraserCommand}"
-                            Content="{StaticResource Glyph_Eraser}"
-                            Style="{StaticResource ToolbarIconButtonStyle}"
-                            ToolTip="AI擦除" />
-                        <Button
-                            Command="{Binding ToggleAnnotationCommand}"
-                            Content="{StaticResource Glyph_Annotate}"
-                            Style="{StaticResource ToolbarIconButtonStyle}"
-                            ToolTip="标注" />
-                        <Border Style="{StaticResource PreviewToolbarSeparatorStyle}" />
-                        <Button
-                            Command="{Binding RecaptureCommand}"
-                            Content="{StaticResource Glyph_Recapture}"
-                            Style="{StaticResource ToolbarIconButtonStyle}"
-                            ToolTip="重新截图" />
-                        <Border Style="{StaticResource PreviewTitleChipStyle}">
-                            <StackPanel Orientation="Horizontal">
+    <Grid>
+        <!--  标题栏工具栏（ExtendViewIntoTitleBar 区域）  -->
+        <Grid
+            Height="48"
+            VerticalAlignment="Top"
+            Panel.ZIndex="2">
+            <Grid.Margin>
+                <Binding
+                    Converter="{StaticResource TitleBarInsetMarginConverter}"
+                    Path="."
+                    RelativeSource="{RelativeSource AncestorType=Window}" />
+            </Grid.Margin>
+            <Grid.ColumnDefinitions>
+                <ColumnDefinition Width="*" />
+            </Grid.ColumnDefinitions>
+            <controls:PreviewTitleBarToolbar VerticalAlignment="Center" />
+        </Grid>
 
-                                <TextBlock Style="{StaticResource PreviewTitleTextStyle}" Text="{Binding CaptureTitleDisplay}" />
-                            </StackPanel>
-                        </Border>
+        <Grid Margin="0,48,0,0">
+            <Grid.RowDefinitions>
+                <RowDefinition Height="*" />
+                <RowDefinition Height="Auto" />
+            </Grid.RowDefinitions>
 
+            <!--  预览区域  -->
+            <Grid Grid.Row="0">
+                <!--  Background="{StaticResource TransparencyCheckerBrush}">  -->
+                <Border PreviewMouseWheel="PreviewHost_PreviewMouseWheel">
+                    <Grid
+                        x:Name="PreviewViewport"
+                        ClipToBounds="True"
+                        Focusable="True"
+                        MouseRightButtonUp="PreviewViewport_MouseRightButtonUp"
+                        SizeChanged="PreviewViewport_SizeChanged">
+                        <ScrollViewer
+                            x:Name="ActualSizeScrollViewer"
+                            HorizontalScrollBarVisibility="Hidden"
+                            MouseLeave="ActualSizeScrollViewer_MouseLeave"
+                            PreviewMouseDown="ActualSizeScrollViewer_PreviewMouseDown"
+                            PreviewMouseMove="ActualSizeScrollViewer_PreviewMouseMove"
+                            PreviewMouseUp="ActualSizeScrollViewer_PreviewMouseUp"
+                            VerticalScrollBarVisibility="Hidden">
+                            <!--  Padding 在图片四周创建可滑动的空白区，实现拖动到边缘后还能继续拖动  -->
+                            <Border Padding="200">
+                                <Grid>
+                                    <Grid.LayoutTransform>
+                                        <ScaleTransform ScaleX="{Binding ZoomFactor}" ScaleY="{Binding ZoomFactor}" />
+                                    </Grid.LayoutTransform>
+                                    <Image
+                                        x:Name="ActualSizeImage"
+                                        HorizontalAlignment="Center"
+                                        VerticalAlignment="Center"
+                                        RenderOptions.BitmapScalingMode="LowQuality"
+                                        Source="{Binding ScreenshotImage}"
+                                        Stretch="None" />
+                                    <!--  标注绘制覆盖层  -->
+                                    <controls:AnnotationOverlayControl
+                                        ImageSource="{Binding ScreenshotImage}"
+                                        IsActive="{Binding IsAnnotateMode}"
+                                        ViewModel="{Binding AnnotationPanel}" />
+
+                                    <!--  AI 擦除涂抹覆盖层：与图片同大同缩放，Cursor=None 配合代码后置圆形光标指示器  -->
+                                    <Canvas
+                                        x:Name="EraserCanvas"
+                                        Background="Transparent"
+                                        Cursor="None"
+                                        IsHitTestVisible="False"
+                                        MouseEnter="EraserCanvas_MouseEnter"
+                                        MouseLeave="EraserCanvas_MouseLeave"
+                                        MouseLeftButtonDown="EraserCanvas_MouseLeftButtonDown"
+                                        MouseLeftButtonUp="EraserCanvas_MouseLeftButtonUp"
+                                        MouseMove="EraserCanvas_MouseMove">
+                                        <!--  跟随鼠标的画刷轮廓（由代码后置动态定位和缩放）  -->
+                                        <Ellipse
+                                            x:Name="EraserCursorIndicator"
+                                            Fill="{DynamicResource SystemControlForegroundAccentBrush}"
+                                            IsHitTestVisible="False"
+                                            Opacity="0.13"
+                                            Stroke="{DynamicResource SystemControlForegroundAccentBrush}"
+                                            StrokeThickness="2"
+                                            Visibility="Collapsed" />
+                                    </Canvas>
+                                </Grid>
+                            </Border>
+                        </ScrollViewer>
+
+                        <!--  裁剪框覆盖层：只在裁剪模式下显示  -->
+                        <controls:CropOverlayControl x:Name="CropOverlay" Visibility="{Binding IsCropMode, Converter={StaticResource BooleanToVisibilityConverter}}" />
+
+
+                    </Grid>
+                </Border>
+
+                <!--  编辑工具浮动面板（右上角）  -->
+                <Grid
+                    Margin="16,16,16,0"
+                    HorizontalAlignment="Right"
+                    VerticalAlignment="Top"
+                    Panel.ZIndex="10">
+                    <toolPanels:CropToolPanelView Visibility="{Binding IsCropMode, Converter={StaticResource BooleanToVisibilityConverter}}" />
+                    <toolPanels:RoundCornerToolPanelView Visibility="{Binding IsRoundCornerMode, Converter={StaticResource BooleanToVisibilityConverter}}" />
+                    <toolPanels:EraserToolPanelView Visibility="{Binding IsEraserMode, Converter={StaticResource BooleanToVisibilityConverter}}" />
+                    <toolPanels:AnnotationToolPanelView Visibility="{Binding IsAnnotateMode, Converter={StaticResource BooleanToVisibilityConverter}}" />
+                </Grid>
+
+                <Popup
+                    x:Name="AiModulePopup"
+                    AllowsTransparency="True"
+                    IsOpen="{Binding IsAiPopupOpen, Mode=TwoWay}"
+                    Placement="Relative"
+                    PlacementTarget="{Binding ElementName=PreviewViewport}"
+                    PopupAnimation="Fade"
+                    StaysOpen="False">
+                    <controls:AiContextMenuPopup DataContext="{Binding}" />
+                </Popup>
+
+            </Grid>
+            <!--  控制区域  -->
+            <Border Grid.Row="1" Padding="10">
+                <!--  CornerRadius="0,0,10,10">  -->
+                <Grid>
+                    <StackPanel Orientation="Horizontal">
+                        <StackPanel.Style>
+                            <Style TargetType="StackPanel">
+                                <Setter Property="Visibility" Value="Visible" />
+                                <Style.Triggers>
+                                    <DataTrigger Binding="{Binding CaptureTitleDisplay.Length}" Value="0">
+                                        <Setter Property="Visibility" Value="Collapsed" />
+                                    </DataTrigger>
+                                </Style.Triggers>
+                            </Style>
+                        </StackPanel.Style>
+                        <ui:FontIcon
+                            Margin="10,0"
+                            VerticalAlignment="Center"
+                            FontSize="14"
+                            Foreground="{DynamicResource TextFillColorSecondaryBrush}"
+                            Icon="{x:Static ui:SegoeFluentIcons.FullScreen}" />
+                        <TextBlock
+                            VerticalAlignment="Center"
+                            Foreground="{DynamicResource TextFillColorSecondaryBrush}"
+                            Opacity="0.6"
+                            Text="{Binding ImageSize}" />
+                        <ui:FontIcon
+                            Margin="10,0"
+                            VerticalAlignment="Center"
+                            FontSize="14"
+                            Foreground="{DynamicResource TextFillColorSecondaryBrush}"
+                            Icon="{x:Static ui:SegoeFluentIcons.List}" />
+                        <TextBlock
+                            VerticalAlignment="Center"
+                            Foreground="{DynamicResource TextFillColorSecondaryBrush}"
+                            Opacity="0.6"
+                            Text="{Binding FileSize}" />
                     </StackPanel>
 
                     <StackPanel
                         HorizontalAlignment="Right"
-                        VerticalAlignment="Top"
+                        VerticalAlignment="Center"
                         Orientation="Horizontal">
-                        <ToggleButton Content="&#xE840;" IsChecked="{Binding IsPinned}">
-                            <ToggleButton.Style>
-                                <Style BasedOn="{StaticResource ToggleButtonEx}" TargetType="ToggleButton">
-                                    <Setter Property="ToolTip" Value="置顶" />
-                                    <Style.Triggers>
-                                        <Trigger Property="IsChecked" Value="True">
-                                            <Setter Property="ToolTip" Value="取消" />
-                                        </Trigger>
-                                    </Style.Triggers>
-                                </Style>
-                            </ToggleButton.Style>
-                        </ToggleButton>
                         <Button
-                            Command="{Binding OpenLogFolderCommand}"
-                            Content="{StaticResource Glyph_Preview}"
-                            Style="{StaticResource WindowIconButtonStyle}"
-                            ToolTip="日志" />
-                        <Button
-                            Command="{Binding OpenSettingsCommand}"
-                            Content="{StaticResource Glyph_Settings}"
-                            Style="{StaticResource WindowIconButtonStyle}"
-                            ToolTip="设置" />
-                        <Button
-                            Command="{Binding MinimizeCommand}"
-                            CommandParameter="{Binding RelativeSource={RelativeSource AncestorType={x:Type Window}}}"
-                            Content="{StaticResource Glyph_Minimize}"
-                            Style="{StaticResource WindowIconButtonStyle}"
-                            ToolTip="最小化" />
-                        <Button
-                            Command="{Binding MaximizeCommand}"
-                            CommandParameter="{Binding RelativeSource={RelativeSource AncestorType={x:Type Window}}}"
-                            Style="{StaticResource PreviewWindowStateButtonStyle}">
-                            <TextBlock Style="{StaticResource PreviewWindowStateGlyphStyle}" />
-                        </Button>
-                        <Button
-                            Command="{Binding CloseCommand}"
-                            CommandParameter="{Binding RelativeSource={RelativeSource AncestorType={x:Type Window}}}"
-                            Content="{StaticResource Glyph_Close}"
-                            Style="{StaticResource CloseWindowIconButtonStyle}"
-                            ToolTip="关闭" />
-                    </StackPanel>
-                </Grid>
-
-                <!--  预览区域  -->
-                <Grid Grid.Row="1" Margin="0,20,0,0">
-                    <!--  Background="{StaticResource TransparencyCheckerBrush}">  -->
-                    <Border PreviewMouseWheel="PreviewHost_PreviewMouseWheel">
-                        <Grid
-                            x:Name="PreviewViewport"
-                            ClipToBounds="True"
-                            Focusable="True"
-                            MouseRightButtonUp="PreviewViewport_MouseRightButtonUp"
-                            SizeChanged="PreviewViewport_SizeChanged">
-                            <ScrollViewer
-                                x:Name="ActualSizeScrollViewer"
-                                HorizontalScrollBarVisibility="Hidden"
-                                MouseLeave="ActualSizeScrollViewer_MouseLeave"
-                                PreviewMouseDown="ActualSizeScrollViewer_PreviewMouseDown"
-                                PreviewMouseMove="ActualSizeScrollViewer_PreviewMouseMove"
-                                PreviewMouseUp="ActualSizeScrollViewer_PreviewMouseUp"
-                                VerticalScrollBarVisibility="Hidden">
-                                <!--  Padding 在图片四周创建可滑动的空白区，实现拖动到边缘后还能继续拖动  -->
-                                <Border Padding="200">
-                                    <Grid>
-                                        <Grid.LayoutTransform>
-                                            <ScaleTransform ScaleX="{Binding ZoomFactor}" ScaleY="{Binding ZoomFactor}" />
-                                        </Grid.LayoutTransform>
-                                        <Image
-                                            x:Name="ActualSizeImage"
-                                            HorizontalAlignment="Center"
-                                            VerticalAlignment="Center"
-                                            RenderOptions.BitmapScalingMode="LowQuality"
-                                            Source="{Binding ScreenshotImage}"
-                                            Stretch="None" />
-                                        <!--  标注绘制覆盖层：与图片同大同缩放，坐标为图片像素  -->
-                                        <Canvas
-                                            x:Name="AnnotationCanvas"
-                                            Background="Transparent"
-                                            Focusable="True"
-                                            IsHitTestVisible="False"
-                                            KeyDown="AnnotationCanvas_KeyDown"
-                                            MouseLeftButtonDown="AnnotationCanvas_MouseLeftButtonDown"
-                                            MouseLeftButtonUp="AnnotationCanvas_MouseLeftButtonUp"
-                                            MouseMove="AnnotationCanvas_MouseMove" />
-
-                                        <!--  AI 擦除涂抹覆盖层：与图片同大同缩放，Cursor=None 配合代码后置圆形光标指示器  -->
-                                        <Canvas
-                                            x:Name="EraserCanvas"
-                                            Background="Transparent"
-                                            Cursor="None"
-                                            IsHitTestVisible="False"
-                                            MouseEnter="EraserCanvas_MouseEnter"
-                                            MouseLeave="EraserCanvas_MouseLeave"
-                                            MouseLeftButtonDown="EraserCanvas_MouseLeftButtonDown"
-                                            MouseLeftButtonUp="EraserCanvas_MouseLeftButtonUp"
-                                            MouseMove="EraserCanvas_MouseMove">
-                                            <!--  跟随鼠标的画刷轮廓（由代码后置动态定位和缩放）  -->
-                                            <Ellipse
-                                                x:Name="EraserCursorIndicator"
-                                                Fill="{DynamicResource AccentBrush}"
-                                                IsHitTestVisible="False"
-                                                Opacity="0.13"
-                                                Stroke="{DynamicResource AccentBrush}"
-                                                StrokeThickness="2"
-                                                Visibility="Collapsed" />
-                                        </Canvas>
-                                    </Grid>
-                                </Border>
-                            </ScrollViewer>
-
-                            <!--  裁剪框覆盖层：只在裁剪模式下显示  -->
-                            <controls:CropOverlayControl x:Name="CropOverlay" Visibility="Collapsed" />
-
-
-                        </Grid>
-                    </Border>
-
-                    <!--  裁剪信息拖动面板  -->
-                    <controls:FloatingPanel x:Name="CropPanel" Visibility="Collapsed">
-                        <StackPanel MinWidth="220">
-                            <TextBlock Style="{StaticResource PanelTitleStyle}" Text="裁剪" />
-                            <!--  比例预设  -->
-                            <ItemsControl ItemsSource="{Binding CropAspectRatioPresets}">
-                                <ItemsControl.ItemsPanel>
-                                    <ItemsPanelTemplate>
-                                        <WrapPanel Margin="0,0,0,8" />
-                                    </ItemsPanelTemplate>
-                                </ItemsControl.ItemsPanel>
-                                <ItemsControl.ItemTemplate>
-                                    <DataTemplate>
-                                        <Button
-                                            Margin="0,0,4,4"
-                                            Command="{Binding DataContext.CropPanel.SetAspectRatioFromParamCommand, RelativeSource={RelativeSource AncestorType={x:Type Window}}}"
-                                            CommandParameter="{Binding Parameter}"
-                                            Content="{Binding Content}"
-                                            Style="{StaticResource PanelCancelButtonStyle}"
-                                            ToolTip="{Binding ToolTip}" />
-                                    </DataTemplate>
-                                </ItemsControl.ItemTemplate>
-                            </ItemsControl>
-                            <TextBlock
-                                Margin="0,0,0,6"
-                                FontSize="13"
-                                Text="{Binding CropPanel.AspectRatioDisplayText}" />
+                            Margin="2,0"
+                            Command="{Binding TogglePreviewScaleCommand}"
+                            Style="{StaticResource ToolbarIconButtonStyle}"
+                            ToolTip="{Binding PreviewScaleModeText}">
                             <Grid>
-                                <Grid.ColumnDefinitions>
-                                    <ColumnDefinition Width="*" />
-                                    <ColumnDefinition Width="8" />
-                                    <ColumnDefinition Width="*" />
-                                </Grid.ColumnDefinitions>
-                                <Grid.RowDefinitions>
-                                    <RowDefinition Height="Auto" />
-                                    <RowDefinition Height="6" />
-                                    <RowDefinition Height="Auto" />
-                                </Grid.RowDefinitions>
-                                <!--  X  -->
-                                <StackPanel
-                                    Grid.Row="0"
-                                    Grid.Column="0"
-                                    Orientation="Horizontal"
-                                    ToolTip="裁剪起始 X">
-                                    <TextBlock Style="{StaticResource FieldLabelStyle}" Text="X轴" />
-                                    <TextBox
-                                        Margin="5,0,0,0"
-                                        Style="{StaticResource FieldInputStyle}"
-                                        Text="{Binding CropPanel.CropX, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}" />
-                                </StackPanel>
-                                <!--  Y  -->
-                                <StackPanel
-                                    Grid.Row="0"
-                                    Grid.Column="2"
-                                    Orientation="Horizontal"
-                                    ToolTip="裁剪起始 Y">
-                                    <TextBlock Style="{StaticResource FieldLabelStyle}" Text="Y轴" />
-                                    <TextBox
-                                        Margin="5,0,0,0"
-                                        Style="{StaticResource FieldInputStyle}"
-                                        Text="{Binding CropPanel.CropY, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}" />
-                                </StackPanel>
-                                <!--  W  -->
-                                <StackPanel
-                                    Grid.Row="2"
-                                    Grid.Column="0"
-                                    Orientation="Horizontal"
-                                    ToolTip="裁剪宽度">
-                                    <TextBlock Style="{StaticResource FieldLabelStyle}" Text="宽度" />
-                                    <TextBox
-                                        Margin="5,0,0,0"
-                                        Style="{StaticResource FieldInputStyle}"
-                                        Text="{Binding CropPanel.CropWidth, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}" />
-                                </StackPanel>
-                                <!--  H  -->
-                                <StackPanel
-                                    Grid.Row="2"
-                                    Grid.Column="2"
-                                    Orientation="Horizontal"
-                                    ToolTip="裁剪高度">
-                                    <TextBlock Style="{StaticResource FieldLabelStyle}" Text="高度" />
-                                    <TextBox
-                                        Margin="5,0,0,0"
-                                        Style="{StaticResource FieldInputStyle}"
-                                        Text="{Binding CropPanel.CropHeight, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}" />
-                                </StackPanel>
+                                <ui:FontIcon FontSize="14" Icon="{x:Static ui:SegoeFluentIcons.FitPage}" />
+                                <ui:FontIcon
+                                    HorizontalAlignment="Center"
+                                    VerticalAlignment="Center"
+                                    FontSize="8"
+                                    Glyph="&#xEA3B;"
+                                    Visibility="{Binding IsActualSize, Converter={StaticResource InverseBoolToVisibility}}" />
                             </Grid>
-                            <StackPanel Style="{StaticResource PanelActionBarStyle}">
-                                <Button
-                                    Margin="0,0,6,0"
-                                    Command="{Binding CropPanel.CancelCommand}"
-                                    Content="取消"
-                                    Style="{StaticResource PanelCancelButtonStyle}"
-                                    ToolTip="取消裁剪" />
-                                <Button
-                                    Padding="10,2"
-                                    Command="{Binding CropPanel.ApplyCommand}"
-                                    CommandParameter="{Binding ScreenshotImage}"
-                                    Content="应用"
-                                    Style="{StaticResource PanelApplyButtonStyle}"
-                                    ToolTip="应用裁剪" />
-                            </StackPanel>
-                        </StackPanel>
-                    </controls:FloatingPanel>
+                        </Button>
+                        <TextBlock
+                            Width="48"
+                            Margin="2,0"
+                            VerticalAlignment="Center"
+                            Foreground="{DynamicResource TextFillColorPrimaryBrush}"
+                            Text="{Binding ZoomCompactText}"
+                            TextAlignment="Center" />
 
-                    <!--  圆角信息拖动面板  -->
-                    <controls:FloatingPanel x:Name="RoundCornerPanel" Visibility="Collapsed">
-                        <StackPanel MinWidth="200">
-                            <TextBlock Style="{StaticResource PanelTitleStyle}" Text="圆角" />
-                            <StackPanel Orientation="Horizontal">
-                                <TextBlock Style="{StaticResource FieldLabelStyle}" Text="圆角半径(像素)" />
-                                <TextBox
-                                    Margin="5,0,0,0"
-                                    Style="{StaticResource FieldInputStyle}"
-                                    Text="{Binding RoundCornerPanel.CornerRadius, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}" />
+                        <Button
+                            Command="{Binding ZoomOutCommand}"
+                            Style="{StaticResource ToolbarIconButtonStyle}"
+                            ToolTip="缩小">
+                            <ui:FontIcon FontSize="14" Icon="{x:Static ui:SegoeFluentIcons.ZoomOut}" />
+                        </Button>
 
-                            </StackPanel>
-                            <StackPanel Style="{StaticResource PanelActionBarStyle}">
-                                <Button
-                                    Margin="0,0,6,0"
-                                    Command="{Binding RoundCornerPanel.CancelCommand}"
-                                    Content="取消"
-                                    Style="{StaticResource PanelCancelButtonStyle}"
-                                    ToolTip="取消圆角" />
-                                <Button
-                                    Command="{Binding RoundCornerPanel.ApplyCommand}"
-                                    CommandParameter="{Binding ScreenshotImage}"
-                                    Content="应用"
-                                    Style="{StaticResource PanelApplyButtonStyle}"
-                                    ToolTip="应用圆角" />
-                            </StackPanel>
-                        </StackPanel>
-                    </controls:FloatingPanel>
+                        <Slider
+                            Width="150"
+                            Margin="2,0"
+                            VerticalAlignment="Center"
+                            IsSnapToTickEnabled="False"
+                            LargeChange="25"
+                            Maximum="800"
+                            Minimum="10"
+                            SmallChange="5"
+                            TickFrequency="25"
+                            Value="{Binding ZoomSliderValue, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}" />
 
-                    <!--  AI 擦除画刷大小浮动面板  -->
-                    <controls:FloatingPanel x:Name="EraserFloatingPanel" Visibility="Collapsed">
-                        <StackPanel MinWidth="200">
-                            <TextBlock Style="{StaticResource PanelTitleStyle}" Text="AI 擦除" />
-                            <controls:SliderField
-                                Label="画刷大小"
-                                LargeChange="10"
-                                Maximum="200"
-                                Minimum="5"
-                                SmallChange="1"
-                                TickFrequency="5"
-                                Unit="px"
-                                Value="{Binding EraserPanel.BrushSize, Mode=TwoWay}" />
-
-                            <StackPanel Margin="0,10,0,0" Orientation="Horizontal">
-                                <TextBlock Style="{StaticResource FieldLabelStyle}" Text="边缘羽化" />
-                                <TextBlock
-                                    Margin="6,0,0,0"
-                                    Style="{StaticResource FieldLabelStyle}"
-                                    Text="{Binding EraserPanel.EdgeFeatherStrengthText}" />
-                            </StackPanel>
-                            <Slider
-                                Margin="0,6,0,0"
-                                IsSnapToTickEnabled="True"
-                                LargeChange="10"
-                                Maximum="100"
-                                Minimum="0"
-                                SmallChange="1"
-                                TickFrequency="5"
-                                Value="{Binding EraserPanel.EdgeFeatherStrength, Mode=TwoWay}" />
-
-                            <!--  操作按钮  -->
-                            <StackPanel Style="{StaticResource PanelActionBarStyle}">
-                                <Button
-                                    Margin="0,0,6,0"
-                                    Command="{Binding EraserPanel.ClearStrokesCommand}"
-                                    Content="清除"
-                                    Style="{StaticResource PanelCancelButtonStyle}"
-                                    ToolTip="清除当前涂抹" />
-                                <Button
-                                    Margin="0,0,6,0"
-                                    Command="{Binding ExitEraserModeCommand}"
-                                    Content="取消"
-                                    Style="{StaticResource PanelCancelButtonStyle}"
-                                    ToolTip="取消 AI 处理并退出擦除模式" />
-                                <Button
-                                    Padding="10,2"
-                                    Command="{Binding ApplyEraserCommand}"
-                                    CommandParameter="{Binding ScreenshotImage}"
-                                    Content="应用"
-                                    Style="{StaticResource PanelApplyButtonStyle}"
-                                    ToolTip="执行 AI 修复" />
-                            </StackPanel>
-                        </StackPanel>
-                    </controls:FloatingPanel>
-
-                    <!--  标注工具浮动面板  -->
-                    <controls:FloatingPanel x:Name="AnnotationFloatingPanel" Visibility="Collapsed">
-                        <StackPanel>
-                            <!--  第一行：工具选择 + 分隔 + 颜色色块  -->
-                            <StackPanel Orientation="Horizontal">
-                                <ItemsControl ItemsSource="{Binding AnnotationTools}">
-                                    <ItemsControl.ItemsPanel>
-                                        <ItemsPanelTemplate>
-                                            <StackPanel Orientation="Horizontal" />
-                                        </ItemsPanelTemplate>
-                                    </ItemsControl.ItemsPanel>
-                                    <ItemsControl.ItemTemplate>
-                                        <DataTemplate>
-                                            <Button
-                                                Command="{Binding Command}"
-                                                Style="{StaticResource AnnotationToolbarButtonStyle}"
-                                                Tag="{Binding Glyph}"
-                                                ToolTip="{Binding ToolTip}" />
-                                        </DataTemplate>
-                                    </ItemsControl.ItemTemplate>
-                                </ItemsControl>
-                                <!--  分隔线  -->
-                                <Border
-                                    Width="1"
-                                    Margin="6,4"
-                                    Background="{DynamicResource InputBorderBrush}" />
-                                <!--  颜色色块（点击弹出色板）  -->
-                                <Button
-                                    x:Name="ColorSwatchButton"
-                                    Background="{Binding AnnotationPanel.StrokeColorBrush}"
-                                    Click="ColorSwatchButton_Click"
-                                    Style="{StaticResource ColorSwatchButtonStyle}"
-                                    ToolTip="颜色" />
-                            </StackPanel>
-
-                            <!--  颜色弹出面板  -->
-                            <Popup
-                                x:Name="ColorPickerPopup"
-                                AllowsTransparency="True"
-                                Placement="Bottom"
-                                PlacementTarget="{Binding ElementName=ColorSwatchButton}"
-                                PopupAnimation="Fade"
-                                StaysOpen="False"
-                                VerticalOffset="4">
-                                <Border Style="{StaticResource PopupCardStyle}">
-                                    <ItemsControl ItemsSource="{Binding AnnotationColors}">
-                                        <ItemsControl.ItemsPanel>
-                                            <ItemsPanelTemplate>
-                                                <WrapPanel Width="132" />
-                                            </ItemsPanelTemplate>
-                                        </ItemsControl.ItemsPanel>
-                                        <ItemsControl.ItemTemplate>
-                                            <DataTemplate>
-                                                <Button
-                                                    Margin="2"
-                                                    Background="{Binding ColorValue}"
-                                                    Command="{Binding Command}"
-                                                    Style="{StaticResource ColorPresetButtonStyle}"
-                                                    ToolTip="{Binding ToolTip}" />
-                                            </DataTemplate>
-                                        </ItemsControl.ItemTemplate>
-                                    </ItemsControl>
-                                </Border>
-                            </Popup>
-
-                            <!--  第二行：上下文属性（仅当前工具需要的属性）  -->
-                            <StackPanel Margin="0,6,0,0">
-                                <!--  线宽（非文本、非模糊工具时显示）  -->
-                                <StackPanel>
-                                    <StackPanel.Style>
-                                        <Style TargetType="StackPanel">
-                                            <Setter Property="Visibility" Value="Visible" />
-                                            <Style.Triggers>
-                                                <DataTrigger Binding="{Binding AnnotationPanel.IsTextSettingsVisible}" Value="True">
-                                                    <Setter Property="Visibility" Value="Collapsed" />
-                                                </DataTrigger>
-                                                <DataTrigger Binding="{Binding AnnotationPanel.IsBlurSettingsVisible}" Value="True">
-                                                    <Setter Property="Visibility" Value="Collapsed" />
-                                                </DataTrigger>
-                                            </Style.Triggers>
-                                        </Style>
-                                    </StackPanel.Style>
-                                    <controls:SliderField
-                                        Label="线宽"
-                                        LargeChange="2"
-                                        Maximum="20"
-                                        Minimum="1"
-                                        SmallChange="1"
-                                        TickFrequency="1"
-                                        Value="{Binding AnnotationPanel.StrokeWidth, Mode=TwoWay}" />
-                                </StackPanel>
-                                <!--  圆角（矩形工具时附加显示）  -->
-                                <controls:SliderField
-                                    Margin="0,4,0,0"
-                                    Label="圆角"
-                                    LargeChange="5"
-                                    Maximum="50"
-                                    Minimum="0"
-                                    SmallChange="1"
-                                    TickFrequency="1"
-                                    Visibility="{Binding AnnotationPanel.IsRectangleSettingsVisible, Converter={StaticResource BooleanToVisibilityConverter}}"
-                                    Value="{Binding AnnotationPanel.CornerRadius, Mode=TwoWay}" />
-                                <!--  模糊强度  -->
-                                <controls:SliderField
-                                    Label="强度"
-                                    LargeChange="5"
-                                    Maximum="50"
-                                    Minimum="1"
-                                    SmallChange="1"
-                                    TickFrequency="1"
-                                    Visibility="{Binding AnnotationPanel.IsBlurSettingsVisible, Converter={StaticResource BooleanToVisibilityConverter}}"
-                                    Value="{Binding AnnotationPanel.BlurRadius, Mode=TwoWay}" />
-                            </StackPanel>
-
-                            <!--  文字属性行（文本工具时显示）  -->
-                            <StackPanel
-                                Margin="0,6,0,0"
-                                Orientation="Horizontal"
-                                Visibility="{Binding AnnotationPanel.IsTextSettingsVisible, Converter={StaticResource BooleanToVisibilityConverter}}">
-                                <ComboBox
-                                    Width="120"
-                                    Height="26"
-                                    FontSize="13"
-                                    ItemsSource="{Binding AnnotationPanel.FontFamilies}"
-                                    SelectedItem="{Binding AnnotationPanel.FontFamily, Mode=TwoWay}" />
-                                <TextBox
-                                    Width="42"
-                                    Height="26"
-                                    Margin="4,0,0,0"
-                                    FontSize="13"
-                                    Style="{StaticResource FieldInputStyle}"
-                                    Text="{Binding AnnotationPanel.FontSize, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}"
-                                    ToolTip="字号 (px)" />
-                                <ToggleButton
-                                    Width="26"
-                                    Height="26"
-                                    Margin="4,0,0,0"
-                                    IsChecked="{Binding AnnotationPanel.IsBold, Mode=TwoWay}"
-                                    Style="{StaticResource PanelToggleButtonStyle}"
-                                    ToolTip="粗体">
-                                    <TextBlock FontSize="13" Text="B" />
-                                </ToggleButton>
-                                <ToggleButton
-                                    Width="26"
-                                    Height="26"
-                                    Margin="2,0,0,0"
-                                    IsChecked="{Binding AnnotationPanel.IsItalic, Mode=TwoWay}"
-                                    Style="{StaticResource PanelToggleButtonStyle}"
-                                    ToolTip="斜体">
-                                    <TextBlock
-                                        FontSize="13"
-                                        FontStyle="Italic"
-                                        Text="I" />
-                                </ToggleButton>
-                                <ToggleButton
-                                    Width="26"
-                                    Height="26"
-                                    Margin="2,0,0,0"
-                                    IsChecked="{Binding AnnotationPanel.IsUnderline, Mode=TwoWay}"
-                                    Style="{StaticResource PanelToggleButtonStyle}"
-                                    ToolTip="下划线">
-                                    <TextBlock
-                                        FontSize="13"
-                                        Text="U"
-                                        TextDecorations="Underline" />
-                                </ToggleButton>
-                                <ToggleButton
-                                    Width="26"
-                                    Height="26"
-                                    Margin="2,0,0,0"
-                                    IsChecked="{Binding AnnotationPanel.IsStrikethrough, Mode=TwoWay}"
-                                    Style="{StaticResource PanelToggleButtonStyle}"
-                                    ToolTip="删除线">
-                                    <TextBlock
-                                        FontSize="13"
-                                        Text="S"
-                                        TextDecorations="Strikethrough" />
-                                </ToggleButton>
-                            </StackPanel>
-
-                            <!--  底部：取消 + 应用  -->
-                            <StackPanel Style="{StaticResource PanelActionBarStyle}">
-                                <Button
-                                    Margin="0,0,6,0"
-                                    Command="{Binding ExitAnnotationModeCommand}"
-                                    Content="取消"
-                                    Style="{StaticResource PanelCancelButtonStyle}"
-                                    ToolTip="取消标注" />
-                                <Button
-                                    Padding="10,2"
-                                    Command="{Binding ApplyAnnotationCommand}"
-                                    Content="应用"
-                                    Style="{StaticResource PanelApplyButtonStyle}"
-                                    ToolTip="将标注合并到图像" />
-                            </StackPanel>
-                        </StackPanel>
-                    </controls:FloatingPanel>
-
-                    <Popup
-                        x:Name="AiModulePopup"
-                        AllowsTransparency="True"
-                        IsOpen="{Binding IsAiPopupOpen, Mode=TwoWay}"
-                        Placement="Bottom"
-                        PlacementTarget="{Binding ElementName=AiModuleButton}"
-                        PopupAnimation="Fade"
-                        StaysOpen="False"
-                        VerticalOffset="6">
-                        <Border MinWidth="180" Style="{StaticResource PopupCardStyle}">
-                            <StackPanel>
-                                <Button
-                                    Margin="0,0,0,6"
-                                    Command="{Binding RemoveBackgroundCommand}"
-                                    Content="去除背景"
-                                    Style="{StaticResource PanelCancelButtonStyle}" />
-                                <Button
-                                    Command="{Binding SuperResolutionCommand}"
-                                    Content="超分四倍"
-                                    Style="{StaticResource PanelCancelButtonStyle}" />
-                            </StackPanel>
-                        </Border>
-                    </Popup>
+                        <Button
+                            Command="{Binding ZoomInCommand}"
+                            Style="{StaticResource ToolbarIconButtonStyle}"
+                            ToolTip="放大">
+                            <ui:FontIcon FontSize="14" Icon="{x:Static ui:SegoeFluentIcons.ZoomIn}" />
+                        </Button>
+                    </StackPanel>
 
                 </Grid>
-                <!--  控制区域  -->
-                <Border Grid.Row="2" Padding="10">
-                    <!--  CornerRadius="0,0,10,10">  -->
-                    <Grid>
-                        <StackPanel Orientation="Horizontal">
-                            <StackPanel.Style>
-                                <Style TargetType="StackPanel">
-                                    <Setter Property="Visibility" Value="Visible" />
-                                    <Style.Triggers>
-                                        <DataTrigger Binding="{Binding CaptureTitleDisplay.Length}" Value="0">
-                                            <Setter Property="Visibility" Value="Collapsed" />
-                                        </DataTrigger>
-                                    </Style.Triggers>
-                                </Style>
-                            </StackPanel.Style>
-                            <TextBlock
-                                Margin="10,0"
-                                VerticalAlignment="Center"
-                                FontFamily="{StaticResource SegoeFluent}"
-                                FontSize="14"
-                                Opacity="0.6"
-                                Text="{StaticResource Glyph_Resolution}" />
-                            <TextBlock
-                                VerticalAlignment="Center"
-                                Opacity="0.6"
-                                Text="{Binding ImageSize}" />
-                            <TextBlock
-                                Margin="10,0"
-                                VerticalAlignment="Center"
-                                FontFamily="{StaticResource SegoeFluent}"
-                                FontSize="14"
-                                Opacity="0.6"
-                                Text="{StaticResource Glyph_List}" />
-                            <TextBlock
-                                VerticalAlignment="Center"
-                                Opacity="0.6"
-                                Text="{Binding FileSize}" />
-                        </StackPanel>
-
-                        <StackPanel
-                            HorizontalAlignment="Right"
-                            VerticalAlignment="Center"
-                            Orientation="Horizontal">
-                            <Button
-                                Margin="2,0"
-                                Command="{Binding TogglePreviewScaleCommand}"
-                                Style="{StaticResource PreviewZoomIconButtonStyle}"
-                                ToolTip="{Binding PreviewScaleModeText}">
-                                <Grid>
-                                    <TextBlock
-                                        FontFamily="{StaticResource SegoeFluent}"
-                                        FontSize="14"
-                                        Text="{StaticResource Glyph_FitWindow}" />
-                                    <TextBlock
-                                        HorizontalAlignment="Center"
-                                        VerticalAlignment="Center"
-                                        FontFamily="{StaticResource SegoeFluent}"
-                                        FontSize="4.5"
-                                        Text="{StaticResource Glyph_OriginalSize}"
-                                        Visibility="{Binding IsActualSize, Converter={StaticResource InverseBoolToVisibility}}" />
-                                </Grid>
-                            </Button>
-                            <ComboBox
-                                Height="35"
-                                Margin="2,0"
-                                SelectedValue="{Binding ZoomSliderValue, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}"
-                                SelectedValuePath="Tag"
-                                Text="{Binding ZoomCompactText, Mode=OneWay}">
-                                <ComboBoxItem Content="100%" Tag="100" />
-                                <ComboBoxItem Content="200%" Tag="200" />
-                                <ComboBoxItem Content="300%" Tag="300" />
-                                <ComboBoxItem Content="400%" Tag="400" />
-                                <ComboBoxItem Content="500%" Tag="500" />
-                                <ComboBoxItem Content="600%" Tag="600" />
-                                <ComboBoxItem Content="700%" Tag="700" />
-                                <ComboBoxItem Content="800%" Tag="800" />
-                            </ComboBox>
-
-                            <Button
-                                Command="{Binding ZoomOutCommand}"
-                                Content="{StaticResource Glyph_ZoomOut}"
-                                Style="{StaticResource ToolbarIconButtonStyle}"
-                                ToolTip="缩小" />
-
-                            <Slider
-                                Margin="2,0"
-                                IsSnapToTickEnabled="False"
-                                LargeChange="25"
-                                Maximum="800"
-                                Minimum="10"
-                                SmallChange="5"
-                                TickFrequency="25"
-                                Value="{Binding ZoomSliderValue, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}" />
-
-                            <Button
-                                Command="{Binding ZoomInCommand}"
-                                Content="{StaticResource Glyph_ZoomIn}"
-                                Style="{StaticResource ToolbarIconButtonStyle}"
-                                ToolTip="放大" />
-                        </StackPanel>
-
-                    </Grid>
-                </Border>
-            </Grid>
-
-            <!--  全窗口处理遮罩：处理期间阻断所有操作，完成或异常后自动隐藏  -->
-            <Grid Panel.ZIndex="998">
-                <Grid.Style>
-                    <Style TargetType="Grid">
-                        <Setter Property="Visibility" Value="Collapsed" />
-                        <Setter Property="IsHitTestVisible" Value="False" />
-                        <Style.Triggers>
-                            <DataTrigger Binding="{Binding IsAnyAiProcessing}" Value="True">
-                                <Setter Property="Visibility" Value="Visible" />
-                                <Setter Property="IsHitTestVisible" Value="True" />
-                            </DataTrigger>
-                        </Style.Triggers>
-                    </Style>
-                </Grid.Style>
-
-                <Border Background="#80101010" />
-
-                <Border
-                    Margin="0,0,0,100"
-                    Padding="16,12"
-                    HorizontalAlignment="Center"
-                    VerticalAlignment="Bottom"
-                    CornerRadius="12">
-                    <StackPanel MinWidth="280" Orientation="Vertical">
-                        <TextBlock
-                            Margin="0,0,0,8"
-                            HorizontalAlignment="Center"
-                            FontSize="15"
-                            Text="{Binding ActiveAiProgressText}" />
-                        <ProgressBar
-                            Height="6"
-                            IsIndeterminate="{Binding IsAnyIndeterminateProcessing, Mode=OneWay}"
-                            Maximum="1"
-                            Minimum="0"
-                            Value="{Binding ActiveAiProgress, Mode=OneWay}" />
-                    </StackPanel>
-                </Border>
-            </Grid>
+            </Border>
         </Grid>
 
+        <!--  全窗口处理遮罩：处理期间阻断所有操作，完成或异常后自动隐藏  -->
+        <Grid Panel.ZIndex="998">
+            <Grid.Style>
+                <Style TargetType="Grid">
+                    <Setter Property="Visibility" Value="Collapsed" />
+                    <Setter Property="IsHitTestVisible" Value="False" />
+                    <Style.Triggers>
+                        <DataTrigger Binding="{Binding IsAnyAiProcessing}" Value="True">
+                            <Setter Property="Visibility" Value="Visible" />
+                            <Setter Property="IsHitTestVisible" Value="True" />
+                        </DataTrigger>
+                    </Style.Triggers>
+                </Style>
+            </Grid.Style>
 
-    </Border>
-</mica:MicaWindow>
+            <Border Background="{StaticResource OverlayMaskBrush}" />
+
+            <Border
+                Margin="0,0,0,100"
+                Padding="16,12"
+                HorizontalAlignment="Center"
+                VerticalAlignment="Bottom"
+                Background="{DynamicResource SolidBackgroundFillColorBaseBrush}"
+                BorderBrush="{DynamicResource ControlStrokeColorDefaultBrush}"
+                BorderThickness="1"
+                CornerRadius="12">
+                <StackPanel MinWidth="280" Orientation="Vertical">
+                    <TextBlock
+                        Margin="0,0,0,8"
+                        HorizontalAlignment="Center"
+                        FontSize="15"
+                        Foreground="{DynamicResource TextFillColorPrimaryBrush}"
+                        Text="{Binding ActiveAiProgressText}" />
+                    <ProgressBar
+                        Height="6"
+                        IsIndeterminate="{Binding IsAnyIndeterminateProcessing, Mode=OneWay}"
+                        Maximum="1"
+                        Minimum="0"
+                        Value="{Binding ActiveAiProgress, Mode=OneWay}" />
+                </StackPanel>
+            </Border>
+        </Grid>
+    </Grid>
+</Window>

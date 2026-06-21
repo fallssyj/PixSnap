@@ -1,0 +1,38 @@
+<UserControl
+    x:Class="PixSnap.Controls.SliderField"
+    xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+    xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+    Focusable="False">
+    <StackPanel>
+        <StackPanel Orientation="Horizontal">
+            <TextBlock Style="{StaticResource PanelCompactFieldLabelStyle}" Text="{Binding Label, RelativeSource={RelativeSource AncestorType=UserControl}}" />
+            <TextBox
+                Width="48"
+                Height="26"
+                Margin="4,0,0,0"
+                FontSize="13"
+                Style="{StaticResource FieldInputStyle}"
+                Text="{Binding Value, RelativeSource={RelativeSource AncestorType=UserControl}, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged, StringFormat={}{0:0}}" />
+            <TextBlock Margin="4,0,0,0" Text="{Binding Unit, RelativeSource={RelativeSource AncestorType=UserControl}}">
+                <TextBlock.Style>
+                    <Style BasedOn="{StaticResource PanelCompactFieldLabelStyle}" TargetType="TextBlock">
+                        <Style.Triggers>
+                            <DataTrigger Binding="{Binding Unit, RelativeSource={RelativeSource AncestorType=UserControl}}" Value="">
+                                <Setter Property="Visibility" Value="Collapsed" />
+                            </DataTrigger>
+                        </Style.Triggers>
+                    </Style>
+                </TextBlock.Style>
+            </TextBlock>
+        </StackPanel>
+        <Slider
+            Margin="0,4,0,0"
+            IsSnapToTickEnabled="True"
+            LargeChange="{Binding LargeChange, RelativeSource={RelativeSource AncestorType=UserControl}}"
+            Maximum="{Binding Maximum, RelativeSource={RelativeSource AncestorType=UserControl}}"
+            Minimum="{Binding Minimum, RelativeSource={RelativeSource AncestorType=UserControl}}"
+            SmallChange="{Binding SmallChange, RelativeSource={RelativeSource AncestorType=UserControl}}"
+            TickFrequency="{Binding TickFrequency, RelativeSource={RelativeSource AncestorType=UserControl}}"
+            Value="{Binding Value, RelativeSource={RelativeSource AncestorType=UserControl}, Mode=TwoWay}" />
+    </StackPanel>
+</UserControl>

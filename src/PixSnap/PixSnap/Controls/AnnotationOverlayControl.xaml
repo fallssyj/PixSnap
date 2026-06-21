@@ -1,0 +1,16 @@
+<UserControl
+    x:Class="PixSnap.Controls.AnnotationOverlayControl"
+    xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+    xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+    Focusable="False"
+    IsHitTestVisible="False">
+    <Canvas
+        x:Name="AnnotationCanvas"
+        Background="Transparent"
+        Focusable="True"
+        IsHitTestVisible="False"
+        KeyDown="AnnotationCanvas_KeyDown"
+        MouseLeftButtonDown="AnnotationCanvas_MouseLeftButtonDown"
+        MouseLeftButtonUp="AnnotationCanvas_MouseLeftButtonUp"
+        MouseMove="AnnotationCanvas_MouseMove" />
+</UserControl>

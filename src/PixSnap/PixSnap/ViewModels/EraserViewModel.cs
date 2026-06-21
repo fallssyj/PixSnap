@@ -111,7 +111,7 @@ public partial class EraserViewModel : ObservableObject
         {
             Log.Error(ex, "AI 擦除模型缺失");
             ProgressText = string.Empty;
-            MessageBoxWindow.Show(
+            AppMessageBox.Show(
                 string.Format("AI 模型文件缺失，无法执行擦除。\n\n{0}", ex.Message),
                 "模型缺失",
                 MessageBoxButton.OK,
@@ -121,7 +121,7 @@ public partial class EraserViewModel : ObservableObject
         {
             Log.Error(ex, "AI 擦除失败");
             ProgressText = string.Empty;
-            MessageBoxWindow.Show(
+            AppMessageBox.Show(
                 string.Format("AI 擦除失败：{0}", ex.Message),
                 "操作失败",
                 MessageBoxButton.OK,

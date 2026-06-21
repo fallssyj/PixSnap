@@ -1,0 +1,48 @@
+<UserControl
+    x:Class="PixSnap.Controls.TrayContextMenuView"
+    xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+    xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+    xmlns:ui="http://schemas.inkore.net/lib/ui/wpf/modern">
+    <Border Style="{StaticResource FlyoutMenuCardStyle}">
+        <StackPanel>
+            <Button Command="{Binding CaptureCommand}" Style="{StaticResource FlyoutMenuButtonStyle}">
+                <StackPanel Orientation="Horizontal">
+                    <ui:FontIcon Icon="{x:Static ui:SegoeFluentIcons.Crop}" Style="{StaticResource FlyoutMenuIconStyle}" />
+                    <TextBlock Margin="10,0,0,0" Style="{StaticResource FlyoutMenuTextStyle}" Text="截图/录屏" />
+                </StackPanel>
+            </Button>
+
+            <Border Style="{StaticResource FlyoutMenuSeparatorStyle}" />
+
+            <Button Command="{Binding ShowSettingsCommand}" Style="{StaticResource FlyoutMenuButtonStyle}">
+                <StackPanel Orientation="Horizontal">
+                    <ui:FontIcon Icon="{x:Static ui:SegoeFluentIcons.Settings}" Style="{StaticResource FlyoutMenuIconStyle}" />
+                    <TextBlock Margin="10,0,0,0" Style="{StaticResource FlyoutMenuTextStyle}" Text="设置" />
+                </StackPanel>
+            </Button>
+
+            <Button Command="{Binding ShowLogViewerCommand}" Style="{StaticResource FlyoutMenuButtonStyle}">
+                <StackPanel Orientation="Horizontal">
+                    <ui:FontIcon Icon="{x:Static ui:SegoeFluentIcons.Diagnostic}" Style="{StaticResource FlyoutMenuIconStyle}" />
+                    <TextBlock Margin="10,0,0,0" Style="{StaticResource FlyoutMenuTextStyle}" Text="日志" />
+                </StackPanel>
+            </Button>
+
+            <Button Command="{Binding ShowAboutCommand}" Style="{StaticResource FlyoutMenuButtonStyle}">
+                <StackPanel Orientation="Horizontal">
+                    <ui:FontIcon Icon="{x:Static ui:SegoeFluentIcons.Info}" Style="{StaticResource FlyoutMenuIconStyle}" />
+                    <TextBlock Margin="10,0,0,0" Style="{StaticResource FlyoutMenuTextStyle}" Text="关于 PixSnap" />
+                </StackPanel>
+            </Button>
+
+            <Border Style="{StaticResource FlyoutMenuSeparatorStyle}" />
+
+            <Button Command="{Binding ExitCommand}" Style="{StaticResource FlyoutMenuButtonStyle}">
+                <StackPanel Orientation="Horizontal">
+                    <ui:FontIcon Icon="{x:Static ui:SegoeFluentIcons.PowerButton}" Style="{StaticResource FlyoutMenuIconStyle}" />
+                    <TextBlock Margin="10,0,0,0" Style="{StaticResource FlyoutMenuTextStyle}" Text="退出" />
+                </StackPanel>
+            </Button>
+        </StackPanel>
+    </Border>
+</UserControl>

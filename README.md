@@ -10,7 +10,7 @@
 
 <p align="center">
   一款基于 Windows Graphics Capture 与 ONNX AI 推理的现代化截图 / 录屏工具，<br/>
-  使用 WPF + Mica 构建，支持 Windows 10 19041 及以上版本。
+  使用 WPF + iNKORE UI.WPF.Modern 构建，支持 Windows 10 19041 及以上版本。
 </p>
 
 ---
@@ -113,7 +113,8 @@ src/PixSnap/
 
 | 库 | 版本 | 用途 |
 | --- | --- | --- |
-| MicaWPF | 6.3.2 | Windows 11 Mica / Acrylic 主题 |
+| iNKORE.UI.WPF.Modern | 0.10.2.1 | Fluent 2 主题 / Mica 窗口 / 现代控件 |
+| iNKORE.UI.WPF | 1.2.8 | iNKORE WPF 基础库 |
 | CommunityToolkit.Mvvm | 8.4.2 | MVVM 框架 |
 | Microsoft.ML.OnnxRuntime.DirectML | 1.24.4 | AI 模型推理 |
 | SkiaSharp | 3.119.2 | 图像处理 |

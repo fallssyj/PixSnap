@@ -1,9 +1,10 @@
-<mica:MicaWindow
+﻿<Window
     x:Class="PixSnap.Views.VideoPlayerWindow"
     xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
     xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
     xmlns:b="http://schemas.microsoft.com/xaml/behaviors"
-    xmlns:mica="clr-namespace:MicaWPF.Controls;assembly=MicaWPF"
+    xmlns:behaviors="clr-namespace:PixSnap.Behaviors"
+    xmlns:ui="http://schemas.inkore.net/lib/ui/wpf/modern"
     Title="录屏预览 仅作预览 如需要裁剪 请使用其它工具"
     Width="800"
     Height="520"
@@ -12,15 +13,18 @@
     Icon="/Assets/icons/video.png"
     TextOptions.TextFormattingMode="Display"
     UseLayoutRounding="True"
-    WindowStartupLocation="CenterScreen">
+    WindowStartupLocation="CenterScreen"
+    ui:WindowHelper.FixMaximizedWindow="True"
+    ui:WindowHelper.SystemBackdropType="Mica"
+    ui:WindowHelper.UseModernWindowStyle="True">
 
-    <mica:MicaWindow.InputBindings>
+    <Window.InputBindings>
         <KeyBinding
             Key="S"
             Command="{Binding SaveCommand}"
             Modifiers="Ctrl" />
         <KeyBinding Key="Space" Command="{Binding PlayPauseCommand}" />
-    </mica:MicaWindow.InputBindings>
+    </Window.InputBindings>
 
     <Grid>
         <Grid.RowDefinitions>
@@ -44,8 +48,8 @@
         <Border
             Grid.Row="1"
             Padding="16,10"
-            Background="{DynamicResource MicaWPF.Brushes.ApplicationBackgroundBrush}"
-            BorderBrush="{DynamicResource MicaWPF.Brushes.ControlElevationBorderBrush}"
+            Background="{DynamicResource SolidBackgroundFillColorBaseBrush}"
+            BorderBrush="{DynamicResource DividerStrokeColorDefaultBrush}"
             BorderThickness="0,1,0,0">
             <Grid>
                 <Grid.RowDefinitions>
@@ -64,16 +68,17 @@
                         Grid.Column="0"
                         VerticalAlignment="Center"
                         FontSize="12"
+                        Foreground="{DynamicResource TextFillColorSecondaryBrush}"
                         Text="{Binding PositionText}" />
                     <Slider
                         Grid.Column="1"
                         Margin="10,0"
                         VerticalAlignment="Center"
+                        behaviors:SliderDragBehavior.DragCompletedCommand="{Binding DragCompletedCommand}"
+                        behaviors:SliderDragBehavior.DragStartedCommand="{Binding DragStartedCommand}"
                         IsMoveToPointEnabled="True"
                         Maximum="1"
                         Minimum="0"
-                        Thumb.DragCompleted="OnSliderDragCompleted"
-                        Thumb.DragStarted="OnSliderDragStarted"
                         Value="{Binding SliderValue, Mode=TwoWay}">
                         <b:Interaction.Triggers>
                             <b:EventTrigger EventName="PreviewMouseLeftButtonUp">
@@ -85,6 +90,7 @@
                         Grid.Column="2"
                         VerticalAlignment="Center"
                         FontSize="12"
+                        Foreground="{DynamicResource TextFillColorSecondaryBrush}"
                         Text="{Binding DurationText}" />
                 </Grid>
 
@@ -106,27 +112,32 @@
                         <Button
                             Margin="0,0,16,0"
                             Command="{Binding PlayPauseCommand}"
-                            Cursor="Hand"
+                            Style="{StaticResource ToolbarIconButtonStyle}"
                             ToolTip="播放 / 暂停 (Space)">
-                            <TextBlock
-                                HorizontalAlignment="Center"
-                                VerticalAlignment="Center"
-                                FontFamily="{StaticResource SegoeFluent}"
-                                FontSize="18"
-                                Text="{Binding PlayPauseIcon}" />
+                            <ui:FontIcon FontSize="18">
+                                <ui:FontIcon.Style>
+                                    <Style TargetType="ui:FontIcon">
+                                        <Setter Property="Icon" Value="{x:Static ui:SegoeFluentIcons.Play}" />
+                                        <Style.Triggers>
+                                            <DataTrigger Binding="{Binding IsPlaying}" Value="True">
+                                                <Setter Property="Icon" Value="{x:Static ui:SegoeFluentIcons.Pause}" />
+                                            </DataTrigger>
+                                        </Style.Triggers>
+                                    </Style>
+                                </ui:FontIcon.Style>
+                            </ui:FontIcon>
                         </Button>
                         <Button
                             Width="100"
                             Height="36"
                             Command="{Binding SaveCommand}"
-                            Cursor="Hand"
+                            Style="{StaticResource PixSnapAccentButtonStyle}"
                             ToolTip="保存 (Ctrl+S)">
                             <StackPanel Orientation="Horizontal">
-                                <TextBlock
+                                <ui:FontIcon
                                     VerticalAlignment="Center"
-                                    FontFamily="{StaticResource SegoeFluent}"
                                     FontSize="14"
-                                    Text="{StaticResource Glyph_Save}" />
+                                    Icon="{x:Static ui:SegoeFluentIcons.Save}" />
                                 <TextBlock
                                     Margin="6,0,0,0"
                                     VerticalAlignment="Center"
@@ -146,14 +157,20 @@
                             Height="32"
                             Padding="0"
                             Command="{Binding ToggleMuteCommand}"
-                            Cursor="Hand"
+                            Style="{StaticResource ToolbarIconButtonStyle}"
                             ToolTip="静音">
-                            <TextBlock
-                                HorizontalAlignment="Center"
-                                VerticalAlignment="Center"
-                                FontFamily="{StaticResource SegoeFluent}"
-                                FontSize="14"
-                                Text="{Binding VolumeIcon}" />
+                            <ui:FontIcon FontSize="14">
+                                <ui:FontIcon.Style>
+                                    <Style TargetType="ui:FontIcon">
+                                        <Setter Property="Icon" Value="{x:Static ui:SegoeFluentIcons.Volume}" />
+                                        <Style.Triggers>
+                                            <DataTrigger Binding="{Binding IsMuted}" Value="True">
+                                                <Setter Property="Icon" Value="{x:Static ui:SegoeFluentIcons.Mute}" />
+                                            </DataTrigger>
+                                        </Style.Triggers>
+                                    </Style>
+                                </ui:FontIcon.Style>
+                            </ui:FontIcon>
                         </Button>
                         <Slider
                             Width="50"
@@ -169,4 +186,4 @@
             </Grid>
         </Border>
     </Grid>
-</mica:MicaWindow>
+</Window>
