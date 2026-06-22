@@ -4,6 +4,9 @@
     xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
     xmlns:shell="clr-namespace:System.Windows.Shell;assembly=PresentationFramework"
     xmlns:ui="http://schemas.inkore.net/lib/ui/wpf/modern">
+    <UserControl.Resources>
+        <BooleanToVisibilityConverter x:Key="BoolToVisibility" />
+    </UserControl.Resources>
     <Grid>
         <Grid.ColumnDefinitions>
             <ColumnDefinition Width="*" />
@@ -19,7 +22,7 @@
                 shell:WindowChrome.IsHitTestVisibleInChrome="True"
                 Command="{Binding OpenFileCommand}"
                 Style="{StaticResource PreviewPrimaryActionButtonStyle}"
-                ToolTip="打开文件">
+                ToolTip="打开 (Ctrl+O)">
                 <StackPanel Orientation="Horizontal">
                     <ui:FontIcon
                         VerticalAlignment="Center"
@@ -37,21 +40,23 @@
                 shell:WindowChrome.IsHitTestVisibleInChrome="True"
                 Command="{Binding SaveToFileCommand}"
                 Style="{StaticResource BorderlessToolbarButtonStyle}"
-                ToolTip="保存">
+                ToolTip="保存 (Ctrl+S)">
                 <ui:FontIcon FontSize="14" Icon="{x:Static ui:SegoeFluentIcons.Save}" />
             </Button>
             <Button
                 shell:WindowChrome.IsHitTestVisibleInChrome="True"
                 Command="{Binding UndoCommand}"
                 Style="{StaticResource BorderlessToolbarButtonStyle}"
-                ToolTip="撤销">
+                ToolTip="撤销 (Ctrl+Z)"
+                Visibility="{Binding IsTitleBarHistoryVisible, Converter={StaticResource BoolToVisibility}}">
                 <ui:FontIcon FontSize="14" Icon="{x:Static ui:SegoeFluentIcons.Undo}" />
             </Button>
             <Button
                 shell:WindowChrome.IsHitTestVisibleInChrome="True"
                 Command="{Binding RedoCommand}"
                 Style="{StaticResource BorderlessToolbarButtonStyle}"
-                ToolTip="重做">
+                ToolTip="重做 (Ctrl+Y)"
+                Visibility="{Binding IsTitleBarHistoryVisible, Converter={StaticResource BoolToVisibility}}">
                 <ui:FontIcon FontSize="14" Icon="{x:Static ui:SegoeFluentIcons.Redo}" />
             </Button>
             <Border Style="{StaticResource ToolbarSeparatorStyle}" />
@@ -59,52 +64,44 @@
                 shell:WindowChrome.IsHitTestVisibleInChrome="True"
                 Command="{Binding RotateImageCommand}"
                 Style="{StaticResource BorderlessToolbarButtonStyle}"
-                ToolTip="旋转">
+                ToolTip="顺时针旋转 90°">
                 <ui:FontIcon FontSize="14" Icon="{x:Static ui:SegoeFluentIcons.Rotate}" />
             </Button>
             <Button
                 shell:WindowChrome.IsHitTestVisibleInChrome="True"
                 Command="{Binding CopyToClipboardCommand}"
                 Style="{StaticResource BorderlessToolbarButtonStyle}"
-                ToolTip="复制到剪切板">
+                ToolTip="复制到剪贴板 (Ctrl+C)">
                 <ui:FontIcon FontSize="14" Icon="{x:Static ui:SegoeFluentIcons.Copy}" />
             </Button>
             <Border Style="{StaticResource ToolbarSeparatorStyle}" />
             <Button
                 shell:WindowChrome.IsHitTestVisibleInChrome="True"
                 Command="{Binding ToggleCropCommand}"
-                Style="{StaticResource BorderlessToolbarButtonStyle}"
-                ToolTip="裁剪">
+                Style="{StaticResource PreviewCropModeButtonStyle}"
+                ToolTip="裁剪（再次点击退出）">
                 <ui:FontIcon FontSize="14" Icon="{x:Static ui:SegoeFluentIcons.Crop}" />
             </Button>
             <Button
                 shell:WindowChrome.IsHitTestVisibleInChrome="True"
                 Command="{Binding ToggleRoundCornerCommand}"
-                Style="{StaticResource BorderlessToolbarButtonStyle}"
-                ToolTip="圆角">
+                Style="{StaticResource PreviewRoundCornerModeButtonStyle}"
+                ToolTip="圆角（再次点击退出）">
                 <ui:FontIcon FontSize="14" Glyph="&#xF16B;" />
             </Button>
             <Button
                 shell:WindowChrome.IsHitTestVisibleInChrome="True"
                 Command="{Binding ToggleEraserCommand}"
-                Style="{StaticResource BorderlessToolbarButtonStyle}"
-                ToolTip="AI擦除">
+                Style="{StaticResource PreviewEraserModeButtonStyle}"
+                ToolTip="AI 擦除（再次点击退出）">
                 <ui:FontIcon FontSize="14" Icon="{x:Static ui:SegoeFluentIcons.EraseTool}" />
             </Button>
             <Button
                 shell:WindowChrome.IsHitTestVisibleInChrome="True"
                 Command="{Binding ToggleAnnotationCommand}"
-                Style="{StaticResource BorderlessToolbarButtonStyle}"
-                ToolTip="标注">
+                Style="{StaticResource PreviewAnnotateModeButtonStyle}"
+                ToolTip="标注（再次点击退出）">
                 <ui:FontIcon FontSize="14" Icon="{x:Static ui:SegoeFluentIcons.Highlight}" />
-            </Button>
-            <Border Style="{StaticResource ToolbarSeparatorStyle}" />
-            <Button
-                shell:WindowChrome.IsHitTestVisibleInChrome="True"
-                Command="{Binding RecaptureCommand}"
-                Style="{StaticResource BorderlessToolbarButtonStyle}"
-                ToolTip="重新截图">
-                <ui:FontIcon FontSize="14" Icon="{x:Static ui:SegoeFluentIcons.Refresh}" />
             </Button>
             <Border Style="{StaticResource PreviewTitleChipStyle}">
                 <TextBlock Style="{StaticResource PreviewTitleTextStyle}" Text="{Binding CaptureTitleDisplay}" />
@@ -126,7 +123,7 @@
                 shell:WindowChrome.IsHitTestVisibleInChrome="True"
                 Command="{Binding OpenLogFolderCommand}"
                 Style="{StaticResource BorderlessToolbarButtonStyle}"
-                ToolTip="日志">
+                ToolTip="打开日志文件夹">
                 <ui:FontIcon FontSize="14" Icon="{x:Static ui:SegoeFluentIcons.Diagnostic}" />
             </Button>
             <Button

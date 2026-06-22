@@ -35,6 +35,8 @@ public interface IScreenCaptureService
     void ResumeRecording();
     /// <summary>停止当前录制并完成文件写入。</summary>
     void StopRecording();
+    /// <summary>在后台线程停止录制并完成文件写入，避免阻塞 UI。</summary>
+    Task StopRecordingAsync();
     /// <summary>当前是否正在录制。</summary>
     bool IsRecording { get; }
     /// <summary>音频设备初始化是否失败（录制启动后查询）。</summary>

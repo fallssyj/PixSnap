@@ -20,7 +20,7 @@
                     <ItemsControl ItemsSource="{Binding AnnotationTools}">
                         <ItemsControl.ItemsPanel>
                             <ItemsPanelTemplate>
-                                <UniformGrid Columns="4" Rows="2" />
+                                <UniformGrid Columns="5" Rows="2" />
                             </ItemsPanelTemplate>
                         </ItemsControl.ItemsPanel>
                         <ItemsControl.ItemTemplate>
@@ -47,6 +47,33 @@
                             <TextBlock Margin="6,0,0,0" Text="删除选中" />
                         </StackPanel>
                     </Button>
+
+                    <StackPanel
+                        Margin="0,6,0,0"
+                        HorizontalAlignment="Center"
+                        Orientation="Horizontal"
+                        Visibility="{Binding AnnotationPanel.HasSelectedAnnotation, Converter={StaticResource BoolToVisibility}}">
+                        <Button
+                            Margin="0,0,4,0"
+                            Command="{Binding AnnotationPanel.SendBackwardCommand}"
+                            Style="{StaticResource PanelIconButtonStyle}"
+                            ToolTip="下移一层">
+                            <ui:FontIcon FontSize="14" Glyph="&#xE74B;" />
+                        </Button>
+                        <Button
+                            Margin="0,0,4,0"
+                            Command="{Binding AnnotationPanel.BringForwardCommand}"
+                            Style="{StaticResource PanelIconButtonStyle}"
+                            ToolTip="上移一层">
+                            <ui:FontIcon FontSize="14" Glyph="&#xE74A;" />
+                        </Button>
+                        <Button
+                            Command="{Binding AnnotationPanel.DuplicateSelectedAnnotationCommand}"
+                            Style="{StaticResource PanelIconButtonStyle}"
+                            ToolTip="复制 (Ctrl+D)">
+                            <ui:FontIcon FontSize="14" Icon="{x:Static ui:SegoeFluentIcons.Copy}" />
+                        </Button>
+                    </StackPanel>
                 </StackPanel>
             </Border>
 
@@ -70,6 +97,125 @@
                             </DataTemplate>
                         </ItemsControl.ItemTemplate>
                     </ItemsControl>
+
+                    <StackPanel
+                        Margin="0,8,0,0"
+                        HorizontalAlignment="Center"
+                        Orientation="Horizontal"
+                        Visibility="{Binding AnnotationPanel.IsColorSettingsVisible, Converter={StaticResource BoolToVisibility}}">
+                        <Button
+                            x:Name="CustomColorButton"
+                            Command="{Binding AnnotationPanel.PickCustomColorCommand}"
+                            Style="{StaticResource CustomAnnotationColorButtonStyle}"
+                            ToolTip="自定义颜色">
+                            <Border
+                                Width="14"
+                                Height="14"
+                                Background="{Binding AnnotationPanel.StrokeColorBrush}"
+                                CornerRadius="2" />
+                        </Button>
+                        <Popup
+                            AllowsTransparency="True"
+                            IsOpen="{Binding AnnotationPanel.IsColorPickerOpen, Mode=TwoWay}"
+                            Placement="Bottom"
+                            PlacementTarget="{Binding ElementName=CustomColorButton}"
+                            StaysOpen="False">
+                            <Border
+                                MinWidth="220"
+                                Padding="10"
+                                Background="{DynamicResource LayerFillColorDefaultBrush}"
+                                BorderBrush="{DynamicResource CardStrokeColorDefaultBrush}"
+                                BorderThickness="1"
+                                CornerRadius="8">
+                                <StackPanel>
+                                    <Border
+                                        Height="28"
+                                        Margin="0,0,0,8"
+                                        Background="{Binding AnnotationPanel.StrokeColorBrush}"
+                                        CornerRadius="4" />
+                                    <controls:SliderField
+                                        Label="R"
+                                        LargeChange="16"
+                                        Maximum="255"
+                                        Minimum="0"
+                                        SmallChange="1"
+                                        TickFrequency="1"
+                                        Value="{Binding AnnotationPanel.CustomColorRed, Mode=TwoWay}" />
+                                    <controls:SliderField
+                                        Label="G"
+                                        LargeChange="16"
+                                        Maximum="255"
+                                        Minimum="0"
+                                        SmallChange="1"
+                                        TickFrequency="1"
+                                        Value="{Binding AnnotationPanel.CustomColorGreen, Mode=TwoWay}" />
+                                    <controls:SliderField
+                                        Label="B"
+                                        LargeChange="16"
+                                        Maximum="255"
+                                        Minimum="0"
+                                        SmallChange="1"
+                                        TickFrequency="1"
+                                        Value="{Binding AnnotationPanel.CustomColorBlue, Mode=TwoWay}" />
+                                    <controls:SliderField
+                                        Label="A"
+                                        LargeChange="16"
+                                        Maximum="255"
+                                        Minimum="0"
+                                        SmallChange="1"
+                                        TickFrequency="1"
+                                        Value="{Binding AnnotationPanel.CustomColorAlpha, Mode=TwoWay}" />
+                                </StackPanel>
+                            </Border>
+                        </Popup>
+                    </StackPanel>
+
+                    <StackPanel
+                        Margin="0,8,0,0"
+                        HorizontalAlignment="Center"
+                        Orientation="Horizontal">
+                        <Button
+                            Margin="0,0,4,0"
+                            Command="{Binding AnnotationPanel.UndoAnnotationCommand}"
+                            Style="{StaticResource PanelIconButtonStyle}"
+                            ToolTip="撤销 (Ctrl+Z)">
+                            <ui:FontIcon FontSize="14" Icon="{x:Static ui:SegoeFluentIcons.Undo}" />
+                        </Button>
+                        <Button
+                            Command="{Binding AnnotationPanel.RedoAnnotationCommand}"
+                            Style="{StaticResource PanelIconButtonStyle}"
+                            ToolTip="重做 (Ctrl+Y)">
+                            <ui:FontIcon FontSize="14" Icon="{x:Static ui:SegoeFluentIcons.Redo}" />
+                        </Button>
+                    </StackPanel>
+
+                    <controls:SliderField
+                        Margin="0,8,0,0"
+                        Label="透明度"
+                        LargeChange="10"
+                        Maximum="100"
+                        Minimum="5"
+                        SmallChange="1"
+                        TickFrequency="5"
+                        Unit="%"
+                        Visibility="{Binding AnnotationPanel.IsColorSettingsVisible, Converter={StaticResource BoolToVisibility}}"
+                        Value="{Binding AnnotationPanel.StrokeOpacity, Mode=TwoWay}" />
+
+                    <StackPanel Margin="0,8,0,0" Visibility="{Binding AnnotationPanel.IsFillSettingsVisible, Converter={StaticResource BoolToVisibility}}">
+                        <CheckBox
+                            Content="填充"
+                            IsChecked="{Binding AnnotationPanel.HasFill, Mode=TwoWay}" />
+                        <controls:SliderField
+                            Label="填充透明度"
+                            LargeChange="10"
+                            Maximum="100"
+                            Minimum="5"
+                            SmallChange="1"
+                            TickFrequency="5"
+                            Unit="%"
+                            Value="{Binding AnnotationPanel.FillOpacity, Mode=TwoWay}"
+                            Visibility="{Binding AnnotationPanel.HasFill, Converter={StaticResource BoolToVisibility}}" />
+                    </StackPanel>
 
                     <StackPanel Margin="0,8,0,0" Visibility="{Binding AnnotationPanel.IsShapeSettingsVisible, Converter={StaticResource BoolToVisibility}}">
                         <controls:SliderField
@@ -95,7 +241,7 @@
 
                     <controls:SliderField
                         Margin="0,8,0,0"
-                        Label="模糊"
+                        Label="强度"
                         LargeChange="5"
                         Maximum="50"
                         Minimum="1"
@@ -104,12 +250,42 @@
                         Visibility="{Binding AnnotationPanel.IsBlurSettingsVisible, Converter={StaticResource BoolToVisibility}}"
                         Value="{Binding AnnotationPanel.BlurRadius, Mode=TwoWay}" />
 
+                    <CheckBox
+                        Margin="0,8,0,0"
+                        Content="马赛克模式"
+                        IsChecked="{Binding AnnotationPanel.UseMosaic, Mode=TwoWay}"
+                        Visibility="{Binding AnnotationPanel.IsBlurSettingsVisible, Converter={StaticResource BoolToVisibility}}" />
+
                     <StackPanel Margin="0,8,0,0" Visibility="{Binding AnnotationPanel.IsTextSettingsVisible, Converter={StaticResource BoolToVisibility}}">
                         <ComboBox
                             Height="28"
                             FontSize="13"
                             ItemsSource="{Binding AnnotationPanel.FontFamilies}"
                             SelectedItem="{Binding AnnotationPanel.FontFamily, Mode=TwoWay}" />
+                        <CheckBox
+                            Margin="0,8,0,0"
+                            Content="文字背景"
+                            IsChecked="{Binding AnnotationPanel.HasTextBackground, Mode=TwoWay}" />
+                        <Border
+                            Height="24"
+                            Margin="0,6,0,0"
+                            Background="{Binding AnnotationPanel.TextBackgroundColorBrush}"
+                            CornerRadius="4"
+                            Visibility="{Binding AnnotationPanel.HasTextBackground, Converter={StaticResource BoolToVisibility}}" />
+                        <StackPanel
+                            Margin="0,6,0,0"
+                            Orientation="Horizontal"
+                            Visibility="{Binding AnnotationPanel.HasTextBackground, Converter={StaticResource BoolToVisibility}}">
+                            <Button
+                                Margin="0,0,6,0"
+                                Command="{Binding AnnotationPanel.SetTextBackgroundDarkCommand}"
+                                Content="深色"
+                                Style="{StaticResource PanelGhostButtonStyle}" />
+                            <Button
+                                Command="{Binding AnnotationPanel.SetTextBackgroundLightCommand}"
+                                Content="浅色"
+                                Style="{StaticResource PanelGhostButtonStyle}" />
+                        </StackPanel>
                         <Grid Margin="0,8,0,0">
                             <Grid.ColumnDefinitions>
                                 <ColumnDefinition Width="52" />

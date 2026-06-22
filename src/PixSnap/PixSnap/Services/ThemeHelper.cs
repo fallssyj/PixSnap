@@ -8,6 +8,7 @@ namespace PixSnap.Services;
 internal static class ThemeHelper
 {
     private static int _themeIndex;
+    private static readonly object HookLock = new();
     private static bool _hooksRegistered;
 
     /// <summary>主题应用完成后触发（含设置页实时预览）。</summary>
@@ -39,22 +40,25 @@ internal static class ThemeHelper
 
     private static void EnsureHooks()
     {
-        if (_hooksRegistered)
-            return;
+        lock (HookLock)
+        {
+            if (_hooksRegistered)
+                return;
 
-        _hooksRegistered = true;
-        ColorsHelper.Current.SystemThemeChanged += (_, _) =>
-        {
-            if (_themeIndex == 0)
-                ApplyAutoThemeOnUiThread();
-        };
-        SystemEvents.UserPreferenceChanged += (_, e) =>
-        {
-            if (e.Category == UserPreferenceCategory.General && _themeIndex == 0)
-                ApplyAutoThemeOnUiThread();
-            else if (e.Category == UserPreferenceCategory.Color)
-                NotifyThemeResourcesChanged();
-        };
+            _hooksRegistered = true;
+            ColorsHelper.Current.SystemThemeChanged += (_, _) =>
+            {
+                if (_themeIndex == 0)
+                    ApplyAutoThemeOnUiThread();
+            };
+            SystemEvents.UserPreferenceChanged += (_, e) =>
+            {
+                if (e.Category == UserPreferenceCategory.General && _themeIndex == 0)
+                    ApplyAutoThemeOnUiThread();
+                else if (e.Category == UserPreferenceCategory.Color)
+                    NotifyThemeResourcesChanged();
+            };
+        }
     }
 
     private static void NotifyThemeResourcesChanged()

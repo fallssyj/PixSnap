@@ -1,5 +1,6 @@
-﻿using iNKORE.UI.WPF.Modern.Common.IconKeys;
+using iNKORE.UI.WPF.Modern.Common.IconKeys;
 using iNKORE.UI.WPF.Modern.Controls;
+using PixSnap.Services;
 using PixSnap.ViewModels;
 using System.ComponentModel;
 using System.Windows;
@@ -79,7 +80,10 @@ public partial class AnnotationOverlayControl : UserControl
         control.UpdateAnnotationCursor();
 
         if (active)
+        {
             control.UpdateAnnotationCanvasSize();
+            control.AnnotationCanvas.Focus();
+        }
         else
         {
             control.CommitActiveTextBox();
@@ -402,6 +406,19 @@ public partial class AnnotationOverlayControl : UserControl
         if (ViewModel is null || !IsActive) return;
         if (_activeTextBox is not null) return; // 文本输入中不处理
 
+        if (Keyboard.Modifiers == ModifierKeys.Control && e.Key == Key.D)
+        {
+            ViewModel.DuplicateSelectedAnnotationCommand.Execute(null);
+            e.Handled = true;
+            return;
+        }
+
+        if (Keyboard.Modifiers == ModifierKeys.None && ViewModel.TrySelectToolFromKey(e.Key))
+        {
+            e.Handled = true;
+            return;
+        }
+
         if (e.Key == Key.Delete || e.Key == Key.Back)
         {
             ViewModel.DeleteSelectedAnnotationCommand.Execute(null);
@@ -583,6 +600,7 @@ public partial class AnnotationOverlayControl : UserControl
             case AnnotationTool.Arrow: DrawArrow(item, brush, thickness, sx, sy, ex, ey); break;
             case AnnotationTool.Rectangle: DrawRectangle(item, brush, thickness, d, sx, sy, ex, ey); break;
             case AnnotationTool.Ellipse: DrawEllipse(item, brush, thickness, sx, sy, ex, ey); break;
+            case AnnotationTool.Number: DrawNumber(item, brush, d, sx, sy); break;
             case AnnotationTool.Text: DrawText(item, brush, d, sx, sy); break;
             case AnnotationTool.Pen: DrawPen(item, brush, thickness, d, iox, ioy); break;
             case AnnotationTool.Blur: DrawBlur(item, d, iox, ioy, sx, sy, ex, ey); break;
@@ -614,6 +632,8 @@ public partial class AnnotationOverlayControl : UserControl
             RadiusY = item.CornerRadius * d,
             Tag = item
         };
+        if (item.HasFill)
+            rect.Fill = CreateFillBrush(item);
         Canvas.SetLeft(rect, Math.Min(sx, ex));
         Canvas.SetTop(rect, Math.Min(sy, ey));
         AnnotationCanvas.Children.Add(rect);
@@ -630,13 +650,74 @@ public partial class AnnotationOverlayControl : UserControl
             StrokeThickness = thickness,
             Tag = item
         };
+        if (item.HasFill)
+            ell.Fill = CreateFillBrush(item);
         Canvas.SetLeft(ell, Math.Min(sx, ex));
         Canvas.SetTop(ell, Math.Min(sy, ey));
         AnnotationCanvas.Children.Add(ell);
     }
 
+    private static SolidColorBrush CreateFillBrush(AnnotationItem item)
+    {
+        var alpha = (byte)Math.Clamp(Math.Round(item.FillOpacity / 100.0 * 255), 0, 255);
+        return new SolidColorBrush(Color.FromArgb(alpha, item.StrokeColor.R, item.StrokeColor.G, item.StrokeColor.B));
+    }
+
+    private void DrawNumber(AnnotationItem item, SolidColorBrush brush, double d, double sx, double sy)
+    {
+        double size = Math.Max(Math.Abs(item.End.X - item.Start.X), Math.Abs(item.End.Y - item.Start.Y)) * d;
+        if (size < 1) size = AnnotationViewModel.NumberBadgeDiameter * d;
+
+        var circle = new System.Windows.Shapes.Ellipse
+        {
+            Width = size,
+            Height = size,
+            Fill = brush,
+            Tag = item
+        };
+        Canvas.SetLeft(circle, sx);
+        Canvas.SetTop(circle, sy);
+        AnnotationCanvas.Children.Add(circle);
+
+        var luminance = item.StrokeColor.R * 0.299 + item.StrokeColor.G * 0.587 + item.StrokeColor.B * 0.114;
+        var textBrush = luminance > 180 ? Brushes.Black : Brushes.White;
+
+        var label = new TextBlock
+        {
+            Text = item.Text,
+            Foreground = textBrush,
+            FontSize = Math.Max(10, item.FontSize * d),
+            FontWeight = FontWeights.Bold,
+            TextAlignment = TextAlignment.Center,
+            Width = size,
+            Tag = item
+        };
+        Canvas.SetLeft(label, sx);
+        Canvas.SetTop(label, sy + size * 0.22);
+        AnnotationCanvas.Children.Add(label);
+    }
+
     private void DrawText(AnnotationItem item, SolidColorBrush brush, double d, double sx, double sy)
     {
+        var textSize = AnnotationViewModel.MeasureTextSize(item);
+        double pad = item.FontSize * d * 0.15;
+
+        if (item.HasTextBackground && item.TextBackgroundColor.A > 0)
+        {
+            var bg = new System.Windows.Shapes.Rectangle
+            {
+                Width = textSize.Width * d + pad * 2,
+                Height = textSize.Height * d + pad * 2,
+                Fill = new SolidColorBrush(item.TextBackgroundColor),
+                RadiusX = 4 * d,
+                RadiusY = 4 * d,
+                Tag = item
+            };
+            Canvas.SetLeft(bg, sx - pad);
+            Canvas.SetTop(bg, sy - pad);
+            AnnotationCanvas.Children.Add(bg);
+        }
+
         var tb = new TextBlock
         {
             Text = item.Text,
@@ -660,16 +741,17 @@ public partial class AnnotationOverlayControl : UserControl
         double d, double iox, double ioy)
     {
         if (item.PenPoints.Count < 2) return;
-        var polyline = new Polyline
+        var path = new System.Windows.Shapes.Path
         {
+            Data = AnnotationPenHelper.BuildSmoothPath(item.PenPoints, iox, ioy, d),
             Stroke = brush,
             StrokeThickness = thickness,
             StrokeLineJoin = PenLineJoin.Round,
+            StrokeStartLineCap = PenLineCap.Round,
+            StrokeEndLineCap = PenLineCap.Round,
             Tag = item
         };
-        foreach (var pt in item.PenPoints)
-            polyline.Points.Add(new Point(pt.X * d + iox, pt.Y * d + ioy));
-        AnnotationCanvas.Children.Add(polyline);
+        AnnotationCanvas.Children.Add(path);
     }
 
     private void DrawBlur(AnnotationItem item, double d, double iox, double ioy,
@@ -689,15 +771,43 @@ public partial class AnnotationOverlayControl : UserControl
             if (pw > 0 && ph > 0)
             {
                 var cropped = new CroppedBitmap(src, new Int32Rect(px, py, pw, ph));
+                BitmapSource previewSource = cropped;
+
+                if (item.UseMosaic)
+                {
+                    int blockSize = Math.Max(4, (int)Math.Round(item.BlurRadius));
+                    int smallW = Math.Max(1, pw / blockSize);
+                    int smallH = Math.Max(1, ph / blockSize);
+                    var down = new TransformedBitmap(cropped, new ScaleTransform(
+                        smallW / (double)pw, smallH / (double)ph));
+                    down.Freeze();
+                    var up = new TransformedBitmap(down, new ScaleTransform(
+                        pw / (double)smallW, ph / (double)smallH));
+                    up.Freeze();
+                    previewSource = up;
+                }
+
                 var blurImage = new System.Windows.Controls.Image
                 {
-                    Source = cropped,
+                    Source = previewSource,
                     Width = bw,
                     Height = bh,
                     Stretch = System.Windows.Media.Stretch.Fill,
-                    Effect = new System.Windows.Media.Effects.BlurEffect { Radius = item.BlurRadius * d * 3 },
                     Tag = item
                 };
+
+                if (!item.UseMosaic)
+                {
+                    blurImage.Effect = new System.Windows.Media.Effects.BlurEffect
+                    {
+                        Radius = item.BlurRadius * d * 3
+                    };
+                }
+                else
+                {
+                    RenderOptions.SetBitmapScalingMode(blurImage, BitmapScalingMode.NearestNeighbor);
+                }
+
                 Canvas.SetLeft(blurImage, bx);
                 Canvas.SetTop(blurImage, by);
                 AnnotationCanvas.Children.Add(blurImage);
@@ -724,14 +834,15 @@ public partial class AnnotationOverlayControl : UserControl
         var bounds = GetAnnotationScreenBounds(item, d);
         if (bounds.Width <= 0 || bounds.Height <= 0) return;
 
-        bounds.Inflate(4, 4);
+        var accent = GetAccentBrush();
+        bounds.Inflate(5, 5);
         var selRect = new System.Windows.Shapes.Rectangle
         {
             Width = bounds.Width,
             Height = bounds.Height,
-            Stroke = System.Windows.Media.Brushes.DodgerBlue,
-            StrokeThickness = 1.5,
-            StrokeDashArray = [4, 2],
+            Stroke = accent,
+            StrokeThickness = 2,
+            StrokeDashArray = [6, 3],
             Fill = null,
             Tag = item
         };
@@ -739,37 +850,7 @@ public partial class AnnotationOverlayControl : UserControl
         Canvas.SetTop(selRect, bounds.Y);
         AnnotationCanvas.Children.Add(selRect);
 
-        // ── 删除按钮（选中框右上角）──
-        const double btnSize = 22;
-        var deleteBtn = new Border
-        {
-            Width = btnSize,
-            Height = btnSize,
-            Background = new SolidColorBrush(Color.FromArgb(220, 220, 53, 69)),
-            CornerRadius = new CornerRadius(btnSize / 2),
-            Cursor = Cursors.Hand,
-            ToolTip = "删除",
-            Tag = "_delete_"
-        };
-        deleteBtn.Child = new FontIcon
-        {
-            Icon = SegoeFluentIcons.Delete,
-            FontSize = 11,
-            Foreground = Brushes.White,
-            HorizontalAlignment = HorizontalAlignment.Center,
-            VerticalAlignment = VerticalAlignment.Center
-        };
-        deleteBtn.MouseLeftButtonDown += (_, ev) =>
-        {
-            ev.Handled = true;
-            if (ViewModel is not null)
-                ViewModel.DeleteSelectedAnnotationCommand.Execute(null);
-        };
-        Canvas.SetLeft(deleteBtn, bounds.X + bounds.Width - btnSize / 2);
-        Canvas.SetTop(deleteBtn, bounds.Y - btnSize / 2);
-        AnnotationCanvas.Children.Add(deleteBtn);
-
-        const double hs = 7;
+        const double hs = 8;
         double cx = bounds.X + bounds.Width / 2, cy = bounds.Y + bounds.Height / 2;
         Point[] handles =
         [
@@ -789,8 +870,8 @@ public partial class AnnotationOverlayControl : UserControl
                 Width = hs,
                 Height = hs,
                 Fill = System.Windows.Media.Brushes.White,
-                Stroke = System.Windows.Media.Brushes.DodgerBlue,
-                StrokeThickness = 1.2,
+                Stroke = accent,
+                StrokeThickness = 1.5,
                 Tag = item
             };
             Canvas.SetLeft(handle, hp.X - hs / 2);
@@ -798,6 +879,10 @@ public partial class AnnotationOverlayControl : UserControl
             AnnotationCanvas.Children.Add(handle);
         }
     }
+
+    private static Brush GetAccentBrush()
+        => Application.Current.TryFindResource("SystemControlForegroundAccentBrush") as Brush
+           ?? System.Windows.Media.Brushes.DodgerBlue;
 
     private static Rect GetAnnotationScreenBounds(AnnotationItem item, double d)
     {
@@ -815,6 +900,7 @@ public partial class AnnotationOverlayControl : UserControl
             case AnnotationTool.Rectangle:
             case AnnotationTool.Ellipse:
             case AnnotationTool.Blur:
+            case AnnotationTool.Number:
                 return new Rect(new Point(Math.Min(sx, ex), Math.Min(sy, ey)), new Point(Math.Max(sx, ex), Math.Max(sy, ey)));
             case AnnotationTool.Text:
                 var textSize = AnnotationViewModel.MeasureTextSize(item);

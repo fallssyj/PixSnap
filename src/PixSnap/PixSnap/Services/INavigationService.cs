@@ -10,7 +10,5 @@ public interface INavigationService
 
     void StartCapture();
 
-    void Recapture();
-
     void ShutdownApplication();
 }

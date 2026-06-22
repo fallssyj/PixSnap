@@ -13,7 +13,5 @@ public sealed class NavigationService : INavigationService
 
     public void StartCapture() => WeakReferenceMessenger.Default.Send(new StartCaptureMessage());
 
-    public void Recapture() => WeakReferenceMessenger.Default.Send(new RecaptureMessage());
-
     public void ShutdownApplication() => WeakReferenceMessenger.Default.Send(new ShutdownApplicationMessage());
 }

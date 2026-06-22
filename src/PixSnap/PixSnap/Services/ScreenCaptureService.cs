@@ -135,6 +135,12 @@ public sealed class ScreenCaptureService : IScreenCaptureService, IDisposable
         _nativeCapturer.StopRecording();
     }
 
+    public Task StopRecordingAsync()
+    {
+        Log.Information("停止录制（后台）");
+        return Task.Run(StopRecording);
+    }
+
     private static Task<BitmapSource> InvokeCaptureAsync(Func<BitmapSource> captureAction)
     {
         // 保持使用 WGC，但避免在 STA UI 线程等待首帧导致窗口响应被阻塞。

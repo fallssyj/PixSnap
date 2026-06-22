@@ -5,13 +5,14 @@ using Serilog;
 using SkiaSharp;
 using System.Collections.ObjectModel;
 using System.Windows;
+using System.Windows.Input;
 using System.Windows.Media;
 using System.Windows.Media.Imaging;
 
 namespace PixSnap.ViewModels;
 
 /// <summary>标注工具类型。</summary>
-public enum AnnotationTool { Pointer, Arrow, Rectangle, Ellipse, Text, Pen, Blur }
+public enum AnnotationTool { Pointer, Arrow, Rectangle, Ellipse, Text, Pen, Blur, Number }
 
 /// <summary>单条标注元素。</summary>
 public sealed class AnnotationItem
@@ -30,6 +31,11 @@ public sealed class AnnotationItem
     public bool IsStrikethrough { get; set; }
     public double CornerRadius { get; set; }
     public double BlurRadius { get; set; } = 10;
+    public bool UseMosaic { get; set; }
+    public bool HasTextBackground { get; set; }
+    public Color TextBackgroundColor { get; set; } = Color.FromArgb(180, 0, 0, 0);
+    public bool HasFill { get; set; }
+    public double FillOpacity { get; set; } = 40;
     public List<Point> PenPoints { get; } = [];
     public Vector Offset { get; set; }
 }
@@ -110,6 +116,60 @@ internal sealed class ResizePenAction(AnnotationItem item, List<Point> oldPoints
     }
 }
 
+internal sealed class EditBlurMosaicAction(AnnotationItem item, bool oldValue, bool newValue) : IAnnotationAction
+{
+    public void Undo(ObservableCollection<AnnotationItem> annotations) { item.UseMosaic = oldValue; }
+    public void Redo(ObservableCollection<AnnotationItem> annotations) { item.UseMosaic = newValue; }
+}
+
+internal sealed class EditFillAction(AnnotationItem item, bool oldHasFill, double oldFillOpacity, bool newHasFill, double newFillOpacity) : IAnnotationAction
+{
+    public void Undo(ObservableCollection<AnnotationItem> annotations)
+    {
+        item.HasFill = oldHasFill;
+        item.FillOpacity = oldFillOpacity;
+    }
+
+    public void Redo(ObservableCollection<AnnotationItem> annotations)
+    {
+        item.HasFill = newHasFill;
+        item.FillOpacity = newFillOpacity;
+    }
+}
+
+internal sealed class ReorderAnnotationAction(AnnotationItem item, int oldIndex, int newIndex) : IAnnotationAction
+{
+    public void Undo(ObservableCollection<AnnotationItem> annotations)
+    {
+        annotations.Remove(item);
+        annotations.Insert(Math.Clamp(oldIndex, 0, annotations.Count), item);
+    }
+
+    public void Redo(ObservableCollection<AnnotationItem> annotations)
+    {
+        annotations.Remove(item);
+        annotations.Insert(Math.Clamp(newIndex, 0, annotations.Count), item);
+    }
+}
+
+internal sealed class EditTextBackgroundAction(
+    AnnotationItem item,
+    bool oldEnabled, Color oldColor,
+    bool newEnabled, Color newColor) : IAnnotationAction
+{
+    public void Undo(ObservableCollection<AnnotationItem> annotations)
+    {
+        item.HasTextBackground = oldEnabled;
+        item.TextBackgroundColor = oldColor;
+    }
+
+    public void Redo(ObservableCollection<AnnotationItem> annotations)
+    {
+        item.HasTextBackground = newEnabled;
+        item.TextBackgroundColor = newColor;
+    }
+}
+
 internal sealed class EditTextStyleAction(
     AnnotationItem item,
     string oldFamily, double oldSize, bool oldBold, bool oldItalic, bool oldUnderline, bool oldStrikethrough,
@@ -137,6 +197,8 @@ public partial class AnnotationViewModel : ObservableObject
 {
     private readonly Stack<IAnnotationAction> _undoStack = new();
     private readonly Stack<IAnnotationAction> _redoStack = new();
+    private const double NumberBadgeSize = 28;
+    internal const double NumberBadgeDiameter = NumberBadgeSize;
 
     [ObservableProperty]
     [NotifyPropertyChangedFor(nameof(IsTextSettingsVisible))]
@@ -144,7 +206,11 @@ public partial class AnnotationViewModel : ObservableObject
     [NotifyPropertyChangedFor(nameof(IsBlurSettingsVisible))]
     [NotifyPropertyChangedFor(nameof(IsShapeSettingsVisible))]
     [NotifyPropertyChangedFor(nameof(IsColorSettingsVisible))]
+    [NotifyPropertyChangedFor(nameof(IsStrokeSettingsVisible))]
     [NotifyPropertyChangedFor(nameof(IsPropertyPanelVisible))]
+    [NotifyPropertyChangedFor(nameof(IsFillSettingsVisible))]
+    [NotifyPropertyChangedFor(nameof(IsContextBarVisible))]
+    [NotifyPropertyChangedFor(nameof(IsToolOptionsBarVisible))]
     private AnnotationTool _selectedTool = AnnotationTool.Arrow;
 
     partial void OnSelectedToolChanged(AnnotationTool value)
@@ -155,17 +221,28 @@ public partial class AnnotationViewModel : ObservableObject
         CommitStrokeWidthEdit(item);
         CommitCornerRadiusEdit(item);
         CommitBlurRadiusEdit(item);
+        CommitBlurMosaicEdit(item);
+        CommitTextBackgroundEdit(item);
+        CommitFillEdit(item);
         OnPropertyChanged(nameof(IsShapeSettingsVisible));
         OnPropertyChanged(nameof(IsColorSettingsVisible));
+        OnPropertyChanged(nameof(IsStrokeSettingsVisible));
         OnPropertyChanged(nameof(IsTextSettingsVisible));
         OnPropertyChanged(nameof(IsRectangleSettingsVisible));
         OnPropertyChanged(nameof(IsBlurSettingsVisible));
+        OnPropertyChanged(nameof(IsFillSettingsVisible));
         OnPropertyChanged(nameof(IsPropertyPanelVisible));
+        OnPropertyChanged(nameof(IsContextBarVisible));
+        OnPropertyChanged(nameof(IsToolOptionsBarVisible));
     }
 
     [ObservableProperty]
     [NotifyPropertyChangedFor(nameof(StrokeColorBrush))]
     private Color _strokeColor = Colors.Red;
+
+    [ObservableProperty]
+    [NotifyPropertyChangedFor(nameof(StrokeColorBrush))]
+    private double _strokeOpacity = 100;
 
     [ObservableProperty]
     private double _strokeWidth = 3;
@@ -177,10 +254,26 @@ public partial class AnnotationViewModel : ObservableObject
     private double _blurRadius = 10;
 
     [ObservableProperty]
+    private bool _useMosaic;
+
+    [ObservableProperty]
+    private bool _hasTextBackground;
+
+    [ObservableProperty]
+    [NotifyPropertyChangedFor(nameof(TextBackgroundColorBrush))]
+    private Color _textBackgroundColor = Color.FromArgb(180, 0, 0, 0);
+
+    [ObservableProperty]
     private double _fontSize = 20;
 
     [ObservableProperty]
     private string _fontFamily = "Microsoft YaHei";
+
+    [ObservableProperty]
+    private bool _hasFill;
+
+    [ObservableProperty]
+    private double _fillOpacity = 40;
 
     [ObservableProperty]
     private bool _isBold;
@@ -207,6 +300,8 @@ public partial class AnnotationViewModel : ObservableObject
     [NotifyPropertyChangedFor(nameof(IsColorSettingsVisible))]
     [NotifyPropertyChangedFor(nameof(HasSelectedAnnotation))]
     [NotifyPropertyChangedFor(nameof(IsPropertyPanelVisible))]
+    [NotifyPropertyChangedFor(nameof(IsContextBarVisible))]
+    [NotifyPropertyChangedFor(nameof(IsToolOptionsBarVisible))]
     private AnnotationItem? _selectedAnnotation;
 
     [ObservableProperty]
@@ -227,18 +322,38 @@ public partial class AnnotationViewModel : ObservableObject
         SelectedTool == AnnotationTool.Blur ||
         (SelectedAnnotation is not null && SelectedAnnotation.Tool == AnnotationTool.Blur);
 
+    /// <summary>矩形/椭圆填充设置是否可见。</summary>
+    public bool IsFillSettingsVisible =>
+        SelectedTool is AnnotationTool.Rectangle or AnnotationTool.Ellipse ||
+        (SelectedAnnotation?.Tool is AnnotationTool.Rectangle or AnnotationTool.Ellipse);
+
     /// <summary>线宽/圆角等形状属性是否可见。</summary>
-    public bool IsShapeSettingsVisible => !IsTextSettingsVisible && !IsBlurSettingsVisible;
+    public bool IsShapeSettingsVisible =>
+        !IsTextSettingsVisible && !IsBlurSettingsVisible &&
+        SelectedTool != AnnotationTool.Number &&
+        SelectedAnnotation?.Tool != AnnotationTool.Number;
 
     /// <summary>颜色设置是否可见（模糊工具不使用描边色）。</summary>
     public bool IsColorSettingsVisible => !IsBlurSettingsVisible;
+
+    /// <summary>线宽/透明度等描边设置是否在底部条显示。</summary>
+    public bool IsStrokeSettingsVisible => IsShapeSettingsVisible || IsColorSettingsVisible;
 
     /// <summary>是否选中了可编辑的标注对象。</summary>
     public bool HasSelectedAnnotation => SelectedAnnotation is not null;
 
     /// <summary>属性区是否有内容可展示。</summary>
     public bool IsPropertyPanelVisible =>
-        IsColorSettingsVisible || IsShapeSettingsVisible || IsBlurSettingsVisible || IsTextSettingsVisible;
+        IsColorSettingsVisible || IsShapeSettingsVisible || IsBlurSettingsVisible ||
+        IsTextSettingsVisible || IsFillSettingsVisible;
+
+    /// <summary>底部上下文选项条是否可见（选中对象 / 文字排版）。</summary>
+    public bool IsContextBarVisible =>
+        HasSelectedAnnotation || IsTextSettingsVisible;
+
+    /// <summary>第二行工具专属选项（填充 / 圆角 / 模糊）。</summary>
+    public bool IsToolOptionsBarVisible =>
+        IsFillSettingsVisible || IsRectangleSettingsVisible || IsBlurSettingsVisible;
 
     private bool _syncingProperties;
 
@@ -254,16 +369,28 @@ public partial class AnnotationViewModel : ObservableObject
             CommitStrokeWidthEdit(oldValue);
             CommitCornerRadiusEdit(oldValue);
             CommitBlurRadiusEdit(oldValue);
+            CommitBlurMosaicEdit(oldValue);
+            CommitTextBackgroundEdit(oldValue);
+            CommitFillEdit(oldValue);
         }
 
         SyncPanelFromAnnotation(newValue);
         OnPropertyChanged(nameof(IsTextSettingsVisible));
         OnPropertyChanged(nameof(IsRectangleSettingsVisible));
         OnPropertyChanged(nameof(IsBlurSettingsVisible));
+        OnPropertyChanged(nameof(IsFillSettingsVisible));
         OnPropertyChanged(nameof(IsShapeSettingsVisible));
         OnPropertyChanged(nameof(IsColorSettingsVisible));
+        OnPropertyChanged(nameof(IsStrokeSettingsVisible));
         OnPropertyChanged(nameof(HasSelectedAnnotation));
         OnPropertyChanged(nameof(IsPropertyPanelVisible));
+        OnPropertyChanged(nameof(IsContextBarVisible));
+        OnPropertyChanged(nameof(IsToolOptionsBarVisible));
+        OnPropertyChanged(nameof(CanBringForward));
+        OnPropertyChanged(nameof(CanSendBackward));
+        BringForwardCommand.NotifyCanExecuteChanged();
+        SendBackwardCommand.NotifyCanExecuteChanged();
+        DuplicateSelectedAnnotationCommand.NotifyCanExecuteChanged();
     }
 
     private void SyncPanelFromAnnotation(AnnotationItem? item)
@@ -273,10 +400,18 @@ public partial class AnnotationViewModel : ObservableObject
         {
             StrokeColor = item.StrokeColor;
             StrokeWidth = item.StrokeWidth;
+            if (item.Tool == AnnotationTool.Rectangle || item.Tool == AnnotationTool.Ellipse)
+            {
+                HasFill = item.HasFill;
+                FillOpacity = item.FillOpacity;
+            }
             if (item.Tool == AnnotationTool.Rectangle)
                 CornerRadius = item.CornerRadius;
             if (item.Tool == AnnotationTool.Blur)
+            {
                 BlurRadius = item.BlurRadius;
+                UseMosaic = item.UseMosaic;
+            }
             if (item.Tool == AnnotationTool.Text)
             {
                 FontFamily = item.FontFamily;
@@ -285,10 +420,19 @@ public partial class AnnotationViewModel : ObservableObject
                 IsItalic = item.IsItalic;
                 IsUnderline = item.IsUnderline;
                 IsStrikethrough = item.IsStrikethrough;
+                HasTextBackground = item.HasTextBackground;
+                TextBackgroundColor = item.TextBackgroundColor;
             }
+
+            StrokeOpacity = item.StrokeColor.A / 255.0 * 100.0;
         }
         _syncingProperties = false;
     }
+
+    private Color ApplyStrokeOpacity(Color rgb) =>
+        Color.FromArgb(
+            (byte)Math.Round(StrokeOpacity / 100.0 * 255),
+            rgb.R, rgb.G, rgb.B);
 
     // ── 保存编辑前的文本样式用于撤销 ──────────────────────
 
@@ -475,14 +619,178 @@ public partial class AnnotationViewModel : ObservableObject
         _hasBlurRadiusSnapshot = false;
     }
 
+    // ── 马赛克模式编辑快照 / 提交 ────────────────────────
+
+    private bool _editOldUseMosaic;
+    private bool _hasBlurMosaicSnapshot;
+
+    private void SnapshotBlurMosaicIfNeeded()
+    {
+        if (_hasBlurMosaicSnapshot || SelectedAnnotation is not { Tool: AnnotationTool.Blur }) return;
+        _editOldUseMosaic = SelectedAnnotation.UseMosaic;
+        _hasBlurMosaicSnapshot = true;
+    }
+
+    private void ApplyBlurMosaicToSelected()
+    {
+        if (_syncingProperties || SelectedAnnotation is not { Tool: AnnotationTool.Blur } item) return;
+        SnapshotBlurMosaicIfNeeded();
+        item.UseMosaic = UseMosaic;
+        RequestRedraw?.Invoke();
+    }
+
+    public void CommitBlurMosaicEdit(AnnotationItem? target = null)
+    {
+        target ??= SelectedAnnotation;
+        if (!_hasBlurMosaicSnapshot || target is not { Tool: AnnotationTool.Blur } item) { _hasBlurMosaicSnapshot = false; return; }
+        if (item.UseMosaic == _editOldUseMosaic) { _hasBlurMosaicSnapshot = false; return; }
+        var action = new EditBlurMosaicAction(item, _editOldUseMosaic, item.UseMosaic);
+        _undoStack.Push(action);
+        _redoStack.Clear();
+        NotifyUndoRedoChanged();
+        _hasBlurMosaicSnapshot = false;
+    }
+
+    // ── 文字背景编辑快照 / 提交 ──────────────────────────
+
+    private bool _editOldHasTextBackground;
+    private Color _editOldTextBackgroundColor;
+    private bool _hasTextBackgroundSnapshot;
+
+    private void SnapshotTextBackgroundIfNeeded()
+    {
+        if (_hasTextBackgroundSnapshot || SelectedAnnotation is not { Tool: AnnotationTool.Text }) return;
+        _editOldHasTextBackground = SelectedAnnotation.HasTextBackground;
+        _editOldTextBackgroundColor = SelectedAnnotation.TextBackgroundColor;
+        _hasTextBackgroundSnapshot = true;
+    }
+
+    private void ApplyTextBackgroundToSelected()
+    {
+        if (_syncingProperties || SelectedAnnotation is not { Tool: AnnotationTool.Text } item) return;
+        SnapshotTextBackgroundIfNeeded();
+        item.HasTextBackground = HasTextBackground;
+        item.TextBackgroundColor = TextBackgroundColor;
+        RequestRedraw?.Invoke();
+    }
+
+    public void CommitTextBackgroundEdit(AnnotationItem? target = null)
+    {
+        target ??= SelectedAnnotation;
+        if (!_hasTextBackgroundSnapshot || target is not { Tool: AnnotationTool.Text } item) { _hasTextBackgroundSnapshot = false; return; }
+        if (item.HasTextBackground == _editOldHasTextBackground && item.TextBackgroundColor == _editOldTextBackgroundColor)
+        {
+            _hasTextBackgroundSnapshot = false;
+            return;
+        }
+        var action = new EditTextBackgroundAction(item,
+            _editOldHasTextBackground, _editOldTextBackgroundColor,
+            item.HasTextBackground, item.TextBackgroundColor);
+        _undoStack.Push(action);
+        _redoStack.Clear();
+        NotifyUndoRedoChanged();
+        _hasTextBackgroundSnapshot = false;
+    }
+
+    // ── 填充编辑快照 / 提交 ──────────────────────────────
+
+    private bool _editOldHasFill;
+    private double _editOldFillOpacity;
+    private bool _hasFillSnapshot;
+
+    private void SnapshotFillIfNeeded()
+    {
+        if (_hasFillSnapshot || SelectedAnnotation is not { Tool: AnnotationTool.Rectangle or AnnotationTool.Ellipse }) return;
+        _editOldHasFill = SelectedAnnotation.HasFill;
+        _editOldFillOpacity = SelectedAnnotation.FillOpacity;
+        _hasFillSnapshot = true;
+    }
+
+    private void ApplyFillToSelected()
+    {
+        if (_syncingProperties || SelectedAnnotation is not { Tool: AnnotationTool.Rectangle or AnnotationTool.Ellipse } item) return;
+        SnapshotFillIfNeeded();
+        item.HasFill = HasFill;
+        item.FillOpacity = FillOpacity;
+        RequestRedraw?.Invoke();
+    }
+
+    public void CommitFillEdit(AnnotationItem? target = null)
+    {
+        target ??= SelectedAnnotation;
+        if (!_hasFillSnapshot || target is not { Tool: AnnotationTool.Rectangle or AnnotationTool.Ellipse } item)
+        {
+            _hasFillSnapshot = false;
+            return;
+        }
+
+        if (item.HasFill == _editOldHasFill && Math.Abs(item.FillOpacity - _editOldFillOpacity) < 0.01)
+        {
+            _hasFillSnapshot = false;
+            return;
+        }
+
+        var action = new EditFillAction(item, _editOldHasFill, _editOldFillOpacity, item.HasFill, item.FillOpacity);
+        _undoStack.Push(action);
+        _redoStack.Clear();
+        NotifyUndoRedoChanged();
+        _hasFillSnapshot = false;
+    }
+
     partial void OnStrokeColorChanged(Color value)
     {
-        IsColorPickerOpen = false;
+        if (!_syncingProperties)
+            StrokeOpacity = value.A / 255.0 * 100.0;
         ApplyColorToSelected();
+        OnPropertyChanged(nameof(CustomColorRed));
+        OnPropertyChanged(nameof(CustomColorGreen));
+        OnPropertyChanged(nameof(CustomColorBlue));
+        OnPropertyChanged(nameof(CustomColorAlpha));
     }
+
+    partial void OnStrokeOpacityChanged(double value)
+    {
+        if (_syncingProperties) return;
+        StrokeColor = Color.FromArgb(
+            (byte)Math.Round(value / 100.0 * 255),
+            StrokeColor.R, StrokeColor.G, StrokeColor.B);
+    }
+
+    public int CustomColorRed
+    {
+        get => StrokeColor.R;
+        set => StrokeColor = Color.FromArgb(StrokeColor.A, (byte)Math.Clamp(value, 0, 255), StrokeColor.G, StrokeColor.B);
+    }
+
+    public int CustomColorGreen
+    {
+        get => StrokeColor.G;
+        set => StrokeColor = Color.FromArgb(StrokeColor.A, StrokeColor.R, (byte)Math.Clamp(value, 0, 255), StrokeColor.B);
+    }
+
+    public int CustomColorBlue
+    {
+        get => StrokeColor.B;
+        set => StrokeColor = Color.FromArgb(StrokeColor.A, StrokeColor.R, StrokeColor.G, (byte)Math.Clamp(value, 0, 255));
+    }
+
+    public int CustomColorAlpha
+    {
+        get => StrokeColor.A;
+        set
+        {
+            StrokeOpacity = Math.Clamp(value, 0, 255) / 255.0 * 100.0;
+        }
+    }
+
     partial void OnStrokeWidthChanged(double value) => ApplyStrokeWidthToSelected();
     partial void OnCornerRadiusChanged(double value) => ApplyCornerRadiusToSelected();
     partial void OnBlurRadiusChanged(double value) => ApplyBlurRadiusToSelected();
+    partial void OnUseMosaicChanged(bool value) => ApplyBlurMosaicToSelected();
+    partial void OnHasFillChanged(bool value) => ApplyFillToSelected();
+    partial void OnFillOpacityChanged(double value) => ApplyFillToSelected();
+    partial void OnHasTextBackgroundChanged(bool value) => ApplyTextBackgroundToSelected();
+    partial void OnTextBackgroundColorChanged(Color value) => ApplyTextBackgroundToSelected();
     partial void OnFontFamilyChanged(string value) => ApplyTextPropertyToSelected();
     partial void OnFontSizeChanged(double value) => ApplyTextPropertyToSelected();
     partial void OnIsBoldChanged(bool value) => ApplyTextPropertyToSelected();
@@ -491,6 +799,7 @@ public partial class AnnotationViewModel : ObservableObject
     partial void OnIsStrikethroughChanged(bool value) => ApplyTextPropertyToSelected();
 
     public SolidColorBrush StrokeColorBrush => new(StrokeColor);
+    public SolidColorBrush TextBackgroundColorBrush => new(TextBackgroundColor);
 
     public ObservableCollection<AnnotationItem> Annotations { get; } = [];
 
@@ -499,6 +808,38 @@ public partial class AnnotationViewModel : ObservableObject
 
     public bool CanUndo => _undoStack.Count > 0;
     public bool CanRedo => _redoStack.Count > 0;
+
+    /// <summary>是否存在尚未应用到图片的标注。</summary>
+    public bool HasPendingAnnotations => Annotations.Count > 0;
+
+    public bool CanBringForward => SelectedAnnotation is not null &&
+        Annotations.IndexOf(SelectedAnnotation) >= 0 &&
+        Annotations.IndexOf(SelectedAnnotation) < Annotations.Count - 1;
+
+    public bool CanSendBackward => SelectedAnnotation is not null &&
+        Annotations.IndexOf(SelectedAnnotation) > 0;
+
+    /// <summary>根据快捷键切换工具（单键，无修饰符）。</summary>
+    public bool TrySelectToolFromKey(Key key)
+    {
+        var tool = key switch
+        {
+            Key.V => AnnotationTool.Pointer,
+            Key.A => AnnotationTool.Arrow,
+            Key.R => AnnotationTool.Rectangle,
+            Key.E => AnnotationTool.Ellipse,
+            Key.T => AnnotationTool.Text,
+            Key.P => AnnotationTool.Pen,
+            Key.M => AnnotationTool.Blur,
+            _ => (AnnotationTool?)null
+        };
+
+        if (tool is null)
+            return false;
+
+        SelectedTool = tool.Value;
+        return true;
+    }
 
     public event Action<BitmapSource>? AnnotationApplied;
     public event Action? AnnotationCancelled;
@@ -519,6 +860,9 @@ public partial class AnnotationViewModel : ObservableObject
     {
         OnPropertyChanged(nameof(CanUndo));
         OnPropertyChanged(nameof(CanRedo));
+        OnPropertyChanged(nameof(HasPendingAnnotations));
+        UndoAnnotationCommand.NotifyCanExecuteChanged();
+        RedoAnnotationCommand.NotifyCanExecuteChanged();
     }
 
     // ── 标注生命周期 ───────────────────────────────────────
@@ -540,7 +884,12 @@ public partial class AnnotationViewModel : ObservableObject
             IsBold = IsBold,
             IsItalic = IsItalic,
             IsUnderline = IsUnderline,
-            IsStrikethrough = IsStrikethrough
+            IsStrikethrough = IsStrikethrough,
+            HasTextBackground = HasTextBackground,
+            TextBackgroundColor = TextBackgroundColor,
+            UseMosaic = UseMosaic,
+            HasFill = HasFill,
+            FillOpacity = FillOpacity
         };
         if (SelectedTool == AnnotationTool.Pen)
             CurrentAnnotation.PenPoints.Add(imagePoint);
@@ -550,8 +899,19 @@ public partial class AnnotationViewModel : ObservableObject
     public void UpdateAnnotation(Point imagePoint)
     {
         if (CurrentAnnotation is null) return;
+        if (CurrentAnnotation.Tool is AnnotationTool.Rectangle or AnnotationTool.Ellipse &&
+            (Keyboard.IsKeyDown(Key.LeftShift) || Keyboard.IsKeyDown(Key.RightShift)))
+        {
+            imagePoint = ConstrainSquarePoint(CurrentAnnotation.Start, imagePoint);
+        }
+
         if (CurrentAnnotation.Tool == AnnotationTool.Pen)
+        {
+            var last = CurrentAnnotation.PenPoints[^1];
+            if (!AnnotationPenHelper.ShouldAddPoint(last, imagePoint))
+                return;
             CurrentAnnotation.PenPoints.Add(imagePoint);
+        }
         CurrentAnnotation.End = imagePoint;
     }
 
@@ -565,11 +925,18 @@ public partial class AnnotationViewModel : ObservableObject
             return;
         }
 
-        if (CurrentAnnotation.Tool == AnnotationTool.Pen && CurrentAnnotation.PenPoints.Count < 2)
+        if (CurrentAnnotation.Tool == AnnotationTool.Pen)
         {
-            CurrentAnnotation = null;
-            IsAnnotating = false;
-            return;
+            if (CurrentAnnotation.PenPoints.Count < 2)
+            {
+                CurrentAnnotation = null;
+                IsAnnotating = false;
+                return;
+            }
+
+            var simplified = AnnotationPenHelper.Simplify(CurrentAnnotation.PenPoints);
+            CurrentAnnotation.PenPoints.Clear();
+            CurrentAnnotation.PenPoints.AddRange(simplified);
         }
 
         var item = CurrentAnnotation;
@@ -582,6 +949,63 @@ public partial class AnnotationViewModel : ObservableObject
         _redoStack.Clear();
         Annotations.Add(item);
         NotifyUndoRedoChanged();
+    }
+
+    private static Point ConstrainSquarePoint(Point start, Point end)
+    {
+        var dx = end.X - start.X;
+        var dy = end.Y - start.Y;
+        var size = Math.Max(Math.Abs(dx), Math.Abs(dy));
+        if (size < 1) size = 1;
+        return new Point(
+            start.X + Math.Sign(dx == 0 ? 1 : dx) * size,
+            start.Y + Math.Sign(dy == 0 ? 1 : dy) * size);
+    }
+
+    private static AnnotationItem CloneAnnotation(AnnotationItem source)
+    {
+        var clone = new AnnotationItem
+        {
+            Tool = source.Tool,
+            Start = source.Start,
+            End = source.End,
+            StrokeColor = source.StrokeColor,
+            StrokeWidth = source.StrokeWidth,
+            Text = source.Text,
+            FontSize = source.FontSize,
+            FontFamily = source.FontFamily,
+            IsBold = source.IsBold,
+            IsItalic = source.IsItalic,
+            IsUnderline = source.IsUnderline,
+            IsStrikethrough = source.IsStrikethrough,
+            CornerRadius = source.CornerRadius,
+            BlurRadius = source.BlurRadius,
+            UseMosaic = source.UseMosaic,
+            HasTextBackground = source.HasTextBackground,
+            TextBackgroundColor = source.TextBackgroundColor,
+            HasFill = source.HasFill,
+            FillOpacity = source.FillOpacity,
+            Offset = source.Offset
+        };
+        clone.PenPoints.AddRange(source.PenPoints);
+        return clone;
+    }
+
+    private void ReorderSelected(int newIndex)
+    {
+        if (SelectedAnnotation is not { } item) return;
+        var oldIndex = Annotations.IndexOf(item);
+        if (oldIndex < 0 || oldIndex == newIndex) return;
+
+        Annotations.RemoveAt(oldIndex);
+        newIndex = Math.Clamp(newIndex, 0, Annotations.Count);
+        Annotations.Insert(newIndex, item);
+
+        var action = new ReorderAnnotationAction(item, oldIndex, newIndex);
+        _undoStack.Push(action);
+        _redoStack.Clear();
+        NotifyUndoRedoChanged();
+        RequestRedraw?.Invoke();
     }
 
     public void CommitTextAnnotation(string text)
@@ -738,6 +1162,8 @@ public partial class AnnotationViewModel : ObservableObject
                 foreach (var p in item.PenPoints)
                     if ((pt - new Point(p.X + ox, p.Y + oy)).Length <= tol + item.StrokeWidth) return true;
                 return false;
+            case AnnotationTool.Number:
+                return GetNumberBounds(item).Contains(pt);
             default:
                 return false;
         }
@@ -753,6 +1179,13 @@ public partial class AnnotationViewModel : ObservableObject
         return (p - closest).Length;
     }
 
+    internal static Rect GetNumberBounds(AnnotationItem item)
+    {
+        var size = Math.Max(Math.Abs(item.End.X - item.Start.X), Math.Abs(item.End.Y - item.Start.Y));
+        if (size < 1) size = NumberBadgeSize;
+        return new Rect(item.Start.X + item.Offset.X, item.Start.Y + item.Offset.Y, size, size);
+    }
+
     /// <summary>使用 WPF FormattedText 精确测量文本标注的像素尺寸。</summary>
     internal static Size MeasureTextSize(AnnotationItem item)
     {
@@ -765,11 +1198,14 @@ public partial class AnnotationViewModel : ObservableObject
             item.IsBold ? FontWeights.Bold : FontWeights.Normal,
             FontStretches.Normal);
 
+        var dpi = Application.Current?.MainWindow is { } window
+            ? VisualTreeHelper.GetDpi(window).PixelsPerDip
+            : 1.0;
         var ft = new FormattedText(
             item.Text, System.Globalization.CultureInfo.CurrentCulture,
             FlowDirection.LeftToRight, typeface, item.FontSize,
             System.Windows.Media.Brushes.Black,
-            VisualTreeHelper.GetDpi(Application.Current.MainWindow).PixelsPerDip);
+            dpi);
 
         return new Size(Math.Max(ft.WidthIncludingTrailingWhitespace, item.FontSize),
                         Math.Max(ft.Height, item.FontSize));
@@ -777,7 +1213,7 @@ public partial class AnnotationViewModel : ObservableObject
 
     // ── 命令 ───────────────────────────────────────────────
 
-    [RelayCommand]
+    [RelayCommand(CanExecute = nameof(CanUndo))]
     private void UndoAnnotation()
     {
         if (_undoStack.Count == 0) return;
@@ -790,12 +1226,14 @@ public partial class AnnotationViewModel : ObservableObject
             SelectedAnnotation = null;
         else if (SelectedAnnotation is not null)
             SyncPanelFromAnnotation(SelectedAnnotation);
+        else
+            ResetPendingEditSnapshots();
 
         NotifyUndoRedoChanged();
         RequestRedraw?.Invoke();
     }
 
-    [RelayCommand]
+    [RelayCommand(CanExecute = nameof(CanRedo))]
     private void RedoAnnotation()
     {
         if (_redoStack.Count == 0) return;
@@ -834,6 +1272,7 @@ public partial class AnnotationViewModel : ObservableObject
         _undoStack.Clear();
         _redoStack.Clear();
         SelectedAnnotation = null;
+        ResetPendingEditSnapshots();
         NotifyUndoRedoChanged();
     }
 
@@ -852,29 +1291,88 @@ public partial class AnnotationViewModel : ObservableObject
     [RelayCommand]
     private void SelectBlur() => SelectedTool = AnnotationTool.Blur;
 
-    [RelayCommand]
-    private void ToggleColorPicker() => IsColorPickerOpen = !IsColorPickerOpen;
+    [RelayCommand(CanExecute = nameof(CanBringForward))]
+    private void BringForward()
+    {
+        if (SelectedAnnotation is null) return;
+        var index = Annotations.IndexOf(SelectedAnnotation);
+        if (index < 0 || index >= Annotations.Count - 1) return;
+        ReorderSelected(index + 1);
+        OnPropertyChanged(nameof(CanBringForward));
+        OnPropertyChanged(nameof(CanSendBackward));
+        BringForwardCommand.NotifyCanExecuteChanged();
+        SendBackwardCommand.NotifyCanExecuteChanged();
+    }
+
+    [RelayCommand(CanExecute = nameof(CanSendBackward))]
+    private void SendBackward()
+    {
+        if (SelectedAnnotation is null) return;
+        var index = Annotations.IndexOf(SelectedAnnotation);
+        if (index <= 0) return;
+        ReorderSelected(index - 1);
+        OnPropertyChanged(nameof(CanBringForward));
+        OnPropertyChanged(nameof(CanSendBackward));
+        BringForwardCommand.NotifyCanExecuteChanged();
+        SendBackwardCommand.NotifyCanExecuteChanged();
+    }
+
+    [RelayCommand(CanExecute = nameof(HasSelectedAnnotation))]
+    private void DuplicateSelectedAnnotation()
+    {
+        if (SelectedAnnotation is null) return;
+        var clone = CloneAnnotation(SelectedAnnotation);
+        clone.Offset = SelectedAnnotation.Offset + new Vector(12, 12);
+
+        var action = new AddAnnotationAction(clone);
+        _undoStack.Push(action);
+        _redoStack.Clear();
+        Annotations.Add(clone);
+        SelectedAnnotation = clone;
+        NotifyUndoRedoChanged();
+        RequestRedraw?.Invoke();
+    }
 
     [RelayCommand]
-    private void SetColorRed() => StrokeColor = Colors.Red;
+    private void PickCustomColor() => IsColorPickerOpen = !IsColorPickerOpen;
+
     [RelayCommand]
-    private void SetColorBlue() => StrokeColor = Color.FromRgb(0x33, 0x99, 0xFF);
+    private void SetTextBackgroundDark()
+    {
+        HasTextBackground = true;
+        TextBackgroundColor = Color.FromArgb(180, 0, 0, 0);
+    }
+
     [RelayCommand]
-    private void SetColorGreen() => StrokeColor = Color.FromRgb(0x22, 0xCC, 0x55);
+    private void SetTextBackgroundLight()
+    {
+        HasTextBackground = true;
+        TextBackgroundColor = Color.FromArgb(210, 255, 255, 255);
+    }
+
     [RelayCommand]
-    private void SetColorYellow() => StrokeColor = Color.FromRgb(0xFF, 0xCC, 0x00);
+    private void CloseColorPicker() => IsColorPickerOpen = false;
+
     [RelayCommand]
-    private void SetColorWhite() => StrokeColor = Colors.White;
+    private void SetColorRed() { IsColorPickerOpen = false; StrokeColor = ApplyStrokeOpacity(Colors.Red); }
     [RelayCommand]
-    private void SetColorBlack() => StrokeColor = Colors.Black;
+    private void SetColorBlue() { IsColorPickerOpen = false; StrokeColor = ApplyStrokeOpacity(Color.FromRgb(0x33, 0x99, 0xFF)); }
     [RelayCommand]
-    private void SetColorOrange() => StrokeColor = Color.FromRgb(0xFF, 0x88, 0x00);
+    private void SetColorGreen() { IsColorPickerOpen = false; StrokeColor = ApplyStrokeOpacity(Color.FromRgb(0x22, 0xCC, 0x55)); }
     [RelayCommand]
-    private void SetColorPurple() => StrokeColor = Color.FromRgb(0xAA, 0x44, 0xFF);
+    private void SetColorYellow() { IsColorPickerOpen = false; StrokeColor = ApplyStrokeOpacity(Color.FromRgb(0xFF, 0xCC, 0x00)); }
     [RelayCommand]
-    private void SetColorPink() => StrokeColor = Color.FromRgb(0xFF, 0x66, 0xB2);
+    private void SetColorWhite() { IsColorPickerOpen = false; StrokeColor = ApplyStrokeOpacity(Colors.White); }
     [RelayCommand]
-    private void SetColorGray() => StrokeColor = Color.FromRgb(0x88, 0x88, 0x88);
+    private void SetColorBlack() { IsColorPickerOpen = false; StrokeColor = ApplyStrokeOpacity(Colors.Black); }
+    [RelayCommand]
+    private void SetColorOrange() { IsColorPickerOpen = false; StrokeColor = ApplyStrokeOpacity(Color.FromRgb(0xFF, 0x88, 0x00)); }
+    [RelayCommand]
+    private void SetColorPurple() { IsColorPickerOpen = false; StrokeColor = ApplyStrokeOpacity(Color.FromRgb(0xAA, 0x44, 0xFF)); }
+    [RelayCommand]
+    private void SetColorPink() { IsColorPickerOpen = false; StrokeColor = ApplyStrokeOpacity(Color.FromRgb(0xFF, 0x66, 0xB2)); }
+    [RelayCommand]
+    private void SetColorGray() { IsColorPickerOpen = false; StrokeColor = ApplyStrokeOpacity(Color.FromRgb(0x88, 0x88, 0x88)); }
 
     // ── 应用标注到图像 ─────────────────────────────────────
 
@@ -883,16 +1381,21 @@ public partial class AnnotationViewModel : ObservableObject
         if (Annotations.Count == 0) return;
 
         Log.Information("应用标注: {Count} 项", Annotations.Count);
-        var result = await Task.Run(() => RenderAnnotations(originalImage));
-        if (result is not null)
-        {
-            AnnotationApplied?.Invoke(result);
-            Annotations.Clear();
-            _undoStack.Clear();
-            _redoStack.Clear();
-            SelectedAnnotation = null;
-            NotifyUndoRedoChanged();
-        }
+        var frozen = ImageIOService.CreateFrozenSnapshot(originalImage);
+        var export = await Task.Run(() => RenderAnnotationsToPixels(frozen));
+        if (export is null)
+            return;
+
+        var result = SkiaInteropHelper.CreateFrozenBitmapFromBgra(
+            export.Value.Pixels, export.Value.Width, export.Value.Height,
+            export.Value.DpiX, export.Value.DpiY);
+        AnnotationApplied?.Invoke(result);
+        Annotations.Clear();
+        _undoStack.Clear();
+        _redoStack.Clear();
+        SelectedAnnotation = null;
+        ResetPendingEditSnapshots();
+        NotifyUndoRedoChanged();
     }
 
     [RelayCommand]
@@ -902,11 +1405,12 @@ public partial class AnnotationViewModel : ObservableObject
         _undoStack.Clear();
         _redoStack.Clear();
         SelectedAnnotation = null;
+        ResetPendingEditSnapshots();
         NotifyUndoRedoChanged();
         AnnotationCancelled?.Invoke();
     }
 
-    private BitmapSource RenderAnnotations(BitmapSource originalImage)
+    private (byte[] Pixels, int Width, int Height, double DpiX, double DpiY)? RenderAnnotationsToPixels(BitmapSource originalImage)
     {
         using var bitmap = SkiaInteropHelper.BitmapSourceToSKBitmap(originalImage);
         using var canvas = new SKCanvas(bitmap);
@@ -914,30 +1418,29 @@ public partial class AnnotationViewModel : ObservableObject
         foreach (var annotation in Annotations)
         {
             if (annotation.Tool == AnnotationTool.Blur)
-                ApplyBlurRegion(canvas, bitmap, annotation);
+            {
+                if (annotation.UseMosaic)
+                    ApplyMosaicRegion(canvas, bitmap, annotation);
+                else
+                    ApplyBlurRegion(canvas, bitmap, annotation);
+            }
             else
                 DrawAnnotation(canvas, annotation);
         }
 
-        // 保留原图 DPI，避免 Stretch="None" 显示尺寸变化
-        int w = bitmap.Width, h = bitmap.Height;
-        var wb = new System.Windows.Media.Imaging.WriteableBitmap(
-            w, h, originalImage.DpiX, originalImage.DpiY,
-            System.Windows.Media.PixelFormats.Bgra32, null);
-        wb.Lock();
-        try
-        {
-            unsafe
-            {
-                Buffer.MemoryCopy(
-                    (void*)bitmap.GetPixels(), (void*)wb.BackBuffer,
-                    (long)h * w * 4, (long)h * w * 4);
-            }
-            wb.AddDirtyRect(new System.Windows.Int32Rect(0, 0, w, h));
-        }
-        finally { wb.Unlock(); }
-        wb.Freeze();
-        return wb;
+        return (SkiaInteropHelper.CopyPixels(bitmap), bitmap.Width, bitmap.Height, originalImage.DpiX, originalImage.DpiY);
+    }
+
+    private void ResetPendingEditSnapshots()
+    {
+        _hasColorSnapshot = false;
+        _hasStrokeWidthSnapshot = false;
+        _hasFillSnapshot = false;
+        _hasTextStyleSnapshot = false;
+        _hasCornerRadiusSnapshot = false;
+        _hasBlurRadiusSnapshot = false;
+        _hasBlurMosaicSnapshot = false;
+        _hasTextBackgroundSnapshot = false;
     }
 
     private static void DrawAnnotation(SKCanvas canvas, AnnotationItem item)
@@ -966,6 +1469,14 @@ public partial class AnnotationViewModel : ObservableObject
                     (float)Math.Min(start.X, end.X), (float)Math.Min(start.Y, end.Y),
                     (float)Math.Max(start.X, end.X), (float)Math.Max(start.Y, end.Y));
                 float cr = (float)item.CornerRadius;
+                if (item.HasFill)
+                {
+                    using var fillPaint = CreateFillPaint(item, color);
+                    if (cr > 0)
+                        canvas.DrawRoundRect(rect, cr, cr, fillPaint);
+                    else
+                        canvas.DrawRect(rect, fillPaint);
+                }
                 if (cr > 0)
                     canvas.DrawRoundRect(rect, cr, cr, paint);
                 else
@@ -977,50 +1488,141 @@ public partial class AnnotationViewModel : ObservableObject
                 var ecy = (float)(start.Y + end.Y) / 2;
                 var rx = Math.Abs((float)(end.X - start.X)) / 2;
                 var ry = Math.Abs((float)(end.Y - start.Y)) / 2;
+                if (item.HasFill)
+                {
+                    using var fillPaint = CreateFillPaint(item, color);
+                    canvas.DrawOval(ecx, ecy, rx, ry, fillPaint);
+                }
                 canvas.DrawOval(ecx, ecy, rx, ry, paint);
                 break;
 
-            case AnnotationTool.Text:
-                var skStyle = SKFontStyle.Normal;
-                if (item.IsBold && item.IsItalic) skStyle = SKFontStyle.BoldItalic;
-                else if (item.IsBold) skStyle = SKFontStyle.Bold;
-                else if (item.IsItalic) skStyle = SKFontStyle.Italic;
-                using (var typeface = SKTypeface.FromFamilyName(item.FontFamily, skStyle) ?? SKTypeface.Default)
-                using (var font = new SKFont(typeface, (float)item.FontSize))
-                using (var textPaint = new SKPaint { Color = color, IsAntialias = true, Style = SKPaintStyle.Fill })
-                {
-                    float tx = (float)start.X;
-                    float ty = (float)start.Y + (float)item.FontSize;
-                    canvas.DrawText(item.Text, tx, ty, SKTextAlign.Left, font, textPaint);
+            case AnnotationTool.Number:
+                DrawNumberBadge(canvas, item, color, start);
+                break;
 
-                    // 下划线 / 删除线
-                    float textWidth = font.MeasureText(item.Text, textPaint);
-                    float lineThickness = Math.Max(1f, (float)item.FontSize / 14f);
-                    using var linePaint = new SKPaint { Color = color, StrokeWidth = lineThickness, IsAntialias = true, Style = SKPaintStyle.Stroke };
-                    if (item.IsUnderline)
-                    {
-                        float uy = ty + lineThickness * 2;
-                        canvas.DrawLine(tx, uy, tx + textWidth, uy, linePaint);
-                    }
-                    if (item.IsStrikethrough)
-                    {
-                        float sy2 = ty - (float)item.FontSize * 0.35f;
-                        canvas.DrawLine(tx, sy2, tx + textWidth, sy2, linePaint);
-                    }
-                }
+            case AnnotationTool.Text:
+                DrawTextWithBackground(canvas, item, color, start);
                 break;
 
             case AnnotationTool.Pen:
                 if (item.PenPoints.Count >= 2)
                 {
-                    using var path = new SKPath();
-                    path.MoveTo((float)(item.PenPoints[0].X + ox), (float)(item.PenPoints[0].Y + oy));
-                    for (int i = 1; i < item.PenPoints.Count; i++)
-                        path.LineTo((float)(item.PenPoints[i].X + ox), (float)(item.PenPoints[i].Y + oy));
+                    using var path = AnnotationPenHelper.BuildSmoothSkiaPath(item.PenPoints, ox, oy);
                     canvas.DrawPath(path, paint);
                 }
                 break;
         }
+    }
+
+    private static SKPaint CreateFillPaint(AnnotationItem item, SKColor strokeColor)
+    {
+        var alpha = (byte)Math.Clamp(Math.Round(item.FillOpacity / 100.0 * 255), 0, 255);
+        return new SKPaint
+        {
+            Color = new SKColor(strokeColor.Red, strokeColor.Green, strokeColor.Blue, alpha),
+            IsAntialias = true,
+            Style = SKPaintStyle.Fill
+        };
+    }
+
+    private static void DrawNumberBadge(SKCanvas canvas, AnnotationItem item, SKColor color, Point start)
+    {
+        float size = (float)Math.Max(Math.Abs(item.End.X - item.Start.X), Math.Abs(item.End.Y - item.Start.Y));
+        if (size < 1) size = (float)NumberBadgeSize;
+        float cx = (float)start.X + size / 2f;
+        float cy = (float)start.Y + size / 2f;
+
+        using var circlePaint = new SKPaint { Color = color, IsAntialias = true, Style = SKPaintStyle.Fill };
+        canvas.DrawCircle(cx, cy, size / 2f, circlePaint);
+
+        using var typeface = SKTypeface.FromFamilyName(item.FontFamily, SKFontStyle.Bold) ?? SKTypeface.Default;
+        using var font = new SKFont(typeface, (float)item.FontSize);
+        var textColor = color.Red + color.Green + color.Blue > 380
+            ? new SKColor(0, 0, 0, color.Alpha)
+            : new SKColor(255, 255, 255, color.Alpha);
+        using var textPaint = new SKPaint { Color = textColor, IsAntialias = true, Style = SKPaintStyle.Fill };
+        canvas.DrawText(item.Text, cx, cy + font.Size * 0.35f, SKTextAlign.Center, font, textPaint);
+    }
+
+    private static void DrawTextWithBackground(SKCanvas canvas, AnnotationItem item, SKColor color, Point start)
+    {
+        var skStyle = SKFontStyle.Normal;
+        if (item.IsBold && item.IsItalic) skStyle = SKFontStyle.BoldItalic;
+        else if (item.IsBold) skStyle = SKFontStyle.Bold;
+        else if (item.IsItalic) skStyle = SKFontStyle.Italic;
+
+        using var typeface = SKTypeface.FromFamilyName(item.FontFamily, skStyle) ?? SKTypeface.Default;
+        using var font = new SKFont(typeface, (float)item.FontSize);
+        using var textPaint = new SKPaint { Color = color, IsAntialias = true, Style = SKPaintStyle.Fill };
+
+        float tx = (float)start.X;
+        float ty = (float)start.Y + (float)item.FontSize;
+        float textWidth = font.MeasureText(item.Text, textPaint);
+
+        if (item.HasTextBackground && item.TextBackgroundColor.A > 0)
+        {
+            var bg = item.TextBackgroundColor;
+            var textSize = MeasureTextSize(item);
+            float padding = (float)item.FontSize * 0.15f;
+            using var bgPaint = new SKPaint
+            {
+                Color = new SKColor(bg.R, bg.G, bg.B, bg.A),
+                IsAntialias = true,
+                Style = SKPaintStyle.Fill
+            };
+            canvas.DrawRoundRect(
+                new SKRect(tx - padding, (float)start.Y - padding,
+                    tx + textWidth + padding, (float)start.Y + (float)textSize.Height + padding),
+                4, 4, bgPaint);
+        }
+
+        canvas.DrawText(item.Text, tx, ty, SKTextAlign.Left, font, textPaint);
+
+        float lineThickness = Math.Max(1f, (float)item.FontSize / 14f);
+        using var linePaint = new SKPaint { Color = color, StrokeWidth = lineThickness, IsAntialias = true, Style = SKPaintStyle.Stroke };
+        if (item.IsUnderline)
+        {
+            float uy = ty + lineThickness * 2;
+            canvas.DrawLine(tx, uy, tx + textWidth, uy, linePaint);
+        }
+        if (item.IsStrikethrough)
+        {
+            float sy2 = ty - (float)item.FontSize * 0.35f;
+            canvas.DrawLine(tx, sy2, tx + textWidth, sy2, linePaint);
+        }
+    }
+
+    private static void ApplyMosaicRegion(SKCanvas canvas, SKBitmap bitmap, AnnotationItem item)
+    {
+        float ox = (float)item.Offset.X, oy = (float)item.Offset.Y;
+        float x1 = (float)Math.Min(item.Start.X, item.End.X) + ox;
+        float y1 = (float)Math.Min(item.Start.Y, item.End.Y) + oy;
+        float x2 = (float)Math.Max(item.Start.X, item.End.X) + ox;
+        float y2 = (float)Math.Max(item.Start.Y, item.End.Y) + oy;
+
+        x1 = Math.Max(0, x1); y1 = Math.Max(0, y1);
+        x2 = Math.Min(bitmap.Width, x2); y2 = Math.Min(bitmap.Height, y2);
+        if (x2 - x1 < 1 || y2 - y1 < 1) return;
+
+        int px = (int)x1, py = (int)y1;
+        int pw = Math.Max(1, (int)(x2 - x1));
+        int ph = Math.Max(1, (int)(y2 - y1));
+
+        using var region = new SKBitmap(pw, ph, bitmap.ColorType, bitmap.AlphaType);
+        if (!bitmap.ExtractSubset(region, new SKRectI(px, py, px + pw, py + ph)))
+            return;
+
+        int blockSize = Math.Max(4, (int)Math.Round(item.BlurRadius));
+        int smallW = Math.Max(1, pw / blockSize);
+        int smallH = Math.Max(1, ph / blockSize);
+
+        using var small = region.Resize(new SKImageInfo(smallW, smallH), new SKSamplingOptions(SKFilterMode.Nearest, SKMipmapMode.None));
+        if (small is null) return;
+
+        using var mosaic = small.Resize(new SKImageInfo(pw, ph), new SKSamplingOptions(SKFilterMode.Nearest, SKMipmapMode.None));
+        if (mosaic is null) return;
+
+        canvas.DrawBitmap(mosaic, px, py);
     }
 
     private static void ApplyBlurRegion(SKCanvas canvas, SKBitmap bitmap, AnnotationItem item)

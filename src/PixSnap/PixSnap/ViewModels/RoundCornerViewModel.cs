@@ -55,9 +55,10 @@ public partial class RoundCornerViewModel : ObservableObject
 
             int radius = CornerRadius;
 
-            // 后台线程：SkiaSharp 圆角绘制 + 直接像素拷贝，对大图不阻塞 UI
-            var result = await Task.Run(() => ApplyRoundCornerOnBackground(pixels, w, h, stride, radius));
+            // 后台线程：SkiaSharp 圆角绘制
+            var resultPixels = await Task.Run(() => ApplyRoundCornerOnBackground(pixels, w, h, stride, radius));
 
+            var result = SkiaInteropHelper.CreateFrozenBitmapFromBgra(resultPixels, w, h);
             RoundCornerApplied?.Invoke(result);
         }
         finally
@@ -71,11 +72,8 @@ public partial class RoundCornerViewModel : ObservableObject
 
     // ── SkiaSharp 圆角处理（后台线程执行）────────────────────────────────────
 
-    /// <summary>
-    /// 在后台线程对已 pin 的像素缓冲区应用圆角蒙版，返回冻结前的 BitmapSource。
-    /// 调用方负责 Freeze()。
-    /// </summary>
-    private static BitmapSource ApplyRoundCornerOnBackground(byte[] pixels, int w, int h, int stride, int cornerRadius)
+    /// <summary>在后台线程应用圆角蒙版，返回 BGRA 像素。</summary>
+    private static byte[] ApplyRoundCornerOnBackground(byte[] pixels, int w, int h, int stride, int cornerRadius)
     {
         var info = new SKImageInfo(w, h, SKColorType.Bgra8888, SKAlphaType.Premul);
         var handle = GCHandle.Alloc(pixels, GCHandleType.Pinned);
@@ -99,9 +97,7 @@ public partial class RoundCornerViewModel : ObservableObject
             canvas.ClipPath(roundPath, SKClipOperation.Intersect, antialias: true);
             canvas.DrawBitmap(srcBitmap, 0, 0, paint);
 
-            var bitmapSource = SkiaInteropHelper.SKBitmapToBitmapSource(dst);
-            bitmapSource.Freeze();
-            return bitmapSource;
+            return SkiaInteropHelper.CopyPixels(dst);
         }
         finally
         {

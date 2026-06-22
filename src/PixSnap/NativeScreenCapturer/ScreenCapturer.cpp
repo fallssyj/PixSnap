@@ -67,6 +67,7 @@ public:
     winrt::com_ptr<ID3D11Device> Device;
     winrt::com_ptr<ID3D11DeviceContext> Context;
     Wd11::IDirect3DDevice WinRtDevice{ nullptr };
+    std::mutex D3dMutex;
 };
 
 // ─── 录屏状态 ─────────────────────────────────────────────────────────────────
@@ -103,6 +104,7 @@ public:
     int sourceW{}, sourceH{};
 
     std::mutex writerMutex;
+    std::mutex timingMutex;
 
     // 视频码率（由上层传入）
     UINT32 videoBitrate{ 8000000 };
@@ -208,7 +210,7 @@ namespace
 
     void CustomTerminateHandler()
     {
-        WriteCrashLog("std::terminate() called — possible uncaught exception in native thread");
+        WriteCrashLog("std::terminate() called - possible uncaught exception in native thread");
         std::abort();
     }
 
@@ -370,6 +372,8 @@ namespace
 
     CapturedFrameData CopyTextureToBuffer(ScreenCapturerImpl* impl, ID3D11Texture2D* texture, Wg::SizeInt32 contentSize)
     {
+        std::lock_guard d3dLock(impl->D3dMutex);
+
         D3D11_TEXTURE2D_DESC sourceDesc{};
         texture->GetDesc(&sourceDesc);
 
@@ -882,6 +886,8 @@ namespace
         state->sinkWriter->WriteSample(state->videoStreamIndex, sample.get());
     }
 
+    void StopRecordingState(ScreenRecorderState* state);
+
     void StartRecordingWithItem(
         ScreenRecorderState* state,
         ScreenCapturerImpl* impl,
@@ -1019,15 +1025,22 @@ namespace
                 }
             }
         }
-        catch (winrt::hresult_error const& e)
+        catch (const winrt::hresult_error& e)
         {
+            StopRecordingState(state);
             throw std::runtime_error(winrt::to_string(e.message()));
+        }
+        catch (...)
+        {
+            StopRecordingState(state);
+            throw;
         }
     }
 
     void PauseRecordingState(ScreenRecorderState* state)
     {
         if (!state->recording.load() || state->paused.load()) return;
+        std::lock_guard lock(state->timingMutex);
         QueryPerformanceCounter(&state->pauseBeginTime);
         state->paused.store(true);
     }
@@ -1035,6 +1048,7 @@ namespace
     void ResumeRecordingState(ScreenRecorderState* state)
     {
         if (!state->recording.load() || !state->paused.load()) return;
+        std::lock_guard lock(state->timingMutex);
         LARGE_INTEGER now{};
         QueryPerformanceCounter(&now);
         state->totalPausedDuration += (now.QuadPart - state->pauseBeginTime.QuadPart) * 10000000LL / state->frequency.QuadPart;
@@ -1062,8 +1076,11 @@ namespace
         state->session = nullptr;
         state->framePool = nullptr;
 
-        state->paused.store(false);
-        state->totalPausedDuration = 0;
+        {
+            std::lock_guard lock(state->timingMutex);
+            state->paused.store(false);
+            state->totalPausedDuration = 0;
+        }
 
         // 停止音频捕获线程
         state->audioRunning.store(false);
@@ -1325,7 +1342,12 @@ void ScreenRecorderState::AudioCaptureLoop()
                         // 使用 QPC 墙钟（减去暂停时长），与视频帧时间戳同源
                         LARGE_INTEGER now{};
                         QueryPerformanceCounter(&now);
-                        LONGLONG sampleTime = (now.QuadPart - startTime.QuadPart) * 10000000LL / frequency.QuadPart - totalPausedDuration;
+                        LONGLONG pausedDuration;
+                        {
+                            std::lock_guard lock(timingMutex);
+                            pausedDuration = totalPausedDuration;
+                        }
+                        LONGLONG sampleTime = (now.QuadPart - startTime.QuadPart) * 10000000LL / frequency.QuadPart - pausedDuration;
                         // 确保音频时间戳不回退
                         if (sampleTime < 0) sampleTime = 0;
 
@@ -1375,49 +1397,77 @@ void ScreenRecorderState::OnFrameArrived(
     catch (...) { frame.Close(); return; }
     if (contentSize.Width <= 0 || contentSize.Height <= 0) { frame.Close(); return; }
 
+    if (impl == nullptr) { frame.Close(); return; }
+
+    int frameW = contentSize.Width;
+    int frameH = contentSize.Height;
+    const int packedStride = frameW * static_cast<int>(kBytesPerPixel);
+    std::vector<BYTE> packedFrame;
+    bool captured = false;
+
     D3D11_TEXTURE2D_DESC sourceDesc{};
     texture->GetDesc(&sourceDesc);
     int texW = static_cast<int>(sourceDesc.Width);
     int texH = static_cast<int>(sourceDesc.Height);
 
-    // 复用或重新创建 staging 纹理
-    if (!stagingTexture || stagingW != texW || stagingH != texH)
+    // GPU 拷贝 + CPU 读回（D3D 锁内），MF 写入在锁外
     {
-        stagingTexture = nullptr;
+        if (impl == nullptr) { frame.Close(); return; }
 
-        D3D11_TEXTURE2D_DESC stagingDesc = sourceDesc;
-        stagingDesc.BindFlags = 0;
-        stagingDesc.CPUAccessFlags = D3D11_CPU_ACCESS_READ;
-        stagingDesc.MiscFlags = 0;
-        stagingDesc.Usage = D3D11_USAGE_STAGING;
+        std::lock_guard d3dLock(impl->D3dMutex);
+        if (impl == nullptr) return;
 
-        HRESULT hr = impl->Device->CreateTexture2D(&stagingDesc, nullptr, stagingTexture.put());
-        if (FAILED(hr)) { frame.Close(); return; }
-        stagingW = texW;
-        stagingH = texH;
+        if (!stagingTexture || stagingW != texW || stagingH != texH)
+        {
+            stagingTexture = nullptr;
+
+            D3D11_TEXTURE2D_DESC stagingDesc = sourceDesc;
+            stagingDesc.BindFlags = 0;
+            stagingDesc.CPUAccessFlags = D3D11_CPU_ACCESS_READ;
+            stagingDesc.MiscFlags = 0;
+            stagingDesc.Usage = D3D11_USAGE_STAGING;
+
+            HRESULT hrCreate = impl->Device->CreateTexture2D(&stagingDesc, nullptr, stagingTexture.put());
+            if (FAILED(hrCreate)) { frame.Close(); return; }
+            stagingW = texW;
+            stagingH = texH;
+        }
+
+        impl->Context->CopyResource(stagingTexture.get(), texture.get());
+        impl->Context->Flush();
+
+        texture = nullptr;
+        frame.Close();
+        frame = nullptr;
+
+        D3D11_MAPPED_SUBRESOURCE mapped{};
+        HRESULT hr = impl->Context->Map(stagingTexture.get(), 0, D3D11_MAP_READ, 0, &mapped);
+        if (FAILED(hr)) return;
+
+        packedFrame.resize(static_cast<size_t>(packedStride) * static_cast<size_t>(frameH));
+        auto srcBase = static_cast<const BYTE*>(mapped.pData);
+        for (int row = 0; row < frameH; ++row)
+        {
+            memcpy(packedFrame.data() + row * packedStride,
+                   srcBase + row * mapped.RowPitch,
+                   packedStride);
+        }
+
+        impl->Context->Unmap(stagingTexture.get(), 0);
+        captured = true;
     }
 
-    // GPU 拷贝 + 刷新确保完成
-    impl->Context->CopyResource(stagingTexture.get(), texture.get());
-    impl->Context->Flush();
-
-    // 释放对 WGC 帧纹理的引用 — 越早释放，WGC 帧池回收越安全
-    texture = nullptr;
-    frame.Close();
-    frame = nullptr;
-
-    D3D11_MAPPED_SUBRESOURCE mapped{};
-    HRESULT hr = impl->Context->Map(stagingTexture.get(), 0, D3D11_MAP_READ, 0, &mapped);
-    if (FAILED(hr)) return;
-
-    int frameW = contentSize.Width;
-    int frameH = contentSize.Height;
+    if (!captured || !recording.load()) return;
 
     LARGE_INTEGER now{};
     QueryPerformanceCounter(&now);
-    LONGLONG elapsed100ns = (now.QuadPart - startTime.QuadPart) * 10000000LL / frequency.QuadPart - totalPausedDuration;
+    LONGLONG pausedDuration;
+    {
+        std::lock_guard lock(timingMutex);
+        pausedDuration = totalPausedDuration;
+    }
+    LONGLONG elapsed100ns = (now.QuadPart - startTime.QuadPart) * 10000000LL / frequency.QuadPart - pausedDuration;
 
-    // 写入 MF SinkWriter
     {
         std::lock_guard lock(writerMutex);
         if (sinkWriter && recording.load())
@@ -1433,7 +1483,7 @@ void ScreenRecorderState::OnFrameArrived(
                 BYTE* dest = nullptr;
                 if (SUCCEEDED(mfBuffer->Lock(&dest, nullptr, nullptr)))
                 {
-                    auto srcBase = static_cast<const BYTE*>(mapped.pData);
+                    auto srcBase = packedFrame.data();
 
                     if (needsCrop)
                     {
@@ -1446,7 +1496,7 @@ void ScreenRecorderState::OnFrameArrived(
                         {
                             int srcRow = cropY + row;
                             if (srcRow < 0 || srcRow >= frameH) continue;
-                            const BYTE* srcLine = srcBase + srcRow * mapped.RowPitch + cropX * kBytesPerPixel;
+                            const BYTE* srcLine = srcBase + srcRow * packedStride + cropX * kBytesPerPixel;
                             BYTE* dstLine = dest + row * outStrideMF;
                             memcpy(dstLine, srcLine, copyBytes);
                         }
@@ -1463,7 +1513,7 @@ void ScreenRecorderState::OnFrameArrived(
                         for (int row = 0; row < copyH; ++row)
                         {
                             memcpy(dest + row * outStrideMF,
-                                   srcBase + row * mapped.RowPitch,
+                                   srcBase + row * packedStride,
                                    copyBytes);
                         }
                     }
@@ -1483,9 +1533,6 @@ void ScreenRecorderState::OnFrameArrived(
             }
         }
     }
-
-    // 解除映射（stagingTexture 保留复用）
-    impl->Context->Unmap(stagingTexture.get(), 0);
 }
 
 #pragma managed(pop)

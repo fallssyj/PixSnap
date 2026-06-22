@@ -21,11 +21,9 @@ public static class SuperResolutionService
     private static readonly string ModelPath =
         Path.Combine(AppContext.BaseDirectory, "onnx", "realesrgan-x4plus.onnx");
 
-    private const int TileSize   = 256;
-    // 分块重叠区域：每块向四周多取 TilePad 个真实邻居像素，
-    // 推理后只写回中心有效区域，从而消除分块接缝。
-    private const int TilePad    = 16;
-    private const int TileStride = TileSize - TilePad * 2;   // 224
+    // realesrgan-x4plus.onnx 固定输入 256×256；分块尺寸必须与模型一致
+    private const int ModelTileSize = 256;
+    private const int TilePad = 16;
     private const int ScaleFactor = 4;
 
     // 输出位图最大像素数（BGRA 4字节/像素，128MP ≈ 512 MB，安全低于 SKBitmap int 上限）
@@ -37,7 +35,9 @@ public static class SuperResolutionService
         IProgress<(double Value, string Text)>? progress = null,
         CancellationToken cancellationToken = default)
     {
-        return await Task.Run(() =>
+        var frozen = ImageIOService.CreateFrozenSnapshot(originalImage);
+
+        var export = await Task.Run(() =>
         {
             cancellationToken.ThrowIfCancellationRequested();
             progress?.Report((0.05, "正在加载超分模型..."));
@@ -47,9 +47,9 @@ public static class SuperResolutionService
                 throw new FileNotFoundException(string.Format("未找到 ONNX 模型：{0}", ModelPath));
             }
 
-            Log.Information("开始超分辨率: 图像 {W}×{H}", originalImage.PixelWidth, originalImage.PixelHeight);
+            Log.Information("开始超分辨率: 图像 {W}×{H}", frozen.PixelWidth, frozen.PixelHeight);
 
-            using var srcBitmap = SkiaInteropHelper.BitmapSourceToSKBitmap(originalImage);
+            using var srcBitmap = SkiaInteropHelper.BitmapSourceToSKBitmap(frozen);
             int srcW = srcBitmap.Width;
             int srcH = srcBitmap.Height;
 
@@ -63,20 +63,18 @@ public static class SuperResolutionService
 
             progress?.Report((0.20, "正在初始化推理引擎..."));
             var session = OnnxSessionFactory.GetOrCreateSession(ModelPath, out var providerName);
-            progress?.Report((0.28, string.Format("当前推理设备：{0}", providerName)));
+            progress?.Report((0.28, FormatProviderMessage(providerName)));
             var inputName = session.InputMetadata.Keys.First();
+            var tile = GetTileConfig(session, inputName);
 
             progress?.Report((0.35, "正在执行超分推理..."));
-            using var outputBitmap = RunTiled(session, inputName, actualSource, srcW, srcH, progress, cancellationToken);
+            using var outputBitmap = RunTiled(session, providerName, tile, inputName, actualSource, srcW, srcH, progress, cancellationToken);
 
             progress?.Report((0.90, "正在生成超分结果..."));
-            var result = SkiaInteropHelper.SKBitmapToBitmapSource(outputBitmap);
-            result.Freeze();
+            return (SkiaInteropHelper.CopyPixels(outputBitmap), outputBitmap.Width, outputBitmap.Height);
+        }, cancellationToken);
 
-            progress?.Report((1.0, "超分辨率完成"));
-            Log.Information("超分辨率完成: 结果图像 {W}×{H}", result.PixelWidth, result.PixelHeight);
-            return result;
-        }).ConfigureAwait(false);
+        return SkiaInteropHelper.CreateFrozenBitmapFromBgra(export.Item1, export.Item2, export.Item3);
     }
 
     private static SKBitmap DownscaleSource(
@@ -94,6 +92,34 @@ public static class SuperResolutionService
         return downscaled;
     }
 
+    private readonly record struct TileConfig(int Size, int Pad, int Stride);
+
+    private static TileConfig GetTileConfig(InferenceSession session, string inputName)
+    {
+        int tileSize = ModelTileSize;
+        int tilePad = TilePad;
+
+        if (session.InputMetadata.TryGetValue(inputName, out var meta)
+            && meta.Dimensions is { Length: >= 4 } dims
+            && dims[2] > 0
+            && dims[3] > 0)
+        {
+            tileSize = (int)Math.Max(dims[2], dims[3]);
+            tilePad = Math.Clamp(TilePad, 0, tileSize / 4);
+            Log.Debug("超分模型输入尺寸: {H}×{W}, 分块 {TileSize}px", dims[2], dims[3], tileSize);
+        }
+
+        return new TileConfig(tileSize, tilePad, tileSize - tilePad * 2);
+    }
+
+    private static string FormatProviderMessage(string providerName)
+    {
+        if (providerName.StartsWith("DirectML", StringComparison.OrdinalIgnoreCase))
+            return string.Format("GPU 加速：{0}", providerName);
+
+        return string.Format("CPU 推理（较慢）：{0}。可在日志中查看 DirectML 失败原因", providerName);
+    }
+
     /// <summary>描述单个分块在源图和张量中的几何位置。</summary>
     private readonly record struct TileRegion(
         int SrcX, int SrcY,             // tile 有效区域在源图中的起始坐标
@@ -107,17 +133,19 @@ public static class SuperResolutionService
     /// 末块反向对齐：最后一个 tile 从 (src - TileStride) 处开始，
     /// 确保其拥有完整的右/下邻居像素上下文，避免边缘质量下降。
     /// </summary>
-    private static TileRegion ComputeTileRegion(int tx, int ty, int srcW, int srcH)
+    private static TileRegion ComputeTileRegion(int tx, int ty, int srcW, int srcH, TileConfig tile)
     {
-        int srcX   = srcW > TileStride ? Math.Min(tx * TileStride, srcW - TileStride) : 0;
-        int srcY   = srcH > TileStride ? Math.Min(ty * TileStride, srcH - TileStride) : 0;
-        int validW = Math.Min(TileStride, srcW - srcX);
-        int validH = Math.Min(TileStride, srcH - srcY);
+        int tileStride = tile.Stride;
+        int tilePad = tile.Pad;
+        int srcX   = srcW > tileStride ? Math.Min(tx * tileStride, srcW - tileStride) : 0;
+        int srcY   = srcH > tileStride ? Math.Min(ty * tileStride, srcH - tileStride) : 0;
+        int validW = Math.Min(tileStride, srcW - srcX);
+        int validH = Math.Min(tileStride, srcH - srcY);
 
-        int padLeft   = Math.Min(srcX,                 TilePad);
-        int padTop    = Math.Min(srcY,                 TilePad);
-        int padRight  = Math.Min(srcW - srcX - validW, TilePad);
-        int padBottom = Math.Min(srcH - srcY - validH, TilePad);
+        int padLeft   = Math.Min(srcX,                 tilePad);
+        int padTop    = Math.Min(srcY,                 tilePad);
+        int padRight  = Math.Min(srcW - srcX - validW, tilePad);
+        int padBottom = Math.Min(srcH - srcY - validH, tilePad);
 
         return new TileRegion(
             srcX, srcY, validW, validH,
@@ -126,9 +154,11 @@ public static class SuperResolutionService
             padLeft, padTop);
     }
 
-    /// <summary>分块推理：将源图按 TileStride 步长切成若干 TileSize×TileSize 块，逐块 4x 超分后写回结果位图。</summary>
+    /// <summary>分块推理：将源图按 TileStride 步长切成若干块，逐块 4x 超分后写回结果位图。</summary>
     private static SKBitmap RunTiled(
         InferenceSession session,
+        string providerName,
+        TileConfig tile,
         string inputName,
         SKBitmap source,
         int srcW,
@@ -139,15 +169,17 @@ public static class SuperResolutionService
         var result = new SKBitmap(new SKImageInfo(srcW * ScaleFactor, srcH * ScaleFactor, SKColorType.Bgra8888, SKAlphaType.Unpremul));
         try
         {
-            int tilesX = (int)Math.Ceiling((double)srcW / TileStride);
-            int tilesY = (int)Math.Ceiling((double)srcH / TileStride);
+            int tileStride = tile.Stride;
+            int tilesX = (int)Math.Ceiling((double)srcW / tileStride);
+            int tilesY = (int)Math.Ceiling((double)srcH / tileStride);
             int totalTiles = tilesX * tilesY;
             int tileIndex = 0;
             int outW = srcW * ScaleFactor;
             int outH = srcH * ScaleFactor;
-            Log.Debug("分块超分: {TilesX}×{TilesY} = {Total} 块", tilesX, tilesY, totalTiles);
+            Log.Debug("分块超分: {TileSize}px, {TilesX}×{TilesY} = {Total} 块, {Provider}",
+                tile.Size, tilesX, tilesY, totalTiles, providerName);
 
-            var inputs = new List<NamedOnnxValue>(1); // 复用，减少每块 GC 分配
+            var inputs = new List<NamedOnnxValue>(1);
 
             for (int ty = 0; ty < tilesY; ty++)
             {
@@ -157,25 +189,35 @@ public static class SuperResolutionService
                     tileIndex++;
                     progress?.Report((0.35 + 0.45 * tileIndex / totalTiles, string.Format("正在分块超分 ({0}/{1})...", tileIndex, totalTiles)));
 
-                    var tile = ComputeTileRegion(tx, ty, srcW, srcH);
+                    // 若上一块触发 DirectML→CPU 回退，从缓存取最新 Session
+                    session = OnnxSessionFactory.GetOrCreateSession(ModelPath, out providerName);
 
-                    var inputTensor = ExtractTileToTensor(source, tile.ExtractX, tile.ExtractY, tile.ExtractW, tile.ExtractH, TileSize, TileSize);
+                    var tileRegion = ComputeTileRegion(tx, ty, srcW, srcH, tile);
+
+                    var inputTensor = ExtractTileToTensor(
+                        source,
+                        tileRegion.ExtractX,
+                        tileRegion.ExtractY,
+                        tileRegion.ExtractW,
+                        tileRegion.ExtractH,
+                        tile.Size,
+                        tile.Size);
                     inputs.Clear();
                     inputs.Add(NamedOnnxValue.CreateFromTensor(inputName, inputTensor));
 
-                    using var outputs = RunTileInference(session, inputs, tileIndex, totalTiles);
-                    var outputTensor = outputs.First().AsTensor<float>();
-
-                    WriteTensorToBitmap(
-                        outputTensor, result,
-                        destX:         tile.SrcX    * ScaleFactor,
-                        destY:         tile.SrcY    * ScaleFactor,
-                        tensorOffsetX: tile.PadLeft  * ScaleFactor,
-                        tensorOffsetY: tile.PadTop   * ScaleFactor,
-                        copyW:         tile.ValidW   * ScaleFactor,
-                        copyH:         tile.ValidH   * ScaleFactor,
-                        fullW:         outW,
-                        fullH:         outH);
+                    RunTileInference(session, providerName, inputs, outputTensor =>
+                    {
+                        WriteTensorToBitmap(
+                            outputTensor, result,
+                            destX:         tileRegion.SrcX    * ScaleFactor,
+                            destY:         tileRegion.SrcY    * ScaleFactor,
+                            tensorOffsetX: tileRegion.PadLeft  * ScaleFactor,
+                            tensorOffsetY: tileRegion.PadTop   * ScaleFactor,
+                            copyW:         tileRegion.ValidW   * ScaleFactor,
+                            copyH:         tileRegion.ValidH   * ScaleFactor,
+                            fullW:         outW,
+                            fullH:         outH);
+                    });
                 }
             }
         }
@@ -189,19 +231,14 @@ public static class SuperResolutionService
     }
 
     /// <summary>执行单块推理，DirectML 失败时自动回退到 CPU。</summary>
-    private static IDisposableReadOnlyCollection<DisposableNamedOnnxValue> RunTileInference(
-        InferenceSession session, List<NamedOnnxValue> inputs, int tileIndex, int totalTiles)
+    private static void RunTileInference(
+        InferenceSession session,
+        string providerName,
+        List<NamedOnnxValue> inputs,
+        Action<Tensor<float>> consumeOutput)
     {
-        try
-        {
-            return session.Run(inputs);
-        }
-        catch (OnnxRuntimeException ex)
-        {
-            Log.Warning(ex, "超分分块 {Index}/{Total} DirectML 推理失败，回退到 CPU", tileIndex, totalTiles);
-            using var cpuSession = OnnxSessionFactory.CreateCpuSession(ModelPath);
-            return cpuSession.Run(inputs);
-        }
+        using var run = OnnxInferenceHelper.RunWithCpuFallback(session, providerName, ModelPath, inputs);
+        consumeOutput(run.First().AsTensor<float>());
     }
 
     /// <summary>从源位图指定区域抽取像素并转换为 [1,3,H,W] RGB float32 张量（归一化到 0–1）。</summary>

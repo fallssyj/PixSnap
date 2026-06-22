@@ -43,6 +43,13 @@ public sealed partial class AnnotationColorItem : ObservableObject
     private bool _isSelected;
 }
 
+internal enum AnnotationExitChoice
+{
+    Apply,
+    Discard,
+    Cancel
+}
+
 public sealed class CropAspectRatioPresetItem
 {
     public required string Content { get; init; }
@@ -61,6 +68,8 @@ public partial class ScreenshotPreviewViewModel : ObservableRecipient, IRecipien
     private readonly SemaphoreSlim _imageApplySemaphore = new(1, 1);
     private CancellationTokenSource? _fileSizeUpdateCts;
     private CancellationTokenSource? _aiCts;
+    private bool _copyAfterAnnotationApply;
+    private bool _isClosing;
 
     [ObservableProperty]
     [NotifyCanExecuteChangedFor(nameof(SaveToFileCommand))]
@@ -94,6 +103,16 @@ public partial class ScreenshotPreviewViewModel : ObservableRecipient, IRecipien
     /// <summary>AI 功能弹出菜单是否展开。双向绑定到 Popup.IsOpen。</summary>
     [ObservableProperty]
     private bool _isAiPopupOpen;
+
+    /// <summary>OCR 识别结果是否显示在图片上。</summary>
+    [ObservableProperty]
+    private bool _isOcrOverlayVisible;
+
+    public ObservableCollection<OcrTextRegion> OcrRegions { get; } = [];
+
+    public string OcrRegionCountText => OcrRegions.Count > 0
+        ? string.Format("已识别 {0} 处文字", OcrRegions.Count)
+        : "扫描文本";
 
     [ObservableProperty]
     [NotifyPropertyChangedFor(nameof(IsAnyAiProcessing))]
@@ -139,6 +158,7 @@ public partial class ScreenshotPreviewViewModel : ObservableRecipient, IRecipien
 
     // ── 编辑模式（互斥单活）──────────────────────────────────────────
     [ObservableProperty]
+    [NotifyCanExecuteChangedFor(nameof(ApplyAnnotationAndCopyCommand))]
     private EditMode _activeEditMode;
 
     partial void OnActiveEditModeChanged(EditMode oldValue, EditMode newValue)
@@ -148,6 +168,12 @@ public partial class ScreenshotPreviewViewModel : ObservableRecipient, IRecipien
         OnPropertyChanged(nameof(IsEraserMode));
         OnPropertyChanged(nameof(IsAnnotateMode));
         OnPropertyChanged(nameof(IsEditPanelVisible));
+        OnPropertyChanged(nameof(IsTitleBarHistoryVisible));
+        NotifyUndoRedoStateChanged();
+        if (oldValue == EditMode.Eraser && newValue != EditMode.Eraser)
+            EraserPanel.ClearStrokesCommand.Execute(null);
+        if (newValue != EditMode.None)
+            ClearOcrOverlay();
     }
 
     public bool IsCropMode => ActiveEditMode == EditMode.Crop;
@@ -155,6 +181,21 @@ public partial class ScreenshotPreviewViewModel : ObservableRecipient, IRecipien
     public bool IsEraserMode => ActiveEditMode == EditMode.Eraser;
     public bool IsAnnotateMode => ActiveEditMode == EditMode.Annotate;
     public bool IsEditPanelVisible => ActiveEditMode != EditMode.None;
+
+    /// <summary>标题栏撤销/重做：标注模式下隐藏，改用 dock 内历史操作。</summary>
+    public bool IsTitleBarHistoryVisible => !IsAnnotateMode;
+
+    public string ActiveAnnotationToolDisplayText => AnnotationPanel.SelectedTool switch
+    {
+        AnnotationTool.Pointer => "选择",
+        AnnotationTool.Arrow => "箭头",
+        AnnotationTool.Rectangle => "矩形",
+        AnnotationTool.Ellipse => "椭圆",
+        AnnotationTool.Text => "文本",
+        AnnotationTool.Pen => "画笔",
+        AnnotationTool.Blur => "模糊",
+        _ => "标注"
+    };
 
     /// <summary>退出当前编辑模式，回到浏览状态。</summary>
     public void ExitEditMode() => ActiveEditMode = EditMode.None;
@@ -166,6 +207,9 @@ public partial class ScreenshotPreviewViewModel : ObservableRecipient, IRecipien
     public ObservableCollection<AnnotationToolItem> AnnotationTools { get; } = [];
     public ObservableCollection<AnnotationColorItem> AnnotationColors { get; } = [];
     public ObservableCollection<CropAspectRatioPresetItem> CropAspectRatioPresets { get; } = [];
+
+    [ObservableProperty]
+    private bool _isCustomAnnotationColorSelected;
 
     public string PreviewScaleModeText => IsActualSize ? "缩放以适应" : "缩放以原始";
     public string ZoomDisplayText => string.Format("缩放 {0:P0}", IsActualSize ? ZoomFactor : FitZoomFactor);
@@ -212,13 +256,13 @@ public partial class ScreenshotPreviewViewModel : ObservableRecipient, IRecipien
         _navigation = navigation;
         AnnotationTools =
         [
-            new() { Tool = AnnotationTool.Pointer, Glyph = "\uE8B0", ToolTip = "选择 / 移动", Command = AnnotationPanel.SelectPointerCommand },
-            new() { Tool = AnnotationTool.Arrow, Glyph = "\uE76C", ToolTip = "箭头", Command = AnnotationPanel.SelectArrowCommand },
-            new() { Tool = AnnotationTool.Rectangle, Glyph = "\uE739", ToolTip = "矩形", Command = AnnotationPanel.SelectRectangleCommand },
-            new() { Tool = AnnotationTool.Ellipse, Glyph = "\uEA3A", ToolTip = "椭圆", Command = AnnotationPanel.SelectEllipseCommand },
-            new() { Tool = AnnotationTool.Text, Glyph = "\uE8D2", ToolTip = "文本", Command = AnnotationPanel.SelectTextCommand },
-            new() { Tool = AnnotationTool.Pen, Glyph = "\uEE56", ToolTip = "画笔", Command = AnnotationPanel.SelectPenCommand },
-            new() { Tool = AnnotationTool.Blur, Glyph = "\uED5B", ToolTip = "模糊", Command = AnnotationPanel.SelectBlurCommand }
+            new() { Tool = AnnotationTool.Pointer, Glyph = "\uE8B0", ToolTip = "选择 / 移动 (V)", Command = AnnotationPanel.SelectPointerCommand },
+            new() { Tool = AnnotationTool.Arrow, Glyph = "\uE76C", ToolTip = "箭头 (A)", Command = AnnotationPanel.SelectArrowCommand },
+            new() { Tool = AnnotationTool.Rectangle, Glyph = "\uE739", ToolTip = "矩形 (R)", Command = AnnotationPanel.SelectRectangleCommand },
+            new() { Tool = AnnotationTool.Ellipse, Glyph = "\uEA3A", ToolTip = "椭圆 (E)", Command = AnnotationPanel.SelectEllipseCommand },
+            new() { Tool = AnnotationTool.Text, Glyph = "\uE8D2", ToolTip = "文本 (T)", Command = AnnotationPanel.SelectTextCommand },
+            new() { Tool = AnnotationTool.Pen, Glyph = "\uEE56", ToolTip = "画笔 (P)", Command = AnnotationPanel.SelectPenCommand },
+            new() { Tool = AnnotationTool.Blur, Glyph = "\uED5B", ToolTip = "模糊 (M)", Command = AnnotationPanel.SelectBlurCommand }
         ];
         AnnotationColors =
         [
@@ -262,6 +306,7 @@ public partial class ScreenshotPreviewViewModel : ObservableRecipient, IRecipien
         if (e.PropertyName == nameof(AnnotationViewModel.SelectedTool))
         {
             UpdateAnnotationToolSelection();
+            OnPropertyChanged(nameof(ActiveAnnotationToolDisplayText));
         }
         else if (e.PropertyName == nameof(AnnotationViewModel.StrokeColor))
         {
@@ -284,13 +329,61 @@ public partial class ScreenshotPreviewViewModel : ObservableRecipient, IRecipien
     private void UpdateAnnotationColorSelection()
     {
         var current = AnnotationPanel.StrokeColor;
+        var anyPreset = false;
         foreach (var color in AnnotationColors)
         {
-            color.IsSelected = color.WpfColor.R == current.R
+            var match = color.WpfColor.R == current.R
                 && color.WpfColor.G == current.G
-                && color.WpfColor.B == current.B
-                && color.WpfColor.A == current.A;
+                && color.WpfColor.B == current.B;
+            color.IsSelected = match;
+            if (match)
+                anyPreset = true;
         }
+
+        IsCustomAnnotationColorSelected = !anyPreset;
+    }
+
+    /// <summary>退出标注模式前确认未应用内容；返回 false 表示用户选择继续编辑。</summary>
+    private async Task<bool> TryLeaveAnnotationModeAsync()
+    {
+        if (ActiveEditMode != EditMode.Annotate)
+            return true;
+
+        if (!AnnotationPanel.HasPendingAnnotations)
+        {
+            ActiveEditMode = EditMode.None;
+            return true;
+        }
+
+        var choice = PromptAnnotationExitChoice();
+        switch (choice)
+        {
+            case AnnotationExitChoice.Apply:
+                await ApplyAnnotation();
+                return ActiveEditMode != EditMode.Annotate;
+            case AnnotationExitChoice.Discard:
+                AnnotationPanel.ClearAnnotationsCommand.Execute(null);
+                ActiveEditMode = EditMode.None;
+                return true;
+            default:
+                return false;
+        }
+    }
+
+    private static AnnotationExitChoice PromptAnnotationExitChoice()
+    {
+        var result = AppMessageBox.Show(
+            "当前标注尚未应用到图片。\n\n是 — 应用标注并退出\n否 — 放弃标注\n取消 — 继续编辑",
+            "未应用的标注",
+            MessageBoxButton.YesNoCancel,
+            MessageBoxImage.Question);
+
+        return result switch
+        {
+            MessageBoxResult.Yes => AnnotationExitChoice.Apply,
+            MessageBoxResult.No => AnnotationExitChoice.Discard,
+            _ => AnnotationExitChoice.Cancel
+        };
     }
 
     private void OnEraserPanelPropertyChanged(object? sender, PropertyChangedEventArgs e)
@@ -337,6 +430,12 @@ public partial class ScreenshotPreviewViewModel : ObservableRecipient, IRecipien
         // 先应用新图片，再退出标注模式，避免标注层先清空而新图未到导致闪烁
         await ApplyEditedImageAsync(result, switchToFit: false);
         ActiveEditMode = EditMode.None;
+        if (_copyAfterAnnotationApply)
+        {
+            _copyAfterAnnotationApply = false;
+            if (ScreenshotImage is not null)
+                ClipboardHelper.TrySetImage(ScreenshotImage);
+        }
     }
 
     partial void OnIsActualSizeChanged(bool value)
@@ -402,6 +501,22 @@ public partial class ScreenshotPreviewViewModel : ObservableRecipient, IRecipien
         return $"{nameWithoutExt[..bodyHead]}...{nameWithoutExt[^bodyTail..]}{ext}";
     }
 
+    /// <summary>换图或旋转前：确认退出标注/擦除等编辑模式。</summary>
+    private async Task<bool> PrepareForImageReplaceAsync()
+    {
+        if (!await TryLeaveAnnotationModeAsync())
+            return false;
+
+        if (ActiveEditMode == EditMode.Eraser)
+        {
+            EraserPanel.CancelInpaintCommand.Execute(null);
+            EraserPanel.ClearStrokesCommand.Execute(null);
+        }
+
+        ActiveEditMode = EditMode.None;
+        return true;
+    }
+
     [RelayCommand]
     private async Task OpenFile()
     {
@@ -412,6 +527,7 @@ public partial class ScreenshotPreviewViewModel : ObservableRecipient, IRecipien
         };
 
         if (dialog.ShowDialog() != true) return;
+        if (!await PrepareForImageReplaceAsync()) return;
 
         IsFileOperationProcessing = true;
         FileOperationProgress = 0.05;
@@ -513,20 +629,25 @@ public partial class ScreenshotPreviewViewModel : ObservableRecipient, IRecipien
     }
 
     [RelayCommand]
-    private void CopyToClipboard()
+    private async Task CopyToClipboard()
     {
-        if (ScreenshotImage is not null)
+        if (ScreenshotImage is null) return;
+
+        if (IsAnnotateMode && AnnotationPanel.Annotations.Count > 0)
         {
-            Clipboard.SetImage(ScreenshotImage);
+            await ApplyAnnotationAndCopy();
+            return;
         }
+
+        ClipboardHelper.TrySetImage(ScreenshotImage);
     }
 
     [RelayCommand]
-    private void PasteFromClipboard()
+    private async Task PasteFromClipboard()
     {
-        if (!Clipboard.ContainsImage()) return;
-        var image = Clipboard.GetImage();
+        var image = ClipboardHelper.TryGetImage();
         if (image is null) return;
+        if (!await PrepareForImageReplaceAsync()) return;
 
         if (!image.IsFrozen) image.Freeze();
         SetCurrentImage(image, switchToFit: true);
@@ -551,6 +672,7 @@ public partial class ScreenshotPreviewViewModel : ObservableRecipient, IRecipien
     private async Task RotateImage()
     {
         if (ScreenshotImage is null) return;
+        if (!await PrepareForImageReplaceAsync()) return;
 
         IsRotating = true;
         try
@@ -605,42 +727,48 @@ public partial class ScreenshotPreviewViewModel : ObservableRecipient, IRecipien
     }
 
     [RelayCommand]
-    private void ToggleCrop()
+    private async Task ToggleCrop()
     {
         if (ScreenshotImage is null) return;
-        SwitchToFitMode();
         if (ActiveEditMode == EditMode.Crop)
         {
             ActiveEditMode = EditMode.None;
+            return;
         }
-        else
-        {
-            ActiveEditMode = EditMode.Crop;
-            CropPanel.Initialize(ScreenshotImage.PixelWidth, ScreenshotImage.PixelHeight);
-        }
+
+        if (!await TryLeaveAnnotationModeAsync()) return;
+        SwitchToFitMode();
+        ActiveEditMode = EditMode.Crop;
+        CropPanel.Initialize(ScreenshotImage.PixelWidth, ScreenshotImage.PixelHeight);
     }
 
     [RelayCommand]
-    private void ToggleRoundCorner()
+    private async Task ToggleRoundCorner()
     {
         if (ScreenshotImage is null) return;
-        ActiveEditMode = ActiveEditMode == EditMode.RoundCorner ? EditMode.None : EditMode.RoundCorner;
+        if (ActiveEditMode == EditMode.RoundCorner)
+        {
+            ActiveEditMode = EditMode.None;
+            return;
+        }
+
+        if (!await TryLeaveAnnotationModeAsync()) return;
+        ActiveEditMode = EditMode.RoundCorner;
     }
 
     [RelayCommand]
-    private void ToggleEraser()
+    private async Task ToggleEraser()
     {
         if (ScreenshotImage is null) return;
         if (ActiveEditMode == EditMode.Eraser)
         {
             ActiveEditMode = EditMode.None;
-            EraserPanel.ClearStrokesCommand.Execute(null);
+            return;
         }
-        else
-        {
-            SwitchToFitMode();
-            ActiveEditMode = EditMode.Eraser;
-        }
+
+        if (!await TryLeaveAnnotationModeAsync()) return;
+        SwitchToFitMode();
+        ActiveEditMode = EditMode.Eraser;
     }
 
     /// <summary>取消 AI 擦除的推理（如正在运行）并退出擦除编辑模式。</summary>
@@ -660,13 +788,13 @@ public partial class ScreenshotPreviewViewModel : ObservableRecipient, IRecipien
     }
 
     [RelayCommand]
-    private void ToggleAnnotation()
+    private async Task ToggleAnnotation()
     {
         if (ScreenshotImage is null) return;
         if (ActiveEditMode == EditMode.Annotate)
         {
-            AnnotationPanel.ClearAnnotationsCommand.Execute(null);
-            ActiveEditMode = EditMode.None;
+            if (!await TryLeaveAnnotationModeAsync())
+                return;
         }
         else
         {
@@ -687,11 +815,35 @@ public partial class ScreenshotPreviewViewModel : ObservableRecipient, IRecipien
         await AnnotationPanel.ApplyAnnotationsAsync(ScreenshotImage);
     }
 
-    [RelayCommand]
-    private void ExitAnnotationMode()
+    [RelayCommand(CanExecute = nameof(CanApplyAnnotationAndCopy))]
+    private async Task ApplyAnnotationAndCopy()
     {
-        AnnotationPanel.ClearAnnotationsCommand.Execute(null);
-        ExitEditMode();
+        if (ScreenshotImage is null) return;
+
+        if (AnnotationPanel.Annotations.Count > 0)
+        {
+            try
+            {
+                _copyAfterAnnotationApply = true;
+                await AnnotationPanel.ApplyAnnotationsAsync(ScreenshotImage);
+            }
+            finally
+            {
+                if (_copyAfterAnnotationApply)
+                    _copyAfterAnnotationApply = false;
+            }
+            return;
+        }
+
+        ClipboardHelper.TrySetImage(ScreenshotImage);
+    }
+
+    private bool CanApplyAnnotationAndCopy() => ScreenshotImage is not null && IsAnnotateMode;
+
+    [RelayCommand]
+    private async Task ExitAnnotationMode()
+    {
+        await TryLeaveAnnotationModeAsync();
     }
 
 
@@ -700,6 +852,7 @@ public partial class ScreenshotPreviewViewModel : ObservableRecipient, IRecipien
     private async Task RemoveBackground()
     {
         if (ScreenshotImage is null || IsAnyAiProcessing) return;
+        if (!await PrepareForImageReplaceAsync()) return;
 
         // 关闭弹出菜单（处理期间弹层将阻断操作）
         IsAiPopupOpen = false;
@@ -752,10 +905,97 @@ public partial class ScreenshotPreviewViewModel : ObservableRecipient, IRecipien
         }
     }
 
+    /// <summary>离线 OCR：PaddleOCR 识别并在图片原位显示文字。</summary>
+    [RelayCommand]
+    private async Task RecognizeText()
+    {
+        if (ScreenshotImage is null || IsAnyAiProcessing) return;
+
+        ClearOcrOverlay();
+        IsAiPopupOpen = false;
+        IsAiModuleProcessing = true;
+        AiModuleProgress = 0;
+        AiModuleProgressText = "正在准备 PaddleOCR...";
+        var token = CreateAiCancellationToken();
+        try
+        {
+            var progress = new Progress<(double Value, string Text)>(t =>
+            {
+                AiModuleProgress = t.Value;
+                AiModuleProgressText = t.Text;
+            });
+
+            var result = await OcrService.RecognizeAsync(ScreenshotImage, progress, token);
+            if (result.Regions.Count == 0)
+            {
+                AppMessageBox.Show(
+                    "未在图片中识别到文字。",
+                    "扫描文本",
+                    MessageBoxButton.OK,
+                    MessageBoxImage.Information);
+                return;
+            }
+
+            foreach (var region in result.Regions)
+                OcrRegions.Add(region);
+
+            OnPropertyChanged(nameof(OcrRegionCountText));
+            IsOcrOverlayVisible = true;
+            AiModuleProgress = 1;
+            AiModuleProgressText = string.Format("扫描完成，共 {0} 处", result.Regions.Count);
+        }
+        catch (OperationCanceledException)
+        {
+            AiModuleProgressText = string.Empty;
+        }
+        catch (OcrService.OcrNotAvailableException ex)
+        {
+            Log.Warning(ex, "OCR 不可用");
+            AiModuleProgressText = string.Empty;
+            AppMessageBox.Show(
+                ex.Message,
+                "扫描文本不可用",
+                MessageBoxButton.OK,
+                MessageBoxImage.Warning);
+        }
+        catch (Exception ex)
+        {
+            Log.Error(ex, "OCR 识别失败");
+            AiModuleProgressText = string.Empty;
+            AppMessageBox.Show(
+                string.Format("扫描文本失败：{0}", ex.Message),
+                "操作失败",
+                MessageBoxButton.OK,
+                MessageBoxImage.Error);
+        }
+        finally
+        {
+            IsAiModuleProcessing = false;
+        }
+    }
+
+    [RelayCommand]
+    private void CopyAllOcrText()
+    {
+        if (OcrRegions.Count == 0) return;
+        ClipboardHelper.TrySetText(string.Join(Environment.NewLine, OcrRegions.Select(r => r.Text)));
+    }
+
+    [RelayCommand]
+    private void ExitOcrOverlay() => ClearOcrOverlay();
+
+    private void ClearOcrOverlay()
+    {
+        IsOcrOverlayVisible = false;
+        OcrRegions.Clear();
+        OnPropertyChanged(nameof(OcrRegionCountText));
+    }
+
     [RelayCommand]
     private async Task SuperResolution()
     {
         if (ScreenshotImage is null || IsAnyAiProcessing) return;
+        if (!await PrepareForImageReplaceAsync()) return;
 
         // 关闭弹出菜单（处理期间弹层将阻断操作）
         IsAiPopupOpen = false;
@@ -817,14 +1057,14 @@ public partial class ScreenshotPreviewViewModel : ObservableRecipient, IRecipien
         return _aiCts.Token;
     }
 
-    private bool CanUndo() => ScreenshotImage is not null && (IsAnnotateMode ? AnnotationPanel.CanUndo || _history.CanUndo : _history.CanUndo);
+    private bool CanUndo() => ScreenshotImage is not null && (IsAnnotateMode ? AnnotationPanel.CanUndo : _history.CanUndo);
 
     [RelayCommand(CanExecute = nameof(CanUndo))]
     private void Undo()
     {
         if (!CanUndo() || ScreenshotImage is null) return;
 
-        if (IsAnnotateMode && AnnotationPanel.CanUndo)
+        if (IsAnnotateMode)
         {
             AnnotationPanel.UndoAnnotationCommand.Execute(null);
             NotifyUndoRedoStateChanged();
@@ -836,14 +1076,14 @@ public partial class ScreenshotPreviewViewModel : ObservableRecipient, IRecipien
         NotifyUndoRedoStateChanged();
     }
 
-    private bool CanRedo() => ScreenshotImage is not null && (IsAnnotateMode ? AnnotationPanel.CanRedo || _history.CanRedo : _history.CanRedo);
+    private bool CanRedo() => ScreenshotImage is not null && (IsAnnotateMode ? AnnotationPanel.CanRedo : _history.CanRedo);
 
     [RelayCommand(CanExecute = nameof(CanRedo))]
     private void Redo()
     {
         if (!CanRedo() || ScreenshotImage is null) return;
 
-        if (IsAnnotateMode && AnnotationPanel.CanRedo)
+        if (IsAnnotateMode)
         {
             AnnotationPanel.RedoAnnotationCommand.Execute(null);
             NotifyUndoRedoStateChanged();
@@ -884,6 +1124,9 @@ public partial class ScreenshotPreviewViewModel : ObservableRecipient, IRecipien
     /// <summary>从文件路径加载图片（拖拽打开时使用）。</summary>
     public async Task LoadFromFileAsync(string filePath)
     {
+        if (!await PrepareForImageReplaceAsync())
+            return;
+
         IsFileOperationProcessing = true;
         FileOperationProgress = 0.05;
         FileOperationProgressText = "正在加载图片...";
@@ -917,15 +1160,15 @@ public partial class ScreenshotPreviewViewModel : ObservableRecipient, IRecipien
         }
     }
 
-    [RelayCommand]
-    private void Recapture() => _navigation.Recapture();
-
     /// <summary>
     /// 窗口关闭时调用：注销 Messenger、释放图像引用，阻止 GC 根保留。
     /// </summary>
     public void Cleanup()
     {
         Log.Debug("ScreenshotPreviewViewModel.Cleanup");
+        _isClosing = true;
+        EraserPanel.CancelInpaintCommand.Execute(null);
+
         // 取消所有正在进行的 AI 操作，避免访问已释放的 ONNX Session
         _aiCts?.Cancel();
         _aiCts?.Dispose();
@@ -934,6 +1177,18 @@ public partial class ScreenshotPreviewViewModel : ObservableRecipient, IRecipien
         _fileSizeUpdateCts?.Cancel();
         _fileSizeUpdateCts?.Dispose();
         _fileSizeUpdateCts = null;
+
+        try
+        {
+            if (_imageApplySemaphore.Wait(TimeSpan.FromSeconds(5)))
+                _imageApplySemaphore.Release();
+            else
+                Log.Warning("等待图片应用任务超时，预览窗口仍将关闭");
+        }
+        catch (Exception ex)
+        {
+            Log.Warning(ex, "等待图片应用任务时出错");
+        }
 
         // 断开子 ViewModel 事件，避免循环引用
         EraserPanel.InpaintApplied -= OnEraserApplied;
@@ -1008,9 +1263,12 @@ public partial class ScreenshotPreviewViewModel : ObservableRecipient, IRecipien
 
     public async Task ApplyEditedImageAsync(BitmapSource newImage, bool switchToFit = true)
     {
+        if (_isClosing) return;
+
         await _imageApplySemaphore.WaitAsync();
         try
         {
+            if (_isClosing) return;
             await Task.Yield();
 
             if (ScreenshotImage is not null)
@@ -1023,12 +1281,20 @@ public partial class ScreenshotPreviewViewModel : ObservableRecipient, IRecipien
         }
         finally
         {
-            _imageApplySemaphore.Release();
+            try
+            {
+                _imageApplySemaphore.Release();
+            }
+            catch (ObjectDisposedException)
+            {
+                // 窗口关闭 Cleanup 与进行中的图片应用竞态
+            }
         }
     }
 
     private void SetCurrentImage(BitmapSource? image, bool switchToFit)
     {
+        ClearOcrOverlay();
         ScreenshotImage = image;
         if (image is null)
         {

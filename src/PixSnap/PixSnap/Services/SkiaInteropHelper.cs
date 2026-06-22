@@ -65,4 +65,37 @@ internal static class SkiaInteropHelper
         }
         return wb;
     }
+
+    /// <summary>将 SKBitmap 像素导出为 BGRA32 字节数组。</summary>
+    public static byte[] CopyPixels(SKBitmap bmp)
+    {
+        int stride = bmp.Width * 4;
+        var pixels = new byte[bmp.Height * stride];
+        System.Runtime.InteropServices.Marshal.Copy(bmp.GetPixels(), pixels, 0, pixels.Length);
+        return pixels;
+    }
+
+    /// <summary>在 UI 线程从 BGRA 像素创建冻结的 BitmapSource。</summary>
+    public static BitmapSource CreateFrozenBitmapFromBgra(byte[] pixels, int width, int height, double dpiX = 96, double dpiY = 96)
+    {
+        var wb = new WriteableBitmap(width, height, dpiX, dpiY, PixelFormats.Bgra32, null);
+        wb.WritePixels(new Int32Rect(0, 0, width, height), pixels, width * 4, 0);
+        wb.Freeze();
+        return wb;
+    }
+
+    /// <summary>高质量放大位图，用于 OCR 前增强小字号 UI 文字。</summary>
+    public static SKBitmap Upscale(SKBitmap source, int factor)
+    {
+        if (factor <= 1)
+            return source.Copy();
+
+        var info = new SKImageInfo(
+            source.Width * factor,
+            source.Height * factor,
+            source.ColorType,
+            source.AlphaType);
+        return source.Resize(info, new SKSamplingOptions(SKFilterMode.Linear, SKMipmapMode.Linear))
+               ?? source.Copy();
+    }
 }

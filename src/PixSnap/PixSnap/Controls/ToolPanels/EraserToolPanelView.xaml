@@ -2,11 +2,12 @@
     x:Class="PixSnap.Controls.ToolPanels.EraserToolPanelView"
     xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
     xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
-    xmlns:controls="clr-namespace:PixSnap.Controls">
-    <controls:FloatingPanel Title="AI 擦除">
-        <StackPanel>
-            <controls:SliderField
-                Label="画刷大小"
+    xmlns:controls="clr-namespace:PixSnap.Controls"
+    Focusable="False">
+    <Border Style="{StaticResource EditDockHostStyle}">
+        <StackPanel VerticalAlignment="Center" Orientation="Horizontal">
+            <controls:DockSliderField
+                Label="画刷"
                 LargeChange="10"
                 Maximum="200"
                 Minimum="5"
@@ -14,23 +15,22 @@
                 TickFrequency="5"
                 Unit="px"
                 Value="{Binding EraserPanel.BrushSize, Mode=TwoWay}" />
-            <StackPanel Margin="0,10,0,0" Orientation="Horizontal">
-                <TextBlock Style="{StaticResource FieldLabelStyle}" Text="边缘羽化" />
-                <TextBlock
-                    Margin="8,0,0,0"
-                    Style="{StaticResource FieldLabelStyle}"
-                    Text="{Binding EraserPanel.EdgeFeatherStrengthText}" />
-            </StackPanel>
-            <Slider
-                Margin="0,6,0,0"
-                IsSnapToTickEnabled="True"
+
+            <Border Style="{StaticResource EditDockSeparatorStyle}" />
+
+            <controls:DockSliderField
+                Label="羽化"
                 LargeChange="10"
                 Maximum="100"
                 Minimum="0"
                 SmallChange="1"
                 TickFrequency="5"
+                Unit="%"
                 Value="{Binding EraserPanel.EdgeFeatherStrength, Mode=TwoWay}" />
-            <StackPanel Style="{StaticResource PanelActionBarStyle}">
+
+            <Border Style="{StaticResource EditDockSeparatorStyle}" />
+
+            <StackPanel Style="{StaticResource EditDockActionsStyle}">
                 <Button
                     Margin="0,0,6,0"
                     Command="{Binding EraserPanel.ClearStrokesCommand}"
@@ -48,5 +48,5 @@
                     Style="{StaticResource PanelApplyButtonStyle}" />
             </StackPanel>
         </StackPanel>
-    </controls:FloatingPanel>
+    </Border>
 </UserControl>

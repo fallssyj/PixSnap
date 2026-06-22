@@ -16,6 +16,7 @@
                 <ResourceDictionary Source="Styles/ToolbarStyles.xaml" />
                 <ResourceDictionary Source="Styles/SettingsPageStyles.xaml" />
                 <ResourceDictionary Source="Styles/AppStyles.xaml" />
+                <ResourceDictionary Source="Styles/AnnotationDockStyles.xaml" />
                 <ResourceDictionary Source="Controls/FloatingPanel.xaml" />
             </ResourceDictionary.MergedDictionaries>
 

@@ -36,6 +36,10 @@ public partial class MainViewModel : ObservableObject
             return;
         }
 
+        var recordingInProgress = _screenCaptureService.IsRecording;
+        if (recordingInProgress)
+            Log.Information("录屏进行中，进入截图选区（录屏继续）");
+
         Log.Information("开始截图/录屏流程");
 
         var shouldRestoreMainWindow = Application.Current.MainWindow?.IsVisible == true;
@@ -54,7 +58,11 @@ public partial class MainViewModel : ObservableObject
             await Task.Delay(120);
 
             var initialPreCaptures = CollectCompletedPreCaptures(preCaptureTasks);
-            var selector = new RegionSelectorWindow(_screenCaptureService, initialPreCaptures, windowSnapshot);
+            var selector = new RegionSelectorWindow(
+                _screenCaptureService,
+                initialPreCaptures,
+                windowSnapshot,
+                suppressRecordingMode: recordingInProgress);
 
             if (selector.ShowDialog() == true && selector.Selection is { } selection)
             {
@@ -71,7 +79,7 @@ public partial class MainViewModel : ObservableObject
 
                     Log.Information("截图完成: 模式={Mode}, 尺寸={W}×{H}", mode, screenshot.PixelWidth, screenshot.PixelHeight);
                     // 截图完成后自动复制到剪贴板
-                    System.Windows.Clipboard.SetImage(screenshot);
+                    ClipboardHelper.TrySetImage(screenshot);
                     SendScreenshot(screenshot, mode);
                 }
             }
@@ -127,9 +135,9 @@ public partial class MainViewModel : ObservableObject
         {
             await Task.WhenAll(preCaptureTasks.Values).WaitAsync(TimeSpan.FromMilliseconds(timeoutMs));
         }
-        catch (Exception)
+        catch (Exception ex)
         {
-            // 预截图超时或失败时，不阻塞交互流程，后续走实时 WGC 回退路径。
+            Log.Warning(ex, "预截图等待超时或失败，将回退到实时 WGC 路径");
         }
 
         return CollectCompletedPreCaptures(preCaptureTasks);
@@ -218,8 +226,7 @@ public partial class MainViewModel : ObservableObject
                 {
                     try
                     {
-                        _screenCaptureService.StopRecording();
-                        await Task.CompletedTask;
+                        await _screenCaptureService.StopRecordingAsync();
                         Log.Information("录制完成: {Path}", tempPath);
 
                         if (File.Exists(tempPath))

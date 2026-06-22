@@ -23,6 +23,9 @@ public partial class RegionSelectorViewModel : ObservableObject
     [ObservableProperty]
     private bool _isRecordingMode;
 
+    /// <summary>录屏已在进行时，选区器仅允许截图，禁止再次启动录屏。</summary>
+    public bool SuppressRecordingMode { get; set; }
+
     [ObservableProperty]
     private bool _enableMicrophone;
 
@@ -43,6 +46,12 @@ public partial class RegionSelectorViewModel : ObservableObject
 
     partial void OnIsRecordingModeChanged(bool value)
     {
+        if (SuppressRecordingMode && value)
+        {
+            IsRecordingMode = false;
+            return;
+        }
+
         OnPropertyChanged(nameof(ShowRecordingOptions));
         OnPropertyChanged(nameof(FooterHintText));
         RefreshSelectionHint();
@@ -63,7 +72,11 @@ public partial class RegionSelectorViewModel : ObservableObject
     private void SelectScreenshotMode() => IsRecordingMode = false;
 
     [RelayCommand]
-    private void SelectRecordingMode() => IsRecordingMode = true;
+    private void SelectRecordingMode()
+    {
+        if (!SuppressRecordingMode)
+            IsRecordingMode = true;
+    }
 
     [RelayCommand]
     private void ToggleMicrophone() => EnableMicrophone = !EnableMicrophone;

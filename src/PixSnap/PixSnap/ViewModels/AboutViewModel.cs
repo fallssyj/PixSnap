@@ -7,6 +7,10 @@ public partial class AboutViewModel : ObservableObject
 {
     public string Version { get; }
 
+    public string RepositoryUrl { get; } = "https://github.com/fallssyj/PixSnap";
+
+    public string IssuesUrl { get; } = "https://github.com/fallssyj/PixSnap/issues";
+
     public AboutViewModel()
     {
         var v = Assembly.GetExecutingAssembly().GetName().Version;

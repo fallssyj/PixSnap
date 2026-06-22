@@ -121,7 +121,7 @@ public partial class RecordingControlViewModel : ObservableObject
 
         RecordingDotFill = new SolidColorBrush(Color.FromRgb(0xFF, 0xA5, 0x00));
         IsDotAnimating = false;
-        TimerText = "正在编码...";
+        TimerText = "正在保存...";
 
         try
         {

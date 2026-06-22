@@ -72,6 +72,55 @@
         <Setter Property="VerticalContentAlignment" Value="Center" />
     </Style>
 
+    <!--  标题栏编辑模式按钮：当前模式高亮（各模式独立 Style，绑定 Is*Mode）  -->
+    <Style
+        x:Key="PreviewCropModeButtonStyle"
+        BasedOn="{StaticResource BorderlessToolbarButtonStyle}"
+        TargetType="Button">
+        <Style.Triggers>
+            <DataTrigger Binding="{Binding IsCropMode}" Value="True">
+                <Setter Property="Background" Value="{DynamicResource SystemControlForegroundAccentBrush}" />
+                <Setter Property="Foreground" Value="White" />
+            </DataTrigger>
+        </Style.Triggers>
+    </Style>
+
+    <Style
+        x:Key="PreviewRoundCornerModeButtonStyle"
+        BasedOn="{StaticResource BorderlessToolbarButtonStyle}"
+        TargetType="Button">
+        <Style.Triggers>
+            <DataTrigger Binding="{Binding IsRoundCornerMode}" Value="True">
+                <Setter Property="Background" Value="{DynamicResource SystemControlForegroundAccentBrush}" />
+                <Setter Property="Foreground" Value="White" />
+            </DataTrigger>
+        </Style.Triggers>
+    </Style>
+
+    <Style
+        x:Key="PreviewEraserModeButtonStyle"
+        BasedOn="{StaticResource BorderlessToolbarButtonStyle}"
+        TargetType="Button">
+        <Style.Triggers>
+            <DataTrigger Binding="{Binding IsEraserMode}" Value="True">
+                <Setter Property="Background" Value="{DynamicResource SystemControlForegroundAccentBrush}" />
+                <Setter Property="Foreground" Value="White" />
+            </DataTrigger>
+        </Style.Triggers>
+    </Style>
+
+    <Style
+        x:Key="PreviewAnnotateModeButtonStyle"
+        BasedOn="{StaticResource BorderlessToolbarButtonStyle}"
+        TargetType="Button">
+        <Style.Triggers>
+            <DataTrigger Binding="{Binding IsAnnotateMode}" Value="True">
+                <Setter Property="Background" Value="{DynamicResource SystemControlForegroundAccentBrush}" />
+                <Setter Property="Foreground" Value="White" />
+            </DataTrigger>
+        </Style.Triggers>
+    </Style>
+
     <Style x:Key="ToolbarSeparatorStyle" TargetType="Border">
         <Setter Property="Width" Value="1" />
         <Setter Property="Height" Value="16" />

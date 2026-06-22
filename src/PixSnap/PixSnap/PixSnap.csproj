@@ -44,7 +44,14 @@
   </ItemGroup>
 
   <ItemGroup>
+    <ProjectReference Include="..\RapidOCRLib\RapidOCRLib.csproj" />
     <ProjectReference Include="..\NativeScreenCapturer\NativeScreenCapturer.vcxproj" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <Content Include="onnx\ocr\**\*">
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+    </Content>
   </ItemGroup>
 
   <ItemGroup>
@@ -52,5 +59,28 @@
     <Resource Include="Assets\icons\picture.png" />
     <Resource Include="Assets\icons\video.png" />
   </ItemGroup>
+
+  <!-- RapidOCR 等依赖可能带入 CPU 版 onnxruntime.dll，构建末尾强制覆盖为 DirectML 版 -->
+  <Target Name="EnsureDirectMlNativeLibraries" AfterTargets="Build">
+    <PropertyGroup>
+      <_OnnxDirectMlNativeDir>$(NuGetPackageRoot)microsoft.ml.onnxruntime.directml\1.24.4\runtimes\win-x64\native\</_OnnxDirectMlNativeDir>
+      <_DirectMlBinDir>$(NuGetPackageRoot)microsoft.ai.directml\1.15.4\bin\x64-win\</_DirectMlBinDir>
+    </PropertyGroup>
+    <ItemGroup>
+      <_OnnxDirectMlNative Include="$(_OnnxDirectMlNativeDir)*.dll" />
+      <_DirectMlBin Include="$(_DirectMlBinDir)*.dll" />
+    </ItemGroup>
+    <Copy SourceFiles="@(_OnnxDirectMlNative)"
+          DestinationFolder="$(OutputPath)"
+          SkipUnchangedFiles="false"
+          Condition="Exists('$(_OnnxDirectMlNativeDir)onnxruntime.dll')" />
+    <Copy SourceFiles="@(_DirectMlBin)"
+          DestinationFolder="$(OutputPath)"
+          SkipUnchangedFiles="false"
+          Condition="Exists('$(_DirectMlBinDir)DirectML.dll')" />
+    <Message Importance="high"
+             Text="已部署 DirectML 原生库到 $(OutputPath)"
+             Condition="Exists('$(_OnnxDirectMlNativeDir)onnxruntime.dll')" />
+  </Target>
 
 </Project>

@@ -27,7 +27,9 @@ public static class BackgroundRemovalService
         IProgress<(double Value, string Text)>? progress = null,
         CancellationToken cancellationToken = default)
     {
-        return await Task.Run(() =>
+        var frozen = ImageIOService.CreateFrozenSnapshot(originalImage);
+
+        var export = await Task.Run(() =>
         {
             cancellationToken.ThrowIfCancellationRequested();
             progress?.Report((0.05, "正在加载去背景模型..."));
@@ -37,9 +39,9 @@ public static class BackgroundRemovalService
                 throw new FileNotFoundException(string.Format("未找到 ONNX 模型：{0}", ModelPath));
             }
 
-            Log.Information("开始去除背景: 图像 {W}×{H}", originalImage.PixelWidth, originalImage.PixelHeight);
+            Log.Information("开始去除背景: 图像 {W}×{H}", frozen.PixelWidth, frozen.PixelHeight);
 
-            using var srcBitmap = SkiaInteropHelper.BitmapSourceToSKBitmap(originalImage);
+            using var srcBitmap = SkiaInteropHelper.BitmapSourceToSKBitmap(frozen);
             int origW = srcBitmap.Width;
             int origH = srcBitmap.Height;
 
@@ -61,12 +63,12 @@ public static class BackgroundRemovalService
 
             progress?.Report((0.55, "正在执行去背景推理..."));
             cancellationToken.ThrowIfCancellationRequested();
-            using var outputs = session.Run(new List<NamedOnnxValue>
+            var inputs = new List<NamedOnnxValue>
             {
                 NamedOnnxValue.CreateFromTensor(inputName, imageTensor)
-            });
-
-            var outputTensor = outputs.First().AsTensor<float>();
+            };
+            using var run = OnnxInferenceHelper.RunWithCpuFallback(session, providerName, ModelPath, inputs);
+            var outputTensor = run.First().AsTensor<float>();
             using var maskBitmap = OutputToMaskBitmap(outputTensor, modelW, modelH);
 
             progress?.Report((0.78, "正在还原掩码分辨率..."));
@@ -76,13 +78,10 @@ public static class BackgroundRemovalService
             progress?.Report((0.90, "正在合成透明背景..."));
             cancellationToken.ThrowIfCancellationRequested();
             using var composed = ApplyMaskAsAlpha(srcBitmap, maskAtOriginal);
-            var result = SkiaInteropHelper.SKBitmapToBitmapSource(composed);
-            result.Freeze();
+            return (SkiaInteropHelper.CopyPixels(composed), composed.Width, composed.Height);
+        }, cancellationToken);
 
-            progress?.Report((1.0, "去除背景完成"));
-            Log.Information("去除背景完成");
-            return result;
-        }).ConfigureAwait(false);
+        return SkiaInteropHelper.CreateFrozenBitmapFromBgra(export.Item1, export.Item2, export.Item3);
     }
 
     /// <summary>解析模型输入维度，动态值或无效值时使用回退默认值。</summary>

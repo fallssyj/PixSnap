@@ -42,10 +42,13 @@ public partial class RegionSelectorWindow : Window
     public RegionSelectorWindow(
         IScreenCaptureService screenCaptureService,
         Dictionary<int, BitmapSource>? preCaptures = null,
-        IReadOnlyList<(IntPtr Hwnd, Rect Rect, string Title, string ClassName)>? windowSnapshot = null)
+        IReadOnlyList<(IntPtr Hwnd, Rect Rect, string Title, string ClassName)>? windowSnapshot = null,
+        bool suppressRecordingMode = false)
     {
         InitializeComponent();
         DataContext = _viewModel;
+        _viewModel.SuppressRecordingMode = suppressRecordingMode;
+        _viewModel.IsRecordingMode = false;
         _viewModel.PropertyChanged += OnViewModelPropertyChanged;
 
         _screens = screenCaptureService.GetScreens();
@@ -256,7 +259,8 @@ public partial class RegionSelectorWindow : Window
 
         if (e.Key == Key.Tab)
         {
-            _viewModel.IsRecordingMode = !_viewModel.IsRecordingMode;
+            if (!_viewModel.SuppressRecordingMode)
+                _viewModel.IsRecordingMode = !_viewModel.IsRecordingMode;
             e.Handled = true;
         }
     }

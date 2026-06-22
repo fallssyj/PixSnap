@@ -44,10 +44,17 @@ public static class InpaintService
         IProgress<(double Value, string Text)> progress,
         CancellationToken token)
     {
-        return await Task.Run(() =>
+        var frozen = ImageIOService.CreateFrozenSnapshot(originalImage);
+        if (strokes.Count == 0)
+        {
+            Log.Debug("无涂抹笔画，跳过修复");
+            return frozen;
+        }
+
+        var export = await Task.Run(() =>
         {
             token.ThrowIfCancellationRequested();
-            progress.Report((0.05, "正在加载模型..."));
+            progress?.Report((0.05, "正在加载模型..."));
 
             if (!File.Exists(ModelPath))
             {
@@ -55,20 +62,12 @@ public static class InpaintService
                 throw new FileNotFoundException(string.Format("未找到 ONNX 模型：{0}", ModelPath));
             }
 
-            if (strokes.Count == 0)
-            {
-                Log.Debug("无涂抹笔画，跳过修复");
-                return originalImage;
-            }
+            Log.Information("开始 AI 修复: {StrokeCount} 笔画, 图像 {W}×{H}", strokes.Count, frozen.PixelWidth, frozen.PixelHeight);
 
-            Log.Information("开始 AI 修复: {StrokeCount} 笔画, 图像 {W}×{H}", strokes.Count, originalImage.PixelWidth, originalImage.PixelHeight);
-
-            // — 第一步：BitmapSource → BGRA SKBitmap（保留原图用于最终高精度合成） —
-            using var srcBitmap = SkiaInteropHelper.BitmapSourceToSKBitmap(originalImage);
+            using var srcBitmap = SkiaInteropHelper.BitmapSourceToSKBitmap(frozen);
             int origW = srcBitmap.Width;
             int origH = srcBitmap.Height;
 
-            // 仅对涂抹区域附近做高精度修复，避免整图降采样导致发糊
             var roiRect = ComputeRoiRect(strokes, origW, origH);
             int roiW = roiRect.Width;
             int roiH = roiRect.Height;
@@ -80,98 +79,64 @@ public static class InpaintService
 
             var roiStrokes = TranslateStrokesToRoi(strokes, roiRect.Left, roiRect.Top);
 
-            // 模型固定需要 ModelSize×ModelSize 输入，缩放图像和遮罩到该尺寸
-            // 明确指定 Bgra8888 + Unpremul，避免平台默认格式和预乘导致颜色错误
             using var imageScaled = new SKBitmap(new SKImageInfo(ModelSize, ModelSize, SKColorType.Bgra8888, SKAlphaType.Unpremul));
             roiBitmap.ScalePixels(imageScaled, new SKSamplingOptions(SKFilterMode.Linear, SKMipmapMode.Linear));
 
-            progress.Report((0.15, "正在生成修复遮罩..."));
+            progress?.Report((0.15, "正在生成修复遮罩..."));
             token.ThrowIfCancellationRequested();
 
-            // — 第二步：绘制遮罩（白=擦除，黑=保留） —
-            // 模型推理遮罩（512）
             using var maskBitmap = CreateMaskBitmap(roiStrokes, ModelSize, ModelSize, roiW, roiH);
-            // ROI 合成遮罩（ROI 原始分辨率）
             using var maskOriginal = CreateMaskBitmap(roiStrokes, roiW, roiH, roiW, roiH);
 
-            progress.Report((0.30, "正在初始化推理引擎..."));
+            progress?.Report((0.30, "正在初始化推理引擎..."));
             token.ThrowIfCancellationRequested();
 
-            // — 第三步：构建 ONNX 输入张量 [1, 3, ModelSize, ModelSize] / [1, 1, ModelSize, ModelSize] —
             var imageTensor = BitmapToRgbTensor(imageScaled, ModelSize, ModelSize);
-            var maskTensor  = MaskBitmapToTensor(maskBitmap, ModelSize, ModelSize);
+            var maskTensor = MaskBitmapToTensor(maskBitmap, ModelSize, ModelSize);
 
-            progress.Report((0.40, "AI 处理中，请稍候..."));
+            progress?.Report((0.40, "AI 处理中，请稍候..."));
             token.ThrowIfCancellationRequested();
 
-            // — 第四步：ONNX 推理 —
-            BitmapSource result;
             var session = OnnxSessionFactory.GetOrCreateSession(ModelPath, out var providerName);
+            token.ThrowIfCancellationRequested();
+            progress?.Report((0.45, string.Format("当前推理设备：{0}", providerName)));
+
+            var inputNames = session.InputMetadata.Keys.ToList();
+            var imageInputName = inputNames.FirstOrDefault(
+                n => n.Contains("image", StringComparison.OrdinalIgnoreCase)) ?? inputNames[0];
+            var maskInputName = inputNames.FirstOrDefault(
+                n => n.Contains("mask", StringComparison.OrdinalIgnoreCase))
+                ?? (inputNames.Count > 1 ? inputNames[1] : inputNames[0]);
+
+            var inputs = new List<NamedOnnxValue>
             {
-                token.ThrowIfCancellationRequested();
-                progress.Report((0.45, string.Format("当前推理设备：{0}", providerName)));
+                NamedOnnxValue.CreateFromTensor(imageInputName, imageTensor),
+                NamedOnnxValue.CreateFromTensor(maskInputName, maskTensor)
+            };
 
-                // 动态解析模型输入名，兼容不同 LaMa 导出版本
-                var inputNames     = session.InputMetadata.Keys.ToList();
-                var imageInputName = inputNames.FirstOrDefault(
-                    n => n.Contains("image", StringComparison.OrdinalIgnoreCase)) ?? inputNames[0];
-                var maskInputName  = inputNames.FirstOrDefault(
-                    n => n.Contains("mask",  StringComparison.OrdinalIgnoreCase))
-                    ?? (inputNames.Count > 1 ? inputNames[1] : inputNames[0]);
+            progress?.Report((0.50, "AI 处理中，请稍候..."));
+            token.ThrowIfCancellationRequested();
 
-                var inputs = new List<NamedOnnxValue>
-                {
-                    NamedOnnxValue.CreateFromTensor(imageInputName, imageTensor),
-                    NamedOnnxValue.CreateFromTensor(maskInputName,  maskTensor)
-                };
+            using var run = OnnxInferenceHelper.RunWithCpuFallback(session, providerName, ModelPath, inputs);
+            var outputTensor = run.First().AsTensor<float>();
 
-                progress.Report((0.50, "AI 处理中，请稍候..."));
-                token.ThrowIfCancellationRequested();
+            progress?.Report((0.90, "正在生成结果图像..."));
+            token.ThrowIfCancellationRequested();
 
-                IDisposableReadOnlyCollection<DisposableNamedOnnxValue> outputs;
-                try
-                {
-                    outputs = session.Run(inputs);
-                }
-                catch (OnnxRuntimeException ex) when (providerName.StartsWith("DirectML", StringComparison.OrdinalIgnoreCase))
-                {
-                    // DML 推理时崩溃（如不支持的算子），回退到 CPU 重试
-                    Log.Warning(ex, "DirectML 推理失败，回退到 CPU");
-                    progress.Report((0.50, "DirectML 推理失败，已回退至 CPU..."));
-                    using var cpuSession = OnnxSessionFactory.CreateCpuSession(ModelPath);
-                    outputs = cpuSession.Run(inputs);
-                }
-                using (outputs)
-                {
-                var outputTensor = outputs.First().AsTensor<float>();
+            using var outputBitmap = RgbTensorToSKBitmap(outputTensor, ModelSize, ModelSize);
+            using var outputAtRoi = new SKBitmap(new SKImageInfo(roiW, roiH, SKColorType.Bgra8888, SKAlphaType.Unpremul));
+            outputBitmap.ScalePixels(outputAtRoi, new SKSamplingOptions(SKFilterMode.Linear, SKMipmapMode.Linear));
+            using var blendedRoi = CompositeByMask(roiBitmap, outputAtRoi, maskOriginal, edgeFeatherStrength);
+            using var finalBitmap = new SKBitmap(new SKImageInfo(origW, origH, SKColorType.Bgra8888, SKAlphaType.Unpremul));
+            srcBitmap.CopyTo(finalBitmap);
+            BlitRoi(finalBitmap, blendedRoi, roiRect.Left, roiRect.Top);
 
-                progress.Report((0.90, "正在生成结果图像..."));
-                token.ThrowIfCancellationRequested();
-
-                // — 第五步：张量 → ModelSize SKBitmap —
-                using var outputBitmap = RgbTensorToSKBitmap(outputTensor, ModelSize, ModelSize);
-
-                // 将模型输出缩放回 ROI 分辨率
-                using var outputAtRoi = new SKBitmap(new SKImageInfo(roiW, roiH, SKColorType.Bgra8888, SKAlphaType.Unpremul));
-                outputBitmap.ScalePixels(outputAtRoi, new SKSamplingOptions(SKFilterMode.Linear, SKMipmapMode.Linear));
-
-                // 仅在涂抹区域应用模型结果，未涂抹区域严格保留 ROI 原图像素
-                using var blendedRoi = CompositeByMask(roiBitmap, outputAtRoi, maskOriginal, edgeFeatherStrength);
-
-                // 回贴到原图
-                using var finalBitmap = new SKBitmap(new SKImageInfo(origW, origH, SKColorType.Bgra8888, SKAlphaType.Unpremul));
-                srcBitmap.CopyTo(finalBitmap);
-                BlitRoi(finalBitmap, blendedRoi, roiRect.Left, roiRect.Top);
-
-                result = SkiaInteropHelper.SKBitmapToBitmapSource(finalBitmap);
-                result.Freeze();
-                }
-            }
-
-            progress.Report((1.0, "完成"));
+            progress?.Report((1.0, "完成"));
             Log.Information("AI 修复完成");
-            return result;
-        }, token).ConfigureAwait(false);
+            return (SkiaInteropHelper.CopyPixels(finalBitmap), origW, origH);
+        }, token);
+
+        return SkiaInteropHelper.CreateFrozenBitmapFromBgra(export.Item1, export.Item2, export.Item3);
     }
 
     private static List<(Point Center, double Radius)> TranslateStrokesToRoi(

@@ -1,0 +1,382 @@
+<UserControl
+    x:Class="PixSnap.Controls.AnnotationDockBar"
+    xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+    xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+    xmlns:controls="clr-namespace:PixSnap.Controls"
+    xmlns:ui="http://schemas.inkore.net/lib/ui/wpf/modern"
+    xmlns:vm="clr-namespace:PixSnap.ViewModels"
+    Focusable="False">
+    <UserControl.Resources>
+        <BooleanToVisibilityConverter x:Key="BoolVis" />
+    </UserControl.Resources>
+
+    <Grid>
+        <Border Style="{StaticResource EditDockHostStyle}">
+            <StackPanel HorizontalAlignment="Center" MinWidth="520">
+                <!--  第一行：历史 · 工具 · 操作  -->
+                <Grid>
+                    <Grid.ColumnDefinitions>
+                        <ColumnDefinition Width="Auto" />
+                        <ColumnDefinition Width="*" />
+                        <ColumnDefinition Width="Auto" />
+                    </Grid.ColumnDefinitions>
+
+                    <StackPanel
+                        Grid.Column="0"
+                        Margin="0,0,16,0"
+                        VerticalAlignment="Center"
+                        Orientation="Horizontal">
+                        <Button
+                            Margin="0,0,8,0"
+                            Command="{Binding AnnotationPanel.UndoAnnotationCommand}"
+                            Style="{StaticResource PanelIconButtonStyle}"
+                            ToolTip="撤销 (Ctrl+Z)">
+                            <ui:FontIcon FontSize="14" Icon="{x:Static ui:SegoeFluentIcons.Undo}" />
+                        </Button>
+                        <Button
+                            Margin="0,0,8,0"
+                            Command="{Binding AnnotationPanel.RedoAnnotationCommand}"
+                            Style="{StaticResource PanelIconButtonStyle}"
+                            ToolTip="重做 (Ctrl+Y)">
+                            <ui:FontIcon FontSize="14" Icon="{x:Static ui:SegoeFluentIcons.Redo}" />
+                        </Button>
+                        <Border Style="{StaticResource EditDockToolPillStyle}">
+                            <TextBlock
+                                Style="{StaticResource EditDockToolPillTextStyle}"
+                                Text="{Binding ActiveAnnotationToolDisplayText}" />
+                        </Border>
+                    </StackPanel>
+
+                    <ItemsControl
+                        Grid.Column="1"
+                        HorizontalAlignment="Center"
+                        ItemsSource="{Binding AnnotationTools}">
+                        <ItemsControl.ItemsPanel>
+                            <ItemsPanelTemplate>
+                                <StackPanel Orientation="Horizontal" />
+                            </ItemsPanelTemplate>
+                        </ItemsControl.ItemsPanel>
+                        <ItemsControl.ItemTemplate>
+                            <DataTemplate DataType="{x:Type vm:AnnotationToolItem}">
+                                <Button
+                                    Command="{Binding Command}"
+                                    Style="{StaticResource AnnotationPanelToolButtonStyle}"
+                                    ToolTip="{Binding ToolTip}">
+                                    <ui:FontIcon FontSize="14" Glyph="{Binding Glyph}" />
+                                </Button>
+                            </DataTemplate>
+                        </ItemsControl.ItemTemplate>
+                    </ItemsControl>
+
+                    <StackPanel
+                        Grid.Column="2"
+                        Margin="16,0,0,0"
+                        VerticalAlignment="Center"
+                        Style="{StaticResource EditDockActionsStyle}">
+                        <StackPanel
+                            Margin="0,0,14,0"
+                            VerticalAlignment="Center"
+                            Orientation="Horizontal">
+                            <Button
+                                Command="{Binding ZoomOutCommand}"
+                                Style="{StaticResource PanelIconButtonStyle}"
+                                ToolTip="缩小">
+                                <ui:FontIcon FontSize="13" Icon="{x:Static ui:SegoeFluentIcons.ZoomOut}" />
+                            </Button>
+                            <TextBlock
+                                Width="44"
+                                Margin="4,0"
+                                VerticalAlignment="Center"
+                                FontSize="12"
+                                Foreground="{DynamicResource TextFillColorSecondaryBrush}"
+                                Text="{Binding ZoomCompactText}"
+                                TextAlignment="Center" />
+                            <Button
+                                Command="{Binding ZoomInCommand}"
+                                Style="{StaticResource PanelIconButtonStyle}"
+                                ToolTip="放大">
+                                <ui:FontIcon FontSize="13" Icon="{x:Static ui:SegoeFluentIcons.ZoomIn}" />
+                            </Button>
+                        </StackPanel>
+                        <Button
+                            Margin="0,0,8,0"
+                            Command="{Binding ApplyAnnotationAndCopyCommand}"
+                            Style="{StaticResource PanelCancelButtonStyle}"
+                            ToolTip="完成并复制 (Ctrl+Shift+C)">
+                            <StackPanel Orientation="Horizontal">
+                                <ui:FontIcon
+                                    Margin="0,0,6,0"
+                                    FontSize="13"
+                                    Icon="{x:Static ui:SegoeFluentIcons.Copy}" />
+                                <TextBlock Text="完成并复制" />
+                            </StackPanel>
+                        </Button>
+                        <Button
+                            Margin="0,0,10,0"
+                            Command="{Binding ApplyAnnotationCommand}"
+                            Style="{StaticResource PanelApplyButtonStyle}"
+                            ToolTip="完成 (Enter)">
+                            <StackPanel Orientation="Horizontal">
+                                <ui:FontIcon
+                                    Margin="0,0,6,0"
+                                    FontSize="13"
+                                    Icon="{x:Static ui:SegoeFluentIcons.Accept}" />
+                                <TextBlock Text="完成" />
+                            </StackPanel>
+                        </Button>
+                        <Button
+                            Command="{Binding ExitAnnotationModeCommand}"
+                            Style="{StaticResource PanelCancelButtonStyle}"
+                            ToolTip="退出 (Esc)">
+                            <ui:FontIcon FontSize="13" Icon="{x:Static ui:SegoeFluentIcons.Cancel}" />
+                        </Button>
+                    </StackPanel>
+                </Grid>
+
+                <Border Style="{StaticResource EditDockRowDividerStyle}" />
+
+                <!--  第二行：色板 · 描边 · 工具选项  -->
+                <StackPanel
+                    HorizontalAlignment="Center"
+                    VerticalAlignment="Center"
+                    Orientation="Horizontal">
+                    <ItemsControl ItemsSource="{Binding AnnotationColors}">
+                        <ItemsControl.ItemsPanel>
+                            <ItemsPanelTemplate>
+                                <UniformGrid Columns="5" Rows="2" />
+                            </ItemsPanelTemplate>
+                        </ItemsControl.ItemsPanel>
+                        <ItemsControl.ItemTemplate>
+                            <DataTemplate DataType="{x:Type vm:AnnotationColorItem}">
+                                <Button
+                                    Margin="2"
+                                    Background="{Binding ColorValue}"
+                                    Command="{Binding Command}"
+                                    Style="{StaticResource ColorPresetButtonStyle}"
+                                    ToolTip="{Binding ToolTip}" />
+                            </DataTemplate>
+                        </ItemsControl.ItemTemplate>
+                    </ItemsControl>
+
+                    <Button
+                        x:Name="CustomColorChip"
+                        Margin="14,0,0,0"
+                        VerticalAlignment="Center"
+                        Command="{Binding AnnotationPanel.PickCustomColorCommand}"
+                        Style="{StaticResource CustomAnnotationColorButtonStyle}"
+                        ToolTip="自定义颜色">
+                        <Border
+                            Width="14"
+                            Height="14"
+                            Background="{Binding AnnotationPanel.StrokeColorBrush}"
+                            CornerRadius="2" />
+                    </Button>
+
+                    <!--  描边：线宽 / 透明度  -->
+                    <StackPanel
+                        Margin="{StaticResource EditDockSectionMargin}"
+                        VerticalAlignment="Center"
+                        Orientation="Horizontal"
+                        Visibility="{Binding AnnotationPanel.IsStrokeSettingsVisible, Converter={StaticResource BoolVis}}">
+                        <Border Style="{StaticResource EditDockSeparatorStyle}" />
+                        <controls:DockSliderField
+                            Label="线宽"
+                            LargeChange="2"
+                            Maximum="20"
+                            Minimum="1"
+                            SmallChange="1"
+                            TickFrequency="1"
+                            Value="{Binding AnnotationPanel.StrokeWidth, Mode=TwoWay}"
+                            Visibility="{Binding AnnotationPanel.IsShapeSettingsVisible, Converter={StaticResource BoolVis}}" />
+                        <controls:DockSliderField
+                            Margin="24,0,0,0"
+                            Label="透明度"
+                            LargeChange="10"
+                            Maximum="100"
+                            Minimum="5"
+                            SmallChange="1"
+                            TickFrequency="5"
+                            Unit="%"
+                            Value="{Binding AnnotationPanel.StrokeOpacity, Mode=TwoWay}"
+                            Visibility="{Binding AnnotationPanel.IsColorSettingsVisible, Converter={StaticResource BoolVis}}" />
+                    </StackPanel>
+
+                    <!--  形状 / 模糊工具选项（与描边同行，不再单独占一行）  -->
+                    <StackPanel
+                        Margin="{StaticResource EditDockSectionMargin}"
+                        VerticalAlignment="Center"
+                        Orientation="Horizontal"
+                        Visibility="{Binding AnnotationPanel.IsToolOptionsBarVisible, Converter={StaticResource BoolVis}}">
+                        <Border Style="{StaticResource EditDockSeparatorStyle}" />
+
+                        <ToggleButton
+                            VerticalAlignment="Center"
+                            Content="填充"
+                            IsChecked="{Binding AnnotationPanel.HasFill, Mode=TwoWay}"
+                            Style="{StaticResource EditDockTextToggleStyle}"
+                            ToolTip="形状填充"
+                            Visibility="{Binding AnnotationPanel.IsFillSettingsVisible, Converter={StaticResource BoolVis}}" />
+                        <controls:DockSliderField
+                            Margin="16,0,0,0"
+                            Label="填充"
+                            LargeChange="10"
+                            Maximum="100"
+                            Minimum="5"
+                            SmallChange="1"
+                            TickFrequency="5"
+                            Unit="%"
+                            Value="{Binding AnnotationPanel.FillOpacity, Mode=TwoWay}"
+                            Visibility="{Binding AnnotationPanel.HasFill, Converter={StaticResource BoolVis}}" />
+
+                        <controls:DockSliderField
+                            Margin="16,0,0,0"
+                            Label="圆角"
+                            LargeChange="5"
+                            Maximum="50"
+                            Minimum="0"
+                            SmallChange="1"
+                            TickFrequency="1"
+                            Unit="px"
+                            Value="{Binding AnnotationPanel.CornerRadius, Mode=TwoWay}"
+                            Visibility="{Binding AnnotationPanel.IsRectangleSettingsVisible, Converter={StaticResource BoolVis}}" />
+
+                        <controls:DockSliderField
+                            Label="强度"
+                            LargeChange="5"
+                            Maximum="50"
+                            Minimum="1"
+                            SmallChange="1"
+                            TickFrequency="1"
+                            Value="{Binding AnnotationPanel.BlurRadius, Mode=TwoWay}"
+                            Visibility="{Binding AnnotationPanel.IsBlurSettingsVisible, Converter={StaticResource BoolVis}}" />
+                        <ToggleButton
+                            Margin="16,0,0,0"
+                            VerticalAlignment="Center"
+                            Content="马赛克"
+                            IsChecked="{Binding AnnotationPanel.UseMosaic, Mode=TwoWay}"
+                            Style="{StaticResource EditDockTextToggleStyle}"
+                            ToolTip="马赛克模式"
+                            Visibility="{Binding AnnotationPanel.IsBlurSettingsVisible, Converter={StaticResource BoolVis}}" />
+                    </StackPanel>
+                </StackPanel>
+
+                <!--  第三行：仅选中对象 / 文字排版  -->
+                <Border
+                    Style="{StaticResource EditDockContextBarStyle}"
+                    Visibility="{Binding AnnotationPanel.IsContextBarVisible, Converter={StaticResource BoolVis}}">
+                    <StackPanel Style="{StaticResource EditDockContextRowStyle}">
+                        <!--  选中对象  -->
+                        <StackPanel
+                            Style="{StaticResource EditDockContextRowStyle}"
+                            Visibility="{Binding AnnotationPanel.HasSelectedAnnotation, Converter={StaticResource BoolVis}}">
+                            <TextBlock Style="{StaticResource EditDockContextLabelStyle}" Text="选中" />
+                            <Button
+                                Command="{Binding AnnotationPanel.SendBackwardCommand}"
+                                Style="{StaticResource EditDockIconButtonSpacedStyle}"
+                                ToolTip="下移一层">
+                                <ui:FontIcon FontSize="14" Glyph="&#xE74B;" />
+                            </Button>
+                            <Button
+                                Command="{Binding AnnotationPanel.BringForwardCommand}"
+                                Style="{StaticResource EditDockIconButtonSpacedStyle}"
+                                ToolTip="上移一层">
+                                <ui:FontIcon FontSize="14" Glyph="&#xE74A;" />
+                            </Button>
+                            <Button
+                                Command="{Binding AnnotationPanel.DuplicateSelectedAnnotationCommand}"
+                                Style="{StaticResource EditDockIconButtonSpacedStyle}"
+                                ToolTip="复制 (Ctrl+D)">
+                                <ui:FontIcon FontSize="14" Icon="{x:Static ui:SegoeFluentIcons.Copy}" />
+                            </Button>
+                            <Button
+                                Command="{Binding AnnotationPanel.DeleteSelectedAnnotationCommand}"
+                                Style="{StaticResource PanelIconButtonStyle}"
+                                ToolTip="删除 (Del)">
+                                <ui:FontIcon FontSize="14" Icon="{x:Static ui:SegoeFluentIcons.Delete}" />
+                            </Button>
+                        </StackPanel>
+
+                        <!--  文字排版  -->
+                        <StackPanel
+                            Style="{StaticResource EditDockContextGroupStyle}"
+                            Visibility="{Binding AnnotationPanel.IsTextSettingsVisible, Converter={StaticResource BoolVis}}">
+                            <ComboBox
+                                VerticalAlignment="Center"
+                                ItemsSource="{Binding AnnotationPanel.FontFamilies}"
+                                SelectedItem="{Binding AnnotationPanel.FontFamily, Mode=TwoWay}"
+                                Style="{StaticResource EditDockFontComboStyle}" />
+
+                            <StackPanel
+                                Margin="20,0,0,0"
+                                VerticalAlignment="Center"
+                                Orientation="Horizontal">
+                                <TextBlock Style="{StaticResource EditDockContextLabelStyle}" Text="字号" />
+                                <TextBox
+                                    VerticalAlignment="Center"
+                                    Style="{StaticResource EditDockFontSizeFieldStyle}"
+                                    Text="{Binding AnnotationPanel.FontSize, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}"
+                                    ToolTip="字号" />
+                            </StackPanel>
+
+                            <ToggleButton
+                                VerticalAlignment="Center"
+                                IsChecked="{Binding AnnotationPanel.IsBold, Mode=TwoWay}"
+                                Style="{StaticResource EditDockBoldToggleStyle}"
+                                ToolTip="粗体">
+                                <TextBlock FontWeight="Bold" Text="B" />
+                            </ToggleButton>
+
+                            <Border Style="{StaticResource EditDockSeparatorStyle}" />
+
+                            <ToggleButton
+                                VerticalAlignment="Center"
+                                Content="背景"
+                                IsChecked="{Binding AnnotationPanel.HasTextBackground, Mode=TwoWay}"
+                                Style="{StaticResource EditDockTextToggleStyle}"
+                                ToolTip="文字背景" />
+                            <Button
+                                VerticalAlignment="Center"
+                                Command="{Binding AnnotationPanel.SetTextBackgroundDarkCommand}"
+                                Content="深"
+                                Style="{StaticResource EditDockChipButtonStyle}"
+                                Visibility="{Binding AnnotationPanel.HasTextBackground, Converter={StaticResource BoolVis}}" />
+                            <Button
+                                VerticalAlignment="Center"
+                                Command="{Binding AnnotationPanel.SetTextBackgroundLightCommand}"
+                                Content="浅"
+                                Style="{StaticResource EditDockChipButtonStyle}"
+                                Visibility="{Binding AnnotationPanel.HasTextBackground, Converter={StaticResource BoolVis}}" />
+                        </StackPanel>
+                    </StackPanel>
+                </Border>
+            </StackPanel>
+        </Border>
+
+        <Popup
+            AllowsTransparency="True"
+            IsOpen="{Binding AnnotationPanel.IsColorPickerOpen, Mode=TwoWay}"
+            Placement="Top"
+            PlacementTarget="{Binding ElementName=CustomColorChip}"
+            StaysOpen="False">
+            <Border
+                MinWidth="220"
+                Padding="14"
+                Background="{DynamicResource SolidBackgroundFillColorBaseBrush}"
+                BorderBrush="{DynamicResource ControlStrokeColorDefaultBrush}"
+                BorderThickness="1"
+                CornerRadius="10">
+                <StackPanel>
+                    <Border
+                        Height="28"
+                        Margin="0,0,0,10"
+                        Background="{Binding AnnotationPanel.StrokeColorBrush}"
+                        CornerRadius="4" />
+                    <controls:SliderField Label="R" LargeChange="16" Maximum="255" Minimum="0" SmallChange="1" TickFrequency="1" Value="{Binding AnnotationPanel.CustomColorRed, Mode=TwoWay}" />
+                    <controls:SliderField Label="G" LargeChange="16" Maximum="255" Minimum="0" SmallChange="1" TickFrequency="1" Value="{Binding AnnotationPanel.CustomColorGreen, Mode=TwoWay}" />
+                    <controls:SliderField Label="B" LargeChange="16" Maximum="255" Minimum="0" SmallChange="1" TickFrequency="1" Value="{Binding AnnotationPanel.CustomColorBlue, Mode=TwoWay}" />
+                    <controls:SliderField Label="A" LargeChange="16" Maximum="255" Minimum="0" SmallChange="1" TickFrequency="1" Value="{Binding AnnotationPanel.CustomColorAlpha, Mode=TwoWay}" />
+                </StackPanel>
+            </Border>
+        </Popup>
+    </Grid>
+</UserControl>

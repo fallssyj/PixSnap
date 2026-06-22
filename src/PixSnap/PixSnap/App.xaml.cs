@@ -173,6 +173,7 @@ public partial class App : System.Windows.Application, IRecipient<ScreenshotCapt
         _taskbarIcon = null;
 
         OnnxSessionFactory.DisposeAll();
+        OcrService.Shutdown();
 
         // 释放 DI 容器（同时 Dispose 所有 Singleton）
         if (Services is IDisposable disposable)
@@ -196,6 +197,7 @@ public partial class App : System.Windows.Application, IRecipient<ScreenshotCapt
             notificationVm.OpenRequested += OpenPreviewWindow;
 
             var notification = new NotificationWindow { DataContext = notificationVm };
+            notification.Closed += (_, _) => notificationVm.OpenRequested -= OpenPreviewWindow;
             notification.Show();
         }
         catch (Exception exception)

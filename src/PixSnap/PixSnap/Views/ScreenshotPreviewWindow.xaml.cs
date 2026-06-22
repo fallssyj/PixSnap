@@ -1,5 +1,7 @@
+using PixSnap.Controls;
 using PixSnap.Services;
 using PixSnap.ViewModels;
+using Serilog;
 using System.ComponentModel;
 using System.Windows;
 using System.Windows.Controls;
@@ -51,9 +53,68 @@ public partial class ScreenshotPreviewWindow : Window
         Loaded += OnLoaded;
         DataContextChanged += OnDataContextChanged;
         Closed += OnClosed;
+        PreviewKeyDown += OnPreviewKeyDown;
         AllowDrop = true;
         Drop += OnDrop;
         DragOver += OnDragOver;
+    }
+
+    private void OnPreviewKeyDown(object sender, KeyEventArgs e)
+    {
+        if (DataContext is not ScreenshotPreviewViewModel vm)
+            return;
+
+        if (vm.IsOcrOverlayVisible && Keyboard.Modifiers == ModifierKeys.None && e.Key == Key.Escape)
+        {
+            vm.ExitOcrOverlayCommand.Execute(null);
+            e.Handled = true;
+            return;
+        }
+
+        if (!vm.IsAnnotateMode)
+            return;
+
+        if (IsAnnotationTextInputFocused())
+            return;
+
+        if (Keyboard.Modifiers == ModifierKeys.Control && e.Key == Key.D)
+        {
+            vm.AnnotationPanel.DuplicateSelectedAnnotationCommand.Execute(null);
+            e.Handled = true;
+            return;
+        }
+
+        if (Keyboard.Modifiers != ModifierKeys.None)
+            return;
+
+        if (e.Key == Key.Enter)
+        {
+            vm.ApplyAnnotationCommand.Execute(null);
+            e.Handled = true;
+            return;
+        }
+
+        if (e.Key == Key.Escape)
+        {
+            if (vm.AnnotationPanel.SelectedAnnotation is not null)
+            {
+                vm.AnnotationPanel.SelectedAnnotation = null;
+                e.Handled = true;
+                return;
+            }
+
+            vm.ExitAnnotationModeCommand.Execute(null);
+            e.Handled = true;
+            return;
+        }
+
+        if (vm.AnnotationPanel.TrySelectToolFromKey(e.Key))
+            e.Handled = true;
+    }
+
+    private static bool IsAnnotationTextInputFocused()
+    {
+        return Keyboard.FocusedElement is TextBox or ComboBox or PasswordBox;
     }
 
     private void OnDragOver(object sender, DragEventArgs e)
@@ -505,8 +566,9 @@ public partial class ScreenshotPreviewWindow : Window
                 new Point(ActualSizeImage.ActualWidth, ActualSizeImage.ActualHeight));
             return new Rect(topLeft, bottomRight);
         }
-        catch
+        catch (Exception ex)
         {
+            Log.Debug(ex, "图片显示区域变换失败，使用手动计算降级");
             // 降级：手动计算
             double zoom = vm.ZoomFactor;
             double displayW = vm.ScreenshotImage.Width * zoom;
@@ -577,6 +639,19 @@ public partial class ScreenshotPreviewWindow : Window
 
     private void PreviewViewport_MouseRightButtonUp(object sender, MouseButtonEventArgs e)
     {
+        if (e.OriginalSource is DependencyObject source && IsOnOcrTextBox(source))
+        {
+            if (DataContext is ScreenshotPreviewViewModel vm)
+                vm.IsAiPopupOpen = false;
+            return;
+        }
+
+        if (DataContext is ScreenshotPreviewViewModel vm2)
+        {
+            if (vm2.IsAnnotateMode || vm2.IsCropMode || vm2.IsEraserMode || vm2.IsRoundCornerMode)
+                return;
+        }
+
         var pos = e.GetPosition(PreviewViewport);
 
         // 控制弹出位置在预览区域可见范围内
@@ -590,8 +665,21 @@ public partial class ScreenshotPreviewWindow : Window
         AiModulePopup.VerticalOffset = y;
 
         // 直接更新 ViewModel，TwoWay 绑定将自动同步至 AiModulePopup.IsOpen
-        if (DataContext is ScreenshotPreviewViewModel vm2)
-            vm2.IsAiPopupOpen = true;
+        if (DataContext is ScreenshotPreviewViewModel vm3)
+            vm3.IsAiPopupOpen = true;
         e.Handled = true;
+    }
+
+    private static bool IsOnOcrTextBox(DependencyObject source)
+    {
+        while (source is not null)
+        {
+            if (source is TextBox)
+                return true;
+            if (source is OcrOverlayControl)
+                return false;
+            source = VisualTreeHelper.GetParent(source);
+        }
+        return false;
     }
 }

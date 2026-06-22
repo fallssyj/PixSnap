@@ -3,7 +3,6 @@ using Microsoft.Extensions.DependencyInjection;
 using PixSnap.Models;
 using PixSnap.ViewModels;
 using PixSnap.Views;
-using System.Linq;
 using System.Windows;
 using System.Windows.Input;
 using Application = System.Windows.Application;
@@ -16,7 +15,6 @@ public sealed class NavigationMessageHandler :
     IRecipient<ShowLogViewerMessage>,
     IRecipient<ShowAboutMessage>,
     IRecipient<StartCaptureMessage>,
-    IRecipient<RecaptureMessage>,
     IRecipient<ShutdownApplicationMessage>,
     IRecipient<HotkeyChangedMessage>
 {
@@ -38,8 +36,6 @@ public sealed class NavigationMessageHandler :
     public void Receive(ShowAboutMessage message) => ShowAbout();
 
     public void Receive(StartCaptureMessage message) => StartCapture();
-
-    public void Receive(RecaptureMessage message) => Recapture();
 
     public void Receive(ShutdownApplicationMessage message) => ShutdownApplication();
 
@@ -100,14 +96,6 @@ public sealed class NavigationMessageHandler :
 
         if (viewModel.StartCaptureCommand.CanExecute(null))
             viewModel.StartCaptureCommand.Execute(null);
-    }
-
-    private void Recapture()
-    {
-        foreach (var preview in Application.Current.Windows.OfType<ScreenshotPreviewWindow>().ToList())
-            preview.Close();
-
-        StartCapture();
     }
 
     private void ShutdownApplication() => Application.Current.Shutdown();

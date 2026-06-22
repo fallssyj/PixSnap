@@ -1,0 +1,42 @@
+<UserControl
+    x:Class="PixSnap.Controls.OcrDockBar"
+    xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+    xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+    xmlns:ui="http://schemas.inkore.net/lib/ui/wpf/modern"
+    Focusable="False">
+    <Border Style="{StaticResource EditDockHostStyle}">
+        <StackPanel HorizontalAlignment="Center" Orientation="Horizontal">
+            <TextBlock
+                Margin="0,0,16,0"
+                VerticalAlignment="Center"
+                FontSize="12"
+                Foreground="{DynamicResource TextFillColorSecondaryBrush}"
+                Text="{Binding OcrRegionCountText}" />
+            <Button
+                Margin="0,0,10,0"
+                Command="{Binding CopyAllOcrTextCommand}"
+                Style="{StaticResource PanelCancelButtonStyle}"
+                ToolTip="复制全部识别文字">
+                <StackPanel Orientation="Horizontal">
+                    <ui:FontIcon
+                        Margin="0,0,6,0"
+                        FontSize="13"
+                        Icon="{x:Static ui:SegoeFluentIcons.Copy}" />
+                    <TextBlock Text="复制全部" />
+                </StackPanel>
+            </Button>
+            <Button
+                Command="{Binding ExitOcrOverlayCommand}"
+                Style="{StaticResource PanelApplyButtonStyle}"
+                ToolTip="完成 (Esc)">
+                <StackPanel Orientation="Horizontal">
+                    <ui:FontIcon
+                        Margin="0,0,6,0"
+                        FontSize="13"
+                        Icon="{x:Static ui:SegoeFluentIcons.Accept}" />
+                    <TextBlock Text="完成" />
+                </StackPanel>
+            </Button>
+        </StackPanel>
+    </Border>
+</UserControl>

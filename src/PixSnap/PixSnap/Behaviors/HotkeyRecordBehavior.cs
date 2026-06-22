@@ -52,7 +52,10 @@ public static class HotkeyRecordBehavior
 
     private static void OnLostFocus(object sender, RoutedEventArgs e)
     {
-        if (GetViewModel(sender as DependencyObject) is { } vm)
+        if (sender is not TextBox textBox)
+            return;
+
+        if (GetViewModel(textBox) is { } vm)
             vm.IsRecordingHotkey = false;
     }
 
