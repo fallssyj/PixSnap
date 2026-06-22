@@ -1,4 +1,5 @@
 using PixSnap.Models;
+using PixSnap.Services.OcrLayout;
 using RapidOCRLib;
 using RapidOCRLib.Models;
 using Serilog;
@@ -22,11 +23,12 @@ public static class OcrService
 {
     private const int DefaultPadding = 24;
 
-    /// <summary>检测阶段最长边上限；0 表示不缩放。</summary>
-    private const int MaxDetectSideLen = 3840;
+    /// <summary>检测阶段最长边上限（超过则等比缩小后再检测，兼顾速度与准确率）。</summary>
+    private const int MobileDetectMaxSideLen = 1920;
+    private const int ServerDetectMaxSideLen = 2560;
 
     /// <summary>最长边低于此值时，OCR 前 2× 放大以提升小字号 UI 文字准确率。</summary>
-    private const int UpscaleWhenLongestSideBelow = 1920;
+    private const int UpscaleWhenLongestSideBelow = 1280;
 
     private const int OcrUpscaleFactor = 2;
 
@@ -75,11 +77,21 @@ public static class OcrService
 
     public sealed class OcrNotAvailableException(string message) : Exception(message);
 
-    public static bool IsAvailable =>
-        File.Exists(DetPath) && File.Exists(RecPath) && File.Exists(ClsPath) && File.Exists(DictPath);
+    public static bool IsAvailable => AiModelCatalog.IsOcrTierReady(OcrSettings.Tier);
 
-    private static string DetPath => Path.Combine(ModelDir, "ch_PP-OCRv5_server_det.onnx");
-    private static string RecPath => Path.Combine(ModelDir, "ch_PP-OCRv5_rec_server_infer.onnx");
+    private static OcrModelTier CurrentTier => OcrSettings.Tier;
+
+    private static string DetPath => CurrentTier switch
+    {
+        OcrModelTier.Server => Path.Combine(ModelDir, "ch_PP-OCRv5_server_det.onnx"),
+        _ => Path.Combine(ModelDir, "ch_PP-OCRv5_mobile_det.onnx")
+    };
+
+    private static string RecPath => CurrentTier switch
+    {
+        OcrModelTier.Server => Path.Combine(ModelDir, "ch_PP-OCRv5_server_rec_infer.onnx"),
+        _ => Path.Combine(ModelDir, "ch_PP-OCRv5_mobile_rec_infer.onnx")
+    };
 
     private static string ClsPath => Path.Combine(ModelDir, "ch_ppocr_mobile_v2.0_cls_infer.onnx");
     private static string DictPath => Path.Combine(ModelDir, "ppocrv5_dict.txt");
@@ -130,7 +142,6 @@ public static class OcrService
                 mostAngle: false).ConfigureAwait(false);
 
             regions = new List<OcrTextRegion>();
-            var fullText = new System.Text.StringBuilder();
             filteredCount = 0;
             refinedCount = 0;
 
@@ -183,10 +194,10 @@ public static class OcrService
                     BoxPoints = points,
                     Confidence = recScore
                 });
-                fullText.AppendLine(text);
             }
 
-            resultFullText = fullText.ToString().Trim();
+            regions = OcrLayoutMerger.MergeMultiParagraph(regions).ToList();
+            resultFullText = OcrLayoutMerger.ToFullText(regions);
         }
         finally
         {
@@ -207,11 +218,31 @@ public static class OcrService
             origH);
     }
 
-    private static string EngineDisplayName => "PaddleOCR PP-OCRv5 Server（离线）";
+    private static string EngineDisplayName => CurrentTier switch
+    {
+        OcrModelTier.Server => "PaddleOCR PP-OCRv5 Server（离线）",
+        _ => "PaddleOCR PP-OCRv5 Mobile（离线）"
+    };
+
+    /// <summary>后台预热 OCR 引擎，减少首次识别等待。</summary>
+    public static async Task WarmUpAsync(CancellationToken cancellationToken = default)
+    {
+        if (!IsAvailable)
+            return;
+
+        try
+        {
+            await EnsureEngineAsync(cancellationToken).ConfigureAwait(false);
+        }
+        catch (Exception ex)
+        {
+            Log.Debug(ex, "OCR 预热失败");
+        }
+    }
 
     private static async Task<OcrLite> EnsureEngineAsync(CancellationToken cancellationToken)
     {
-        var profile = $"{DetPath}|{RecPath}";
+        var profile = $"{CurrentTier}|{DetPath}|{RecPath}";
         if (_engine is not null && _engineProfile == profile)
             return _engine;
 
@@ -224,7 +255,7 @@ public static class OcrService
             if (!IsAvailable)
             {
                 throw new OcrNotAvailableException(
-                    string.Format("未找到 OCR 模型文件，请确认以下目录存在完整模型：\n{0}", ModelDir));
+                    string.Format("未找到当前规格（{0}）所需的 OCR 模型。\n请在「设置 → AI → 模型管理」中下载。", CurrentTier));
             }
 
             var previous = _engine;
@@ -234,12 +265,13 @@ public static class OcrService
                 ClsPath = ClsPath,
                 RecPath = RecPath,
                 KeyDicPath = DictPath,
-                ThreadNum = Math.Max(1, Environment.ProcessorCount)
+                SkipVisualization = true,
+                ThreadNum = ResolveThreadCount()
             };
             await _engine.InitModels().ConfigureAwait(false);
             previous?.Dispose();
             _engineProfile = profile;
-            Log.Information("PaddleOCR 引擎已加载: Server");
+            Log.Information("PaddleOCR 引擎已加载: {Tier}", CurrentTier);
             return _engine;
         }
         finally
@@ -263,10 +295,14 @@ public static class OcrService
         return (SkiaInteropHelper.CopyPixels(upscaled), upscaled.Width, upscaled.Height, scale);
     }
 
+    private static int ResolveThreadCount() =>
+        AiGpuSettings.ShouldUseDirectMl ? 1 : Math.Max(1, Environment.ProcessorCount / 2);
+
     private static int ComputeDetectMaxSideLen(int width, int height)
     {
+        int cap = CurrentTier == OcrModelTier.Server ? ServerDetectMaxSideLen : MobileDetectMaxSideLen;
         int longest = Math.Max(width, height);
-        return longest <= MaxDetectSideLen ? 0 : MaxDetectSideLen;
+        return longest > cap ? cap : 0;
     }
 
     private static byte[] CopyBgra32Pixels(BitmapSource source)

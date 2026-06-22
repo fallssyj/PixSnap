@@ -31,6 +31,7 @@
 
   <ItemGroup>
     <PackageReference Include="CommunityToolkit.Mvvm" Version="8.4.2" />
+    <PackageReference Include="Florence2" Version="25.12.63049" />
     <PackageReference Include="iNKORE.UI.WPF" Version="1.2.8" />
     <PackageReference Include="iNKORE.UI.WPF.Modern" Version="0.10.2.1" />
     <PackageReference Include="Hardcodet.NotifyIcon.Wpf" Version="2.0.1" />
@@ -41,17 +42,12 @@
     <PackageReference Include="Serilog.Sinks.File" Version="7.0.0" />
     <PackageReference Include="SkiaSharp" Version="3.119.2" />
     <PackageReference Include="System.Management" Version="10.0.5" />
+    <PackageReference Include="Vortice.DXGI" Version="3.6.2" />
   </ItemGroup>
 
   <ItemGroup>
     <ProjectReference Include="..\RapidOCRLib\RapidOCRLib.csproj" />
     <ProjectReference Include="..\NativeScreenCapturer\NativeScreenCapturer.vcxproj" />
-  </ItemGroup>
-
-  <ItemGroup>
-    <Content Include="onnx\ocr\**\*">
-      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
-    </Content>
   </ItemGroup>
 
   <ItemGroup>
@@ -70,17 +66,9 @@
       <_OnnxDirectMlNative Include="$(_OnnxDirectMlNativeDir)*.dll" />
       <_DirectMlBin Include="$(_DirectMlBinDir)*.dll" />
     </ItemGroup>
-    <Copy SourceFiles="@(_OnnxDirectMlNative)"
-          DestinationFolder="$(OutputPath)"
-          SkipUnchangedFiles="false"
-          Condition="Exists('$(_OnnxDirectMlNativeDir)onnxruntime.dll')" />
-    <Copy SourceFiles="@(_DirectMlBin)"
-          DestinationFolder="$(OutputPath)"
-          SkipUnchangedFiles="false"
-          Condition="Exists('$(_DirectMlBinDir)DirectML.dll')" />
-    <Message Importance="high"
-             Text="已部署 DirectML 原生库到 $(OutputPath)"
-             Condition="Exists('$(_OnnxDirectMlNativeDir)onnxruntime.dll')" />
+    <Copy SourceFiles="@(_OnnxDirectMlNative)" DestinationFolder="$(OutputPath)" SkipUnchangedFiles="false" Condition="Exists('$(_OnnxDirectMlNativeDir)onnxruntime.dll')" />
+    <Copy SourceFiles="@(_DirectMlBin)" DestinationFolder="$(OutputPath)" SkipUnchangedFiles="false" Condition="Exists('$(_DirectMlBinDir)DirectML.dll')" />
+    <Message Importance="high" Text="已部署 DirectML 原生库到 $(OutputPath)" Condition="Exists('$(_OnnxDirectMlNativeDir)onnxruntime.dll')" />
   </Target>
 
 </Project>

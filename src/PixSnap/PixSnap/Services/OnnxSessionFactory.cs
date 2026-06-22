@@ -23,8 +23,17 @@ public static class OnnxSessionFactory
     {
         LogOnnxRuntimeNativeOnce();
 
+        if (!AiGpuSettings.ShouldUseDirectMl)
+        {
+            providerName = "CPU(用户选择)";
+            return new InferenceSession(modelPath, CreateBaseOptions());
+        }
+
+        if (AiGpuSettings.SelectedDeviceId == AiGpuSettings.AutoDeviceId)
+            DirectMlDeviceEnumerator.EnsureReadyForInference();
+
         string? dmlError = null;
-        foreach (int dmlDeviceId in GetDirectMlDeviceCandidates())
+        foreach (int dmlDeviceId in AiGpuSettings.GetDirectMlDeviceCandidates())
         {
             var dmlOptions = CreateBaseOptions();
             try
@@ -112,6 +121,9 @@ public static class OnnxSessionFactory
         }
     }
 
+    /// <summary>释放所有缓存的 InferenceSession（应在应用退出或 GPU 设置变更时调用）。</summary>
+    public static void InvalidateAll() => DisposeAll();
+
     /// <summary>释放所有缓存的 InferenceSession（应在应用退出时调用）。</summary>
     public static void DisposeAll()
     {
@@ -131,22 +143,6 @@ public static class OnnxSessionFactory
         {
             GraphOptimizationLevel = GraphOptimizationLevel.ORT_ENABLE_ALL
         };
-    }
-
-    /// <summary>获取 DirectML 设备候选列表。DirectML 设备 ID 对应 DXGI 枚举顺序，与 WMI 索引无关。</summary>
-    private static IEnumerable<int> GetDirectMlDeviceCandidates()
-    {
-        LogAvailableGpusOnce();
-
-        var configured = Environment.GetEnvironmentVariable("PIXSNAP_DML_DEVICE_ID");
-        if (int.TryParse(configured, out var fixedId) && fixedId >= 0)
-        {
-            Log.Information("使用环境变量指定的 DirectML 设备: {DeviceId}", fixedId);
-            return new[] { fixedId };
-        }
-
-        // 依次尝试 0–3，首个能成功创建 Session 的设备即为实际 GPU
-        return new[] { 0, 1, 2, 3 };
     }
 
     private static void LogAvailableGpusOnce()
@@ -174,7 +170,7 @@ public static class OnnxSessionFactory
                 }
 
                 Log.Information(
-                    "DirectML 将按 device 0→3 依次尝试；WMI 序号与 DirectML 设备 ID 不一定一致。独显未命中时可设 PIXSNAP_DML_DEVICE_ID=0/1/2/3");
+                    "DirectML 设备可在「设置 → AI 加速」中选择；WMI 序号与 DirectML 设备 ID 不一定一致");
             }
             finally
             {

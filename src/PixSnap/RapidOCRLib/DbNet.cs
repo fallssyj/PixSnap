@@ -41,11 +41,7 @@ namespace RapidOCRLib
         {
             try
             {
-                SessionOptions op = new SessionOptions();
-                op.GraphOptimizationLevel = GraphOptimizationLevel.ORT_ENABLE_EXTENDED;
-                op.InterOpNumThreads = numThread;
-                op.IntraOpNumThreads = numThread;
-                dbNet = new InferenceSession(path, op);
+                dbNet = OnnxSessionHelper.Create(path, numThread);
                 inputNames = dbNet.InputMetadata.Keys.ToList();
                 await Task.CompletedTask;
             }

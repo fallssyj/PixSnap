@@ -13,6 +13,8 @@ namespace PixSnap.Controls;
 public partial class OcrOverlayControl : UserControl
 {
     private INotifyCollectionChanged? _regionsSubscription;
+    private Border? _focusedBox;
+    private TextBox? _focusedTextBox;
 
     public static readonly DependencyProperty RegionsProperty =
         DependencyProperty.Register(nameof(Regions), typeof(IEnumerable), typeof(OcrOverlayControl),
@@ -87,6 +89,8 @@ public partial class OcrOverlayControl : UserControl
     private void RebuildOverlay()
     {
         OcrCanvas.Children.Clear();
+        _focusedBox = null;
+        _focusedTextBox = null;
         IsHitTestVisible = IsActive;
         OcrCanvas.IsHitTestVisible = IsActive;
 
@@ -106,62 +110,124 @@ public partial class OcrOverlayControl : UserControl
             if (bounds.Width < 2 || bounds.Height < 2)
                 continue;
 
-            var highlight = new Border
-            {
-                Width = bounds.Width,
-                Height = bounds.Height,
-                Background = new SolidColorBrush(Color.FromArgb(48, 0, 120, 215)),
-                BorderBrush = accent,
-                BorderThickness = new Thickness(1.5),
-                CornerRadius = new CornerRadius(2),
-                IsHitTestVisible = false
-            };
-            Canvas.SetLeft(highlight, bounds.X);
-            Canvas.SetTop(highlight, bounds.Y);
-            OcrCanvas.Children.Add(highlight);
+            double width = Math.Max(bounds.Width, 8);
+            double height = Math.Max(bounds.Height, 8);
+            double fontSize = ComputeFontSize(region.Text, width, height);
 
-            double fontSize = Math.Clamp(bounds.Height * 0.82, 9, 48);
+            var box = new Border
+            {
+                Width = width,
+                Height = height,
+                Background = HighlightFillBrush,
+                BorderBrush = accent,
+                BorderThickness = NormalBorderThickness,
+                CornerRadius = new CornerRadius(2),
+                ToolTip = CreateTooltip(region.Text)
+            };
+
             var textBox = new TextBox
             {
                 Text = region.Text,
                 IsReadOnly = true,
                 BorderThickness = new Thickness(0),
-                Background = new SolidColorBrush(Color.FromArgb(200, 0, 0, 0)),
-                Foreground = Brushes.White,
+                Background = Brushes.Transparent,
+                Foreground = Brushes.Transparent,
+                CaretBrush = Brushes.White,
+                SelectionBrush = SelectionBrush,
+                SelectionOpacity = 0.45,
                 FontSize = fontSize,
-                Padding = new Thickness(2, 0, 2, 0),
-                Width = Math.Max(bounds.Width, 8),
-                Height = Math.Max(bounds.Height, fontSize + 4),
+                Padding = new Thickness(1, 0, 1, 0),
+                Width = width,
+                Height = height,
                 TextWrapping = TextWrapping.NoWrap,
                 VerticalContentAlignment = VerticalAlignment.Center,
+                HorizontalContentAlignment = HorizontalAlignment.Left,
                 Cursor = Cursors.IBeam,
-                ToolTip = region.Text
+                Focusable = true
             };
-            textBox.Focusable = true;
+
             textBox.ContextMenu = CreateCopyContextMenu(textBox);
+            textBox.GotFocus += (_, _) => SetFocusedRegion(box, textBox, accent);
+            textBox.LostFocus += (_, _) =>
+            {
+                if (_focusedTextBox == textBox)
+                    ClearFocusedRegion(accent);
+            };
+
             textBox.PreviewMouseLeftButtonDown += (_, e) =>
             {
-                textBox.Focus();
-                textBox.SelectAll();
+                if (!textBox.IsKeyboardFocusWithin)
+                    textBox.Focus();
                 e.Handled = false;
             };
-            Canvas.SetLeft(textBox, bounds.X);
-            Canvas.SetTop(textBox, bounds.Y);
-            OcrCanvas.Children.Add(textBox);
+
+            box.Child = textBox;
+            Canvas.SetLeft(box, bounds.X);
+            Canvas.SetTop(box, bounds.Y);
+            OcrCanvas.Children.Add(box);
         }
     }
+
+    private void SetFocusedRegion(Border box, TextBox textBox, Brush accent)
+    {
+        if (_focusedBox is not null && _focusedBox != box)
+            ResetBoxStyle(_focusedBox, accent);
+
+        _focusedBox = box;
+        _focusedTextBox = textBox;
+        box.BorderBrush = SelectedBorderBrush;
+        box.BorderThickness = SelectedBorderThickness;
+        box.Background = SelectedFillBrush;
+        textBox.Background = ActiveTextBackgroundBrush;
+        textBox.Foreground = Brushes.White;
+    }
+
+    private void ClearFocusedRegion(Brush accent)
+    {
+        if (_focusedBox is not null)
+            ResetBoxStyle(_focusedBox, accent);
+
+        if (_focusedTextBox is not null)
+        {
+            _focusedTextBox.Background = Brushes.Transparent;
+            _focusedTextBox.Foreground = Brushes.Transparent;
+        }
+
+        _focusedBox = null;
+        _focusedTextBox = null;
+    }
+
+    private static void ResetBoxStyle(Border box, Brush accent)
+    {
+        box.BorderBrush = accent;
+        box.BorderThickness = NormalBorderThickness;
+        box.Background = HighlightFillBrush;
+    }
+
+    private static double ComputeFontSize(string text, double width, double height)
+    {
+        if (string.IsNullOrEmpty(text))
+            return 12;
+
+        double byHeight = height * 0.88;
+        double byWidth = width / (text.Length * 0.58);
+        return Math.Clamp(Math.Min(byHeight, byWidth), 8, 36);
+    }
+
+    private static ToolTip CreateTooltip(string text) =>
+        new()
+        {
+            Content = text,
+            MaxWidth = 480,
+            Padding = new Thickness(8, 6, 8, 6)
+        };
 
     private static ContextMenu CreateCopyContextMenu(TextBox textBox)
     {
         var menu = new ContextMenu();
 
         var copy = new MenuItem { Header = "复制", InputGestureText = "Ctrl+C" };
-        copy.Click += (_, _) =>
-        {
-            string text = !string.IsNullOrEmpty(textBox.SelectedText) ? textBox.SelectedText : textBox.Text;
-            if (!string.IsNullOrEmpty(text))
-                ClipboardHelper.TrySetText(text);
-        };
+        copy.Click += (_, _) => CopyFromTextBox(textBox);
         menu.Items.Add(copy);
 
         var selectAll = new MenuItem { Header = "全选", InputGestureText = "Ctrl+A" };
@@ -169,6 +235,13 @@ public partial class OcrOverlayControl : UserControl
         menu.Items.Add(selectAll);
 
         return menu;
+    }
+
+    private static void CopyFromTextBox(TextBox textBox)
+    {
+        string text = !string.IsNullOrEmpty(textBox.SelectedText) ? textBox.SelectedText : textBox.Text;
+        if (!string.IsNullOrEmpty(text))
+            ClipboardHelper.TrySetText(text);
     }
 
     private Rect PixelToCanvas(Rect pixelBounds)
@@ -188,4 +261,22 @@ public partial class OcrOverlayControl : UserControl
     private static Brush GetAccentBrush()
         => Application.Current.TryFindResource("SystemControlForegroundAccentBrush") as Brush
            ?? Brushes.DodgerBlue;
+
+    private static readonly SolidColorBrush HighlightFillBrush =
+        new(Color.FromArgb(48, 0, 120, 215));
+
+    private static readonly SolidColorBrush SelectedFillBrush =
+        new(Color.FromArgb(72, 0, 120, 215));
+
+    private static readonly SolidColorBrush SelectedBorderBrush =
+        new(Color.FromArgb(255, 0, 99, 177));
+
+    private static readonly SolidColorBrush ActiveTextBackgroundBrush =
+        new(Color.FromArgb(210, 0, 0, 0));
+
+    private static readonly SolidColorBrush SelectionBrush =
+        new(Color.FromArgb(180, 0, 120, 215));
+
+    private static readonly Thickness NormalBorderThickness = new(1.5);
+    private static readonly Thickness SelectedBorderThickness = new(2);
 }

@@ -5,8 +5,10 @@ using PixSnap.Models;
 using PixSnap.Services;
 using Serilog;
 using System;
+using System.Collections.ObjectModel;
 using System.Diagnostics;
 using System.IO;
+using System.Linq;
 using System.Windows;
 using System.Windows.Input;
 
@@ -18,6 +20,37 @@ public partial class SettingsViewModel : ObservableObject
     private int _pendingModifiers;
     private int _pendingKey;
     private int _confirmedThemeIndex;
+    private int _confirmedGpuDeviceId;
+    private int _confirmedOcrModelIndex;
+    private int _confirmedMattingModelIndex;
+    private int _confirmedSuperResolutionModelIndex;
+    private int _confirmedSegmentationModelIndex;
+    private int _confirmedVisionModelIndex;
+
+    [ObservableProperty]
+    private ObservableCollection<GpuDeviceOption> _gpuDevices = [];
+
+    [ObservableProperty]
+    private GpuDeviceOption? _selectedGpuDevice;
+
+    [ObservableProperty]
+    private bool _isGpuListReady = true;
+
+    /// <summary>0 = Mobile, 1 = Server。</summary>
+    [ObservableProperty]
+    private int _selectedOcrModelIndex;
+
+    [ObservableProperty]
+    private int _selectedMattingModelIndex;
+
+    [ObservableProperty]
+    private int _selectedSuperResolutionModelIndex;
+
+    [ObservableProperty]
+    private int _selectedSegmentationModelIndex;
+
+    [ObservableProperty]
+    private int _selectedVisionModelIndex;
 
     [ObservableProperty]
     private bool _isStartupEnabled;
@@ -61,6 +94,39 @@ public partial class SettingsViewModel : ObservableObject
         _pendingModifiers = (int)modifiers;
         _pendingKey = (int)key;
         UpdateHotkeyDisplay();
+        _confirmedGpuDeviceId = SettingsService.ReadAiGpuDeviceId();
+        _selectedOcrModelIndex = (int)SettingsService.ReadOcrModelTier();
+        _confirmedOcrModelIndex = _selectedOcrModelIndex;
+        _selectedMattingModelIndex = (int)SettingsService.ReadMattingModel();
+        _confirmedMattingModelIndex = _selectedMattingModelIndex;
+        _selectedSuperResolutionModelIndex = (int)SettingsService.ReadSuperResolutionModel();
+        _confirmedSuperResolutionModelIndex = _selectedSuperResolutionModelIndex;
+        _selectedSegmentationModelIndex = (int)SettingsService.ReadSegmentationModel();
+        _confirmedSegmentationModelIndex = _selectedSegmentationModelIndex;
+        _selectedVisionModelIndex = (int)SettingsService.ReadVisionModel();
+        _confirmedVisionModelIndex = _selectedVisionModelIndex;
+        GpuDevices = new ObservableCollection<GpuDeviceOption>(DirectMlDeviceEnumerator.GetCachedOrDefault());
+        SelectedGpuDevice = GpuDevices.FirstOrDefault(g => g.DeviceId == _confirmedGpuDeviceId) ?? GpuDevices.FirstOrDefault();
+        _ = LoadGpuDevicesAsync();
+    }
+
+    private async Task LoadGpuDevicesAsync()
+    {
+        IsGpuListReady = false;
+        try
+        {
+            var devices = await DirectMlDeviceEnumerator.EnsureEnumeratedAsync().ConfigureAwait(false);
+            await System.Windows.Application.Current.Dispatcher.InvokeAsync(() =>
+            {
+                GpuDevices = new ObservableCollection<GpuDeviceOption>(devices);
+                SelectedGpuDevice = GpuDevices.FirstOrDefault(g => g.DeviceId == _confirmedGpuDeviceId)
+                    ?? GpuDevices.FirstOrDefault();
+            });
+        }
+        finally
+        {
+            await System.Windows.Application.Current.Dispatcher.InvokeAsync(() => IsGpuListReady = true);
+        }
     }
 
     // 进入/退出录制状态时同步显示文本
@@ -69,11 +135,19 @@ public partial class SettingsViewModel : ObservableObject
 
     partial void OnSelectedThemeIndexChanged(int value) => ThemeHelper.ApplyTheme(value);
 
-    /// <summary>撤销未保存的主题预览（Cancel / 关闭窗口时调用）。</summary>
-    public void RevertUnsavedTheme()
+    /// <summary>撤销未保存的主题与 GPU 预览（Cancel / 关闭窗口时调用）。</summary>
+    public void RevertUnsavedChanges()
     {
         if (SelectedThemeIndex != _confirmedThemeIndex)
             ThemeHelper.ApplyTheme(_confirmedThemeIndex);
+
+        SelectedGpuDevice = GpuDevices.FirstOrDefault(g => g.DeviceId == _confirmedGpuDeviceId)
+            ?? GpuDevices.FirstOrDefault();
+        SelectedOcrModelIndex = _confirmedOcrModelIndex;
+        SelectedMattingModelIndex = _confirmedMattingModelIndex;
+        SelectedSuperResolutionModelIndex = _confirmedSuperResolutionModelIndex;
+        SelectedSegmentationModelIndex = _confirmedSegmentationModelIndex;
+        SelectedVisionModelIndex = _confirmedVisionModelIndex;
     }
 
     /// <summary>
@@ -104,12 +178,35 @@ public partial class SettingsViewModel : ObservableObject
         SettingsService.WriteSaveDirectory(SaveDirectory);
         SettingsService.WriteAutoSave(IsAutoSaveEnabled);
         SettingsService.WriteRecordingTempDirectory(RecordingTempDirectory);
-        Log.Information("设置已保存: 开机启动={Startup}, 快捷键={Modifiers}+{Key}, 主题={Theme}, 保存目录={SaveDir}, 自动保存={AutoSave}, 录屏目录={RecDir}",
-            IsStartupEnabled, (ModifierKeys)_pendingModifiers, (Key)_pendingKey, SelectedThemeIndex, SaveDirectory, IsAutoSaveEnabled, RecordingTempDirectory);
+        var gpuDeviceId = SelectedGpuDevice?.DeviceId ?? AiGpuSettings.AutoDeviceId;
+        SettingsService.WriteAiGpuDeviceId(gpuDeviceId);
+        AiGpuSettings.Apply(gpuDeviceId);
+        _confirmedGpuDeviceId = gpuDeviceId;
+        SettingsService.WriteOcrModelTier((OcrModelTier)SelectedOcrModelIndex);
+        OcrSettings.Apply((OcrModelTier)SelectedOcrModelIndex);
+        _confirmedOcrModelIndex = SelectedOcrModelIndex;
+        SettingsService.WriteMattingModel((MattingModel)SelectedMattingModelIndex);
+        SettingsService.WriteSuperResolutionModel((SuperResolutionModel)SelectedSuperResolutionModelIndex);
+        SettingsService.WriteSegmentationModel((SegmentationModel)SelectedSegmentationModelIndex);
+        SettingsService.WriteVisionModel((VisionModel)SelectedVisionModelIndex);
+        AiFeatureSettings.Apply(
+            (MattingModel)SelectedMattingModelIndex,
+            (SuperResolutionModel)SelectedSuperResolutionModelIndex,
+            (SegmentationModel)SelectedSegmentationModelIndex,
+            (VisionModel)SelectedVisionModelIndex);
+        _confirmedMattingModelIndex = SelectedMattingModelIndex;
+        _confirmedSuperResolutionModelIndex = SelectedSuperResolutionModelIndex;
+        _confirmedSegmentationModelIndex = SelectedSegmentationModelIndex;
+        _confirmedVisionModelIndex = SelectedVisionModelIndex;
+        Log.Information("设置已保存: 开机启动={Startup}, 快捷键={Modifiers}+{Key}, 主题={Theme}, AI GPU={Gpu}, OCR={OcrTier}, 抠图={Matting}, 超分={Sr}, 分割={Seg}, 读图={Vision}, 保存目录={SaveDir}, 自动保存={AutoSave}, 录屏目录={RecDir}",
+            IsStartupEnabled, (ModifierKeys)_pendingModifiers, (Key)_pendingKey, SelectedThemeIndex, gpuDeviceId, (OcrModelTier)SelectedOcrModelIndex, (MattingModel)SelectedMattingModelIndex, (SuperResolutionModel)SelectedSuperResolutionModelIndex, (SegmentationModel)SelectedSegmentationModelIndex, (VisionModel)SelectedVisionModelIndex, SaveDirectory, IsAutoSaveEnabled, RecordingTempDirectory);
         WeakReferenceMessenger.Default.Send(new HotkeyChangedMessage((ModifierKeys)_pendingModifiers, (Key)_pendingKey));
         _confirmedThemeIndex = SelectedThemeIndex;
         RequestClose?.Invoke();
     }
+
+    [RelayCommand]
+    private void OpenAiModels() => AiModelMissingPrompt.OpenModelManager();
 
     [RelayCommand]
     private void BrowseSaveDirectory()
@@ -146,7 +243,7 @@ public partial class SettingsViewModel : ObservableObject
     [RelayCommand]
     private void Cancel()
     {
-        RevertUnsavedTheme();
+        RevertUnsavedChanges();
         RequestClose?.Invoke();
     }
 

@@ -18,57 +18,56 @@ namespace PixSnap.Services;
 /// </summary>
 public static class SuperResolutionService
 {
-    private static readonly string ModelPath =
-        Path.Combine(AppContext.BaseDirectory, "onnx", "realesrgan-x4plus.onnx");
-
-    // realesrgan-x4plus.onnx 固定输入 256×256；分块尺寸必须与模型一致
     private const int ModelTileSize = 256;
     private const int TilePad = 16;
-    private const int ScaleFactor = 4;
 
     // 输出位图最大像素数（BGRA 4字节/像素，128MP ≈ 512 MB，安全低于 SKBitmap int 上限）
     private const long MaxOutputPixels = 128_000_000;
 
-    /// <summary>异步执行 4x 超分辨率。按 TileSize 分块推理后拼合成完整的 4 倍放大图。</summary>
+    /// <summary>异步执行超分辨率。按 TileSize 分块推理后拼合成完整的放大图。</summary>
     public static async Task<BitmapSource?> RunAsync(
         BitmapSource originalImage,
         IProgress<(double Value, string Text)>? progress = null,
         CancellationToken cancellationToken = default)
     {
         var frozen = ImageIOService.CreateFrozenSnapshot(originalImage);
+        var model = AiFeatureSettings.SuperResolution;
+        string modelPath = AiModelCatalog.GetSuperResolutionModelPath(model);
+        int scaleFactor = AiModelCatalog.GetSuperResolutionScale(model);
 
         var export = await Task.Run(() =>
         {
             cancellationToken.ThrowIfCancellationRequested();
             progress?.Report((0.05, "正在加载超分模型..."));
-            if (!File.Exists(ModelPath))
+            if (!File.Exists(modelPath))
             {
-                Log.Error("RealESRGAN 模型文件不存在: {ModelPath}", ModelPath);
-                throw new FileNotFoundException(string.Format("未找到 ONNX 模型：{0}", ModelPath));
+                Log.Error("RealESRGAN 模型文件不存在: {ModelPath}", modelPath);
+                throw new FileNotFoundException($"未找到 ONNX 模型：{modelPath}", modelPath);
             }
 
-            Log.Information("开始超分辨率: 图像 {W}×{H}", frozen.PixelWidth, frozen.PixelHeight);
+            Log.Information("开始超分辨率({Scale}x): 图像 {W}×{H}, 模型={Model}",
+                scaleFactor, frozen.PixelWidth, frozen.PixelHeight, modelPath);
 
             using var srcBitmap = SkiaInteropHelper.BitmapSourceToSKBitmap(frozen);
             int srcW = srcBitmap.Width;
             int srcH = srcBitmap.Height;
 
-            // 若 4x 输出超过安全阈值，先缩小源图再超分
-            long outputPixels = (long)srcW * ScaleFactor * srcH * ScaleFactor;
+            // 若放大后输出超过安全阈值，先缩小源图再超分
+            long outputPixels = (long)srcW * scaleFactor * srcH * scaleFactor;
             using var downscaled = outputPixels > MaxOutputPixels
-                ? DownscaleSource(srcBitmap, srcW, srcH, outputPixels, progress, out srcW, out srcH)
+                ? DownscaleSource(srcBitmap, srcW, srcH, outputPixels, scaleFactor, progress, out srcW, out srcH)
                 : null;
 
             var actualSource = downscaled ?? srcBitmap;
 
             progress?.Report((0.20, "正在初始化推理引擎..."));
-            var session = OnnxSessionFactory.GetOrCreateSession(ModelPath, out var providerName);
+            var session = OnnxSessionFactory.GetOrCreateSession(modelPath, out var providerName);
             progress?.Report((0.28, FormatProviderMessage(providerName)));
             var inputName = session.InputMetadata.Keys.First();
             var tile = GetTileConfig(session, inputName);
 
             progress?.Report((0.35, "正在执行超分推理..."));
-            using var outputBitmap = RunTiled(session, providerName, tile, inputName, actualSource, srcW, srcH, progress, cancellationToken);
+            using var outputBitmap = RunTiled(session, providerName, modelPath, tile, inputName, actualSource, srcW, srcH, scaleFactor, progress, cancellationToken);
 
             progress?.Report((0.90, "正在生成超分结果..."));
             return (SkiaInteropHelper.CopyPixels(outputBitmap), outputBitmap.Width, outputBitmap.Height);
@@ -78,7 +77,7 @@ public static class SuperResolutionService
     }
 
     private static SKBitmap DownscaleSource(
-        SKBitmap srcBitmap, int srcW, int srcH, long outputPixels,
+        SKBitmap srcBitmap, int srcW, int srcH, long outputPixels, int scaleFactor,
         IProgress<(double Value, string Text)>? progress,
         out int newW, out int newH)
     {
@@ -158,15 +157,17 @@ public static class SuperResolutionService
     private static SKBitmap RunTiled(
         InferenceSession session,
         string providerName,
+        string modelPath,
         TileConfig tile,
         string inputName,
         SKBitmap source,
         int srcW,
         int srcH,
+        int scaleFactor,
         IProgress<(double Value, string Text)>? progress,
         CancellationToken cancellationToken = default)
     {
-        var result = new SKBitmap(new SKImageInfo(srcW * ScaleFactor, srcH * ScaleFactor, SKColorType.Bgra8888, SKAlphaType.Unpremul));
+        var result = new SKBitmap(new SKImageInfo(srcW * scaleFactor, srcH * scaleFactor, SKColorType.Bgra8888, SKAlphaType.Unpremul));
         try
         {
             int tileStride = tile.Stride;
@@ -174,8 +175,8 @@ public static class SuperResolutionService
             int tilesY = (int)Math.Ceiling((double)srcH / tileStride);
             int totalTiles = tilesX * tilesY;
             int tileIndex = 0;
-            int outW = srcW * ScaleFactor;
-            int outH = srcH * ScaleFactor;
+            int outW = srcW * scaleFactor;
+            int outH = srcH * scaleFactor;
             Log.Debug("分块超分: {TileSize}px, {TilesX}×{TilesY} = {Total} 块, {Provider}",
                 tile.Size, tilesX, tilesY, totalTiles, providerName);
 
@@ -190,7 +191,7 @@ public static class SuperResolutionService
                     progress?.Report((0.35 + 0.45 * tileIndex / totalTiles, string.Format("正在分块超分 ({0}/{1})...", tileIndex, totalTiles)));
 
                     // 若上一块触发 DirectML→CPU 回退，从缓存取最新 Session
-                    session = OnnxSessionFactory.GetOrCreateSession(ModelPath, out providerName);
+                    session = OnnxSessionFactory.GetOrCreateSession(modelPath, out providerName);
 
                     var tileRegion = ComputeTileRegion(tx, ty, srcW, srcH, tile);
 
@@ -205,16 +206,16 @@ public static class SuperResolutionService
                     inputs.Clear();
                     inputs.Add(NamedOnnxValue.CreateFromTensor(inputName, inputTensor));
 
-                    RunTileInference(session, providerName, inputs, outputTensor =>
+                    RunTileInference(session, providerName, modelPath, inputs, outputTensor =>
                     {
                         WriteTensorToBitmap(
                             outputTensor, result,
-                            destX:         tileRegion.SrcX    * ScaleFactor,
-                            destY:         tileRegion.SrcY    * ScaleFactor,
-                            tensorOffsetX: tileRegion.PadLeft  * ScaleFactor,
-                            tensorOffsetY: tileRegion.PadTop   * ScaleFactor,
-                            copyW:         tileRegion.ValidW   * ScaleFactor,
-                            copyH:         tileRegion.ValidH   * ScaleFactor,
+                            destX:         tileRegion.SrcX    * scaleFactor,
+                            destY:         tileRegion.SrcY    * scaleFactor,
+                            tensorOffsetX: tileRegion.PadLeft  * scaleFactor,
+                            tensorOffsetY: tileRegion.PadTop   * scaleFactor,
+                            copyW:         tileRegion.ValidW   * scaleFactor,
+                            copyH:         tileRegion.ValidH   * scaleFactor,
                             fullW:         outW,
                             fullH:         outH);
                     });
@@ -234,10 +235,11 @@ public static class SuperResolutionService
     private static void RunTileInference(
         InferenceSession session,
         string providerName,
+        string modelPath,
         List<NamedOnnxValue> inputs,
         Action<Tensor<float>> consumeOutput)
     {
-        using var run = OnnxInferenceHelper.RunWithCpuFallback(session, providerName, ModelPath, inputs);
+        using var run = OnnxInferenceHelper.RunWithCpuFallback(session, providerName, modelPath, inputs);
         consumeOutput(run.First().AsTensor<float>());
     }
 

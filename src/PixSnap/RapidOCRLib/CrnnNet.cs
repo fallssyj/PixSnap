@@ -1,4 +1,4 @@
-﻿using Emgu.CV;
+using Emgu.CV;
 using Microsoft.ML.OnnxRuntime;
 using Microsoft.ML.OnnxRuntime.Tensors;
 using RapidOCRLib.Models;
@@ -41,11 +41,7 @@ namespace RapidOCRLib
         {
             try
             {
-                SessionOptions op = new SessionOptions();
-                op.GraphOptimizationLevel = GraphOptimizationLevel.ORT_ENABLE_EXTENDED;
-                op.InterOpNumThreads = numThread;
-                op.IntraOpNumThreads = numThread;
-                crnnNet = new InferenceSession(path, op);
+                crnnNet = OnnxSessionHelper.Create(path, numThread);
                 inputNames = crnnNet.InputMetadata.Keys.ToList();
                 keys = InitKeys(keysPath);
                 await Task.CompletedTask;

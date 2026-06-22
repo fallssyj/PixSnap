@@ -36,10 +36,12 @@ namespace RapidOCRLib
         /// The path of the Key dictionary file.
         /// </summary>
         public string KeyDicPath { get; set; } = null!;
-        /// <summary>
-        /// cpu thread number,default is 70% of toal logic cpu core numbers.
+        /// <summary>cpu thread number,default is 70% of toal logic cpu core numbers.
         /// </summary>
         public int ThreadNum { get; set; } = (int)(Environment.ProcessorCount * 0.7);
+
+        /// <summary>跳过检测框可视化与 BoxImg 克隆，生产环境可显著提速。</summary>
+        public bool SkipVisualization { get; set; }
 
         /// <summary>
         /// Initialize OCR Engine
@@ -274,7 +276,7 @@ namespace RapidOCRLib
         private OcrResult __DetectCore(Mat src, Rectangle originRect, ScaleParam scale, float boxScoreThresh, float boxThresh,
                               float unClipRatio, bool doAngle, bool mostAngle)
         {
-            Mat textBoxPaddingImg = src.Clone();
+            Mat? textBoxPaddingImg = null;
             try
             {
                 int thickness = OcrUtils.GetThickness(src);
@@ -287,13 +289,14 @@ namespace RapidOCRLib
 
                 Console.WriteLine($"TextBoxesSize({textBoxes.Count})");
                 textBoxes.ForEach(x => Console.WriteLine(x));
-                //Console.WriteLine($"dbNetTime({dbNetTime}ms)");
 
-                Console.WriteLine("---------- step: drawTextBoxes ----------");
-                OcrUtils.DrawTextBoxes(textBoxPaddingImg, textBoxes, thickness);
-                //CvInvoke.Imshow("ResultPadding", textBoxPaddingImg);
+                if (!SkipVisualization)
+                {
+                    Console.WriteLine("---------- step: drawTextBoxes ----------");
+                    textBoxPaddingImg = src.Clone();
+                    OcrUtils.DrawTextBoxes(textBoxPaddingImg, textBoxes, thickness);
+                }
 
-                //---------- getPartImages ----------
                 List<Mat> partImages = OcrUtils.GetPartImages(src, textBoxes);
                 try
                 {
@@ -342,7 +345,9 @@ namespace RapidOCRLib
                     var endTicks = DateTime.Now.Ticks;
                     var fullDetectTime = (endTicks - startTicks) / 10000F;
 
-                    Mat boxImg = new Mat(textBoxPaddingImg, originRect).Clone();
+                    Mat? boxImg = SkipVisualization
+                        ? null
+                        : new Mat(textBoxPaddingImg!, originRect).Clone();
 
                     StringBuilder strRes = new StringBuilder();
                     textBlocks.ForEach(x => strRes.AppendLine(x.Text));
@@ -350,7 +355,7 @@ namespace RapidOCRLib
                     OcrResult ocrResult = new OcrResult();
                     ocrResult.TextBlocks = textBlocks;
                     ocrResult.DbNetTime = dbNetTime;
-                    ocrResult.BoxImg = boxImg;
+                    ocrResult.BoxImg = boxImg!;
                     ocrResult.DetectTime = fullDetectTime;
                     ocrResult.StrRes = strRes.ToString();
 
@@ -364,7 +369,7 @@ namespace RapidOCRLib
             }
             finally
             {
-                textBoxPaddingImg.Dispose();
+                textBoxPaddingImg?.Dispose();
             }
         }
 

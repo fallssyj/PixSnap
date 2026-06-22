@@ -19,7 +19,7 @@ public partial class SettingsWindow : Window
 
     protected override void OnClosing(CancelEventArgs e)
     {
-        ViewModel.RevertUnsavedTheme();
+        ViewModel.RevertUnsavedChanges();
         base.OnClosing(e);
     }
 

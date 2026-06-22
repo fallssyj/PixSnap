@@ -59,7 +59,7 @@ public static class InpaintService
             if (!File.Exists(ModelPath))
             {
                 Log.Error("LaMa 模型文件不存在: {ModelPath}", ModelPath);
-                throw new FileNotFoundException(string.Format("未找到 ONNX 模型：{0}", ModelPath));
+                throw new FileNotFoundException($"未找到 ONNX 模型：{ModelPath}", ModelPath);
             }
 
             Log.Information("开始 AI 修复: {StrokeCount} 笔画, 图像 {W}×{H}", strokes.Count, frozen.PixelWidth, frozen.PixelHeight);

@@ -111,11 +111,7 @@ public partial class EraserViewModel : ObservableObject
         {
             Log.Error(ex, "AI 擦除模型缺失");
             ProgressText = string.Empty;
-            AppMessageBox.Show(
-                string.Format("AI 模型文件缺失，无法执行擦除。\n\n{0}", ex.Message),
-                "模型缺失",
-                MessageBoxButton.OK,
-                MessageBoxImage.Warning);
+            await AiModelMissingPrompt.HandleFileNotFoundAsync(ex, "AI 擦除");
         }
         catch (Exception ex)
         {

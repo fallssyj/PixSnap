@@ -40,11 +40,7 @@ namespace RapidOCRLib
         {
             try
             {
-                SessionOptions op = new SessionOptions();
-                op.GraphOptimizationLevel = GraphOptimizationLevel.ORT_ENABLE_EXTENDED;
-                op.InterOpNumThreads = numThread;
-                op.IntraOpNumThreads = numThread;
-                angleNet = new InferenceSession(path, op);
+                angleNet = OnnxSessionHelper.Create(path, numThread);
                 inputNames = angleNet.InputMetadata.Keys.ToList();
 
                 // 从 ONNX 模型 metadata 读取输入尺寸，兼容 v2 (192x48) 和 v5 (160x80)

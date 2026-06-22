@@ -115,6 +115,15 @@ public partial class App : System.Windows.Application, IRecipient<ScreenshotCapt
         _mainWindow.Hide();
 
         // 应用持久化的主题偏好（Loaded 后确保 iNKORE 资源已就绪）
+        AiGpuSettings.LoadFromSettings();
+        OcrSettings.LoadFromSettings();
+        AiFeatureSettings.LoadFromSettings();
+        DirectMlDeviceEnumerator.WarmCache();
+        _ = Task.Run(async () =>
+        {
+            await DirectMlDeviceEnumerator.EnsureEnumeratedAsync().ConfigureAwait(false);
+            await OcrService.WarmUpAsync().ConfigureAwait(false);
+        });
         Dispatcher.BeginInvoke(
             () => ThemeHelper.ApplyTheme(SettingsService.ReadTheme()),
             DispatcherPriority.Loaded);

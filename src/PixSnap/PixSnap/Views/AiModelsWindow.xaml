@@ -1,0 +1,247 @@
+<Window
+    x:Class="PixSnap.Views.AiModelsWindow"
+    xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+    xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+    xmlns:controls="clr-namespace:PixSnap.Controls"
+    xmlns:converters="clr-namespace:PixSnap.Converters"
+    xmlns:ikw="http://schemas.inkore.net/lib/ui/wpf"
+    xmlns:ui="http://schemas.inkore.net/lib/ui/wpf/modern"
+    Title="AI 模型"
+    Width="760"
+    Height="680"
+    MinWidth="640"
+    MinHeight="520"
+    TextOptions.TextFormattingMode="Display"
+    UseLayoutRounding="True"
+    WindowStartupLocation="CenterOwner"
+    ui:TitleBar.Height="36"
+    ui:TitleBar.MaximizeButtonAvailability="Collapsed"
+    ui:TitleBar.MinimizeButtonAvailability="Collapsed"
+    ui:WindowHelper.FixMaximizedWindow="True"
+    ui:WindowHelper.SystemBackdropType="Mica"
+    ui:WindowHelper.UseModernWindowStyle="True">
+
+    <Window.Resources>
+        <converters:BoolToVisibilityConverter x:Key="BoolToVisibilityConverter" />
+        <Style x:Key="ModelTableHeaderStyle" TargetType="TextBlock">
+            <Setter Property="FontSize" Value="12" />
+            <Setter Property="Foreground" Value="{DynamicResource TextFillColorSecondaryBrush}" />
+        </Style>
+        <Style x:Key="ModelStatusBadgeStyle" TargetType="Border">
+            <Setter Property="Padding" Value="10,4" />
+            <Setter Property="CornerRadius" Value="4" />
+            <Setter Property="HorizontalAlignment" Value="Left" />
+            <Setter Property="VerticalAlignment" Value="Center" />
+        </Style>
+    </Window.Resources>
+
+    <Grid>
+        <Grid.RowDefinitions>
+            <RowDefinition Height="Auto" />
+            <RowDefinition Height="Auto" />
+            <RowDefinition Height="Auto" />
+            <RowDefinition Height="*" />
+            <RowDefinition Height="Auto" />
+        </Grid.RowDefinitions>
+
+        <Border Grid.Row="0" Padding="28,22,28,10">
+            <controls:PageHeader Subtitle="按功能分组，查看每个模型的下载状态" Title="模型管理">
+                <controls:PageHeader.IconContent>
+                    <ui:FontIcon
+                        FontSize="18"
+                        Foreground="{DynamicResource SystemControlForegroundAccentBrush}"
+                        Icon="{x:Static ui:SegoeFluentIcons.Download}" />
+                </controls:PageHeader.IconContent>
+            </controls:PageHeader>
+        </Border>
+
+        <Border
+            Grid.Row="1"
+            Height="1"
+            Margin="28,0"
+            Background="{DynamicResource DividerStrokeColorDefaultBrush}" />
+
+        <Border Grid.Row="2" Padding="28,12,28,8">
+            <Grid>
+                <Grid.ColumnDefinitions>
+                    <ColumnDefinition Width="*" />
+                    <ColumnDefinition Width="Auto" />
+                    <ColumnDefinition Width="Auto" />
+                </Grid.ColumnDefinitions>
+                <TextBlock
+                    VerticalAlignment="Center"
+                    FontWeight="SemiBold"
+                    Text="{Binding SummaryText}" />
+                <Button
+                    Grid.Column="1"
+                    Margin="0,0,8,0"
+                    Command="{Binding RefreshCommand}"
+                    Content="刷新"
+                    Style="{StaticResource PixSnapButtonStyle}" />
+                <Button
+                    Grid.Column="2"
+                    Command="{Binding DownloadMissingCommand}"
+                    Content="下载缺失"
+                    Style="{StaticResource PixSnapAccentButtonStyle}" />
+            </Grid>
+        </Border>
+
+        <ScrollViewer
+            Grid.Row="3"
+            Padding="28,0,28,12"
+            VerticalScrollBarVisibility="Auto">
+            <ikw:SimpleStackPanel Spacing="0">
+                <Border
+                    Margin="0,0,0,8"
+                    Padding="16,10"
+                    Style="{StaticResource SettingsGroupCardStyle}">
+                    <Grid>
+                        <Grid.ColumnDefinitions>
+                            <ColumnDefinition Width="2.2*" />
+                            <ColumnDefinition Width="100" />
+                            <ColumnDefinition Width="72" />
+                            <ColumnDefinition Width="80" />
+                        </Grid.ColumnDefinitions>
+                        <TextBlock Style="{StaticResource ModelTableHeaderStyle}" Text="模型" />
+                        <TextBlock
+                            Grid.Column="1"
+                            Style="{StaticResource ModelTableHeaderStyle}"
+                            Text="状态" />
+                        <TextBlock
+                            Grid.Column="2"
+                            HorizontalAlignment="Right"
+                            Style="{StaticResource ModelTableHeaderStyle}"
+                            Text="大小" />
+                        <TextBlock
+                            Grid.Column="3"
+                            HorizontalAlignment="Center"
+                            Style="{StaticResource ModelTableHeaderStyle}"
+                            Text="操作" />
+                    </Grid>
+                </Border>
+
+                <ItemsControl ItemsSource="{Binding Groups}">
+                    <ItemsControl.ItemTemplate>
+                        <DataTemplate>
+                            <StackPanel Margin="0,0,0,16">
+                                <Grid Margin="4,0,0,8">
+                                    <Grid.ColumnDefinitions>
+                                        <ColumnDefinition Width="*" />
+                                        <ColumnDefinition Width="Auto" />
+                                    </Grid.ColumnDefinitions>
+                                    <TextBlock
+                                        FontSize="14"
+                                        FontWeight="SemiBold"
+                                        Text="{Binding Category}" />
+                                    <TextBlock
+                                        Grid.Column="1"
+                                        FontSize="12"
+                                        Foreground="{DynamicResource TextFillColorSecondaryBrush}"
+                                        Text="{Binding ReadySummary}" />
+                                </Grid>
+
+                                <Border Style="{StaticResource SettingsGroupCardStyle}">
+                                    <ItemsControl ItemsSource="{Binding Items}">
+                                        <ItemsControl.ItemTemplate>
+                                            <DataTemplate>
+                                                <StackPanel>
+                                                    <Border
+                                                        Padding="16,12"
+                                                        BorderBrush="{DynamicResource DividerStrokeColorDefaultBrush}"
+                                                        BorderThickness="0,0,0,1">
+                                                        <Grid>
+                                                            <Grid.ColumnDefinitions>
+                                                                <ColumnDefinition Width="2.2*" />
+                                                                <ColumnDefinition Width="100" />
+                                                                <ColumnDefinition Width="72" />
+                                                                <ColumnDefinition Width="80" />
+                                                            </Grid.ColumnDefinitions>
+
+                                                            <StackPanel VerticalAlignment="Center">
+                                                                <TextBlock
+                                                                    FontWeight="SemiBold"
+                                                                    Text="{Binding DisplayName}"
+                                                                    TextWrapping="Wrap" />
+                                                                <TextBlock
+                                                                    Margin="0,2,0,0"
+                                                                    FontSize="12"
+                                                                    Foreground="{DynamicResource TextFillColorSecondaryBrush}"
+                                                                    Text="{Binding UsageHint}"
+                                                                    TextWrapping="Wrap" />
+                                                            </StackPanel>
+
+                                                            <Border
+                                                                Grid.Column="1"
+                                                                Background="{Binding StatusBrush}"
+                                                                Style="{StaticResource ModelStatusBadgeStyle}">
+                                                                <TextBlock
+                                                                    FontSize="12"
+                                                                    FontWeight="SemiBold"
+                                                                    Foreground="White"
+                                                                    Text="{Binding StatusText}" />
+                                                            </Border>
+
+                                                            <TextBlock
+                                                                Grid.Column="2"
+                                                                HorizontalAlignment="Right"
+                                                                VerticalAlignment="Center"
+                                                                Foreground="{DynamicResource TextFillColorSecondaryBrush}"
+                                                                Text="{Binding SizeText}" />
+
+                                                            <Grid
+                                                                Grid.Column="3"
+                                                                HorizontalAlignment="Center"
+                                                                VerticalAlignment="Center">
+                                                                <Button
+                                                                    MinWidth="64"
+                                                                    Command="{Binding DownloadCommand}"
+                                                                    Content="下载"
+                                                                    Style="{StaticResource SettingsActionButtonStyle}"
+                                                                    Visibility="{Binding ShowDownloadButton, Converter={StaticResource BoolToVisibilityConverter}}" />
+                                                                <ui:FontIcon
+                                                                    FontSize="16"
+                                                                    Foreground="{DynamicResource SystemFillColorSuccessBrush}"
+                                                                    Icon="{x:Static ui:SegoeFluentIcons.CheckMark}"
+                                                                    Visibility="{Binding ShowReadyMark, Converter={StaticResource BoolToVisibilityConverter}}" />
+                                                                <StackPanel Visibility="{Binding IsDownloading, Converter={StaticResource BoolToVisibilityConverter}}">
+                                                                    <ProgressBar
+                                                                        Width="64"
+                                                                        Height="4"
+                                                                        Maximum="1"
+                                                                        Value="{Binding DownloadProgress}" />
+                                                                    <TextBlock
+                                                                        Margin="0,4,0,0"
+                                                                        HorizontalAlignment="Center"
+                                                                        FontSize="11"
+                                                                        Foreground="{DynamicResource TextFillColorSecondaryBrush}"
+                                                                        Text="{Binding DownloadStatusText}" />
+                                                                </StackPanel>
+                                                            </Grid>
+                                                        </Grid>
+                                                    </Border>
+                                                </StackPanel>
+                                            </DataTemplate>
+                                        </ItemsControl.ItemTemplate>
+                                    </ItemsControl>
+                                </Border>
+                            </StackPanel>
+                        </DataTemplate>
+                    </ItemsControl.ItemTemplate>
+                </ItemsControl>
+            </ikw:SimpleStackPanel>
+        </ScrollViewer>
+
+        <Border
+            Grid.Row="4"
+            Padding="28,12,28,20"
+            Background="{DynamicResource CardBackgroundFillColorDefaultBrush}"
+            BorderBrush="{DynamicResource DividerStrokeColorDefaultBrush}"
+            BorderThickness="0,1,0,0">
+            <TextBlock
+                FontSize="12"
+                Foreground="{DynamicResource TextFillColorSecondaryBrush}"
+                Text="模型保存在程序目录 onnx/ 下。Mobile 与 Server 各需检测+识别两个文件；设置中的「文字识别模型」决定实际使用哪一套。"
+                TextWrapping="Wrap" />
+        </Border>
+    </Grid>
+</Window>

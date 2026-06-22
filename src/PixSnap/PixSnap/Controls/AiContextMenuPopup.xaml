@@ -20,7 +20,13 @@
             <Button Command="{Binding SuperResolutionCommand}" Style="{StaticResource FlyoutMenuButtonStyle}">
                 <StackPanel Orientation="Horizontal">
                     <ui:FontIcon Icon="{x:Static ui:SegoeFluentIcons.ZoomIn}" Style="{StaticResource FlyoutMenuIconAccentStyle}" />
-                    <TextBlock Margin="10,0,0,0" Style="{StaticResource FlyoutMenuTextStyle}" Text="超分四倍" />
+                    <TextBlock Margin="10,0,0,0" Style="{StaticResource FlyoutMenuTextStyle}" Text="超分辨率" />
+                </StackPanel>
+            </Button>
+            <Button Command="{Binding DescribeImageCommand}" Style="{StaticResource FlyoutMenuButtonStyle}">
+                <StackPanel Orientation="Horizontal">
+                    <ui:FontIcon Icon="{x:Static ui:SegoeFluentIcons.Robot}" Style="{StaticResource FlyoutMenuIconAccentStyle}" />
+                    <TextBlock Margin="10,0,0,0" Style="{StaticResource FlyoutMenuTextStyle}" Text="AI 读图" />
                 </StackPanel>
             </Button>
         </StackPanel>

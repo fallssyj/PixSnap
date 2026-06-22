@@ -19,9 +19,8 @@ internal static class AppMessageBox
                 () => Show(message, title, button, icon, owner));
         }
 
-        owner ??= Application.Current.MainWindow?.IsVisible == true
-            ? Application.Current.MainWindow
-            : null;
+        owner = WindowOwnerHelper.GetActiveOwner(owner);
+        WindowOwnerHelper.PrepareOwner(owner);
 
         return ModernMessageBox.Show(owner, message, title, button, icon);
     }

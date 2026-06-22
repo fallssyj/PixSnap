@@ -18,9 +18,6 @@ namespace PixSnap.Services;
 /// </summary>
 public static class BackgroundRemovalService
 {
-    private static readonly string ModelPath =
-        Path.Combine(AppContext.BaseDirectory, "onnx", "rmbg-1.4.onnx");
-
     /// <summary>异步执行背景去除。将原图缩放至模型输入尺寸，推理得到前景掩码，再还原到原始分辨率并合成透明背景。</summary>
     public static async Task<BitmapSource?> RunAsync(
         BitmapSource originalImage,
@@ -28,25 +25,27 @@ public static class BackgroundRemovalService
         CancellationToken cancellationToken = default)
     {
         var frozen = ImageIOService.CreateFrozenSnapshot(originalImage);
+        var mattingModel = AiFeatureSettings.Matting;
+        string modelPath = AiModelCatalog.GetMattingModelPath(mattingModel);
 
         var export = await Task.Run(() =>
         {
             cancellationToken.ThrowIfCancellationRequested();
             progress?.Report((0.05, "正在加载去背景模型..."));
-            if (!File.Exists(ModelPath))
+            if (!File.Exists(modelPath))
             {
-                Log.Error("RMBG 模型文件不存在: {ModelPath}", ModelPath);
-                throw new FileNotFoundException(string.Format("未找到 ONNX 模型：{0}", ModelPath));
+                Log.Error("抠图模型文件不存在: {ModelPath}", modelPath);
+                throw new FileNotFoundException($"未找到 ONNX 模型：{modelPath}", modelPath);
             }
 
-            Log.Information("开始去除背景: 图像 {W}×{H}", frozen.PixelWidth, frozen.PixelHeight);
+            Log.Information("开始去除背景({Model}): 图像 {W}×{H}", mattingModel, frozen.PixelWidth, frozen.PixelHeight);
 
             using var srcBitmap = SkiaInteropHelper.BitmapSourceToSKBitmap(frozen);
             int origW = srcBitmap.Width;
             int origH = srcBitmap.Height;
 
             progress?.Report((0.20, "正在初始化推理引擎..."));
-            var session = OnnxSessionFactory.GetOrCreateSession(ModelPath, out var providerName);
+            var session = OnnxSessionFactory.GetOrCreateSession(modelPath, out var providerName);
             progress?.Report((0.28, string.Format("当前推理设备：{0}", providerName)));
             var inputName = session.InputMetadata.Keys.First();
             var inputMeta = session.InputMetadata[inputName];
@@ -67,7 +66,7 @@ public static class BackgroundRemovalService
             {
                 NamedOnnxValue.CreateFromTensor(inputName, imageTensor)
             };
-            using var run = OnnxInferenceHelper.RunWithCpuFallback(session, providerName, ModelPath, inputs);
+            using var run = OnnxInferenceHelper.RunWithCpuFallback(session, providerName, modelPath, inputs);
             var outputTensor = run.First().AsTensor<float>();
             using var maskBitmap = OutputToMaskBitmap(outputTensor, modelW, modelH);
 

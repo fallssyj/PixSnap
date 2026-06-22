@@ -8,7 +8,7 @@
     xmlns:ui="http://schemas.inkore.net/lib/ui/wpf/modern"
     Title="设置"
     Width="580"
-    Height="680"
+    Height="720"
     MinWidth="520"
     MinHeight="560"
     ResizeMode="CanResize"
@@ -79,6 +79,97 @@
                             <ComboBoxItem Content="深色" />
                             <ComboBoxItem Content="浅色" />
                         </ComboBox>
+                    </ui:SettingsCard>
+
+                    <TextBlock Style="{StaticResource SettingsSectionHeaderStyle}" Text="AI" />
+
+                    <ui:SettingsCard
+                        Description="选择 OCR、去背景、超分、AI 擦除等功能的推理设备"
+                        Header="GPU 加速">
+                        <ui:SettingsCard.HeaderIcon>
+                            <ui:FontIcon Icon="{x:Static ui:SegoeFluentIcons.Robot}" />
+                        </ui:SettingsCard.HeaderIcon>
+                        <ComboBox
+                            MinWidth="220"
+                            MaxWidth="300"
+                            DisplayMemberPath="DisplayName"
+                            IsEnabled="{Binding IsGpuListReady}"
+                            ItemsSource="{Binding GpuDevices}"
+                            SelectedItem="{Binding SelectedGpuDevice}" />
+                    </ui:SettingsCard>
+
+                    <ui:SettingsCard
+                        Description="Mobile 速度更快，Server 准确率更高（需下载模型）"
+                        Header="文字识别模型">
+                        <ui:SettingsCard.HeaderIcon>
+                            <ui:FontIcon Icon="{x:Static ui:SegoeFluentIcons.Font}" />
+                        </ui:SettingsCard.HeaderIcon>
+                        <ComboBox MinWidth="160" SelectedIndex="{Binding SelectedOcrModelIndex}">
+                            <ComboBoxItem Content="Mobile（推荐）" />
+                            <ComboBoxItem Content="Server（高精度）" />
+                        </ComboBox>
+                    </ui:SettingsCard>
+
+                    <ui:SettingsCard
+                        Description="RMBG-1.4 / RMBG-2.0 / BiRefNet，在模型管理中下载"
+                        Header="抠图模型">
+                        <ui:SettingsCard.HeaderIcon>
+                            <ui:FontIcon Icon="{x:Static ui:SegoeFluentIcons.Color}" />
+                        </ui:SettingsCard.HeaderIcon>
+                        <ComboBox MinWidth="200" SelectedIndex="{Binding SelectedMattingModelIndex}">
+                            <ComboBoxItem Content="RMBG-1.4（默认）" />
+                            <ComboBoxItem Content="RMBG-2.0" />
+                            <ComboBoxItem Content="BiRefNet FP16" />
+                        </ComboBox>
+                    </ui:SettingsCard>
+
+                    <ui:SettingsCard
+                        Description="2× 更快，4× 更清晰"
+                        Header="超分辨率模型">
+                        <ui:SettingsCard.HeaderIcon>
+                            <ui:FontIcon Icon="{x:Static ui:SegoeFluentIcons.ZoomIn}" />
+                        </ui:SettingsCard.HeaderIcon>
+                        <ComboBox MinWidth="160" SelectedIndex="{Binding SelectedSuperResolutionModelIndex}">
+                            <ComboBoxItem Content="4×（高质量）" />
+                            <ComboBoxItem Content="2×（更快）" />
+                        </ComboBox>
+                    </ui:SettingsCard>
+
+                    <ui:SettingsCard
+                        Description="MobileSAM 支持点选；FastSAM 为整图分割"
+                        Header="图像分割模型">
+                        <ui:SettingsCard.HeaderIcon>
+                            <ui:FontIcon Glyph="&#xE7B3;" />
+                        </ui:SettingsCard.HeaderIcon>
+                        <ComboBox MinWidth="160" SelectedIndex="{Binding SelectedSegmentationModelIndex}">
+                            <ComboBoxItem Content="MobileSAM" />
+                            <ComboBoxItem Content="FastSAM-S" />
+                        </ComboBox>
+                    </ui:SettingsCard>
+
+                    <ui:SettingsCard
+                        Description="截图描述与问答（模型较大，按需下载）"
+                        Header="视觉理解模型">
+                        <ui:SettingsCard.HeaderIcon>
+                            <ui:FontIcon Icon="{x:Static ui:SegoeFluentIcons.Robot}" />
+                        </ui:SettingsCard.HeaderIcon>
+                        <ComboBox MinWidth="180" SelectedIndex="{Binding SelectedVisionModelIndex}">
+                            <ComboBoxItem Content="Florence-2" />
+                            <ComboBoxItem Content="Moondream2" />
+                        </ComboBox>
+                    </ui:SettingsCard>
+
+                    <ui:SettingsCard
+                        Description="OCR、抠图、超分、分割、读图等全部 ONNX 模型"
+                        Header="模型管理">
+                        <ui:SettingsCard.HeaderIcon>
+                            <ui:FontIcon Icon="{x:Static ui:SegoeFluentIcons.Download}" />
+                        </ui:SettingsCard.HeaderIcon>
+                        <Button
+                            MinWidth="120"
+                            Command="{Binding OpenAiModelsCommand}"
+                            Content="查看与下载"
+                            Style="{StaticResource SettingsActionButtonStyle}" />
                     </ui:SettingsCard>
 
                     <TextBlock Style="{StaticResource SettingsSectionHeaderStyle}" Text="快捷键" />

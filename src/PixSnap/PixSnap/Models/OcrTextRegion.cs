@@ -9,4 +9,7 @@ public sealed class OcrTextRegion
     public required Rect PixelBounds { get; init; }
     public required Point[] BoxPoints { get; init; }
     public float Confidence { get; init; }
+
+    /// <summary>与下一块之间的分隔符（排版合并后：空串、空格或换行）。</summary>
+    public string LineEnd { get; init; } = "\n";
 }

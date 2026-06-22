@@ -3,6 +3,7 @@ using CommunityToolkit.Mvvm.Input;
 using CommunityToolkit.Mvvm.Messaging;
 using PixSnap.Models;
 using PixSnap.Services;
+using PixSnap.Services.OcrLayout;
 using PixSnap.Views;
 using Serilog;
 using System.ComponentModel;
@@ -883,11 +884,7 @@ public partial class ScreenshotPreviewViewModel : ObservableRecipient, IRecipien
         {
             Log.Error(ex, "去除背景模型缺失");
             AiModuleProgressText = string.Empty;
-            AppMessageBox.Show(
-                string.Format("AI 模型文件缺失，无法执行去除背景。\n\n{0}", ex.Message),
-                "模型缺失",
-                MessageBoxButton.OK,
-                MessageBoxImage.Warning);
+            await AiModelMissingPrompt.HandleFileNotFoundAsync(ex, "去除背景");
         }
         catch (Exception ex)
         {
@@ -952,11 +949,7 @@ public partial class ScreenshotPreviewViewModel : ObservableRecipient, IRecipien
         {
             Log.Warning(ex, "OCR 不可用");
             AiModuleProgressText = string.Empty;
-            AppMessageBox.Show(
-                ex.Message,
-                "扫描文本不可用",
-                MessageBoxButton.OK,
-                MessageBoxImage.Warning);
+            await AiModelMissingPrompt.HandleOcrNotAvailableAsync(ex);
         }
         catch (Exception ex)
         {
@@ -978,7 +971,7 @@ public partial class ScreenshotPreviewViewModel : ObservableRecipient, IRecipien
     private void CopyAllOcrText()
     {
         if (OcrRegions.Count == 0) return;
-        ClipboardHelper.TrySetText(string.Join(Environment.NewLine, OcrRegions.Select(r => r.Text)));
+        ClipboardHelper.TrySetText(OcrLayoutMerger.ToFullText(OcrRegions));
     }
 
     [RelayCommand]
@@ -1026,11 +1019,7 @@ public partial class ScreenshotPreviewViewModel : ObservableRecipient, IRecipien
         {
             Log.Error(ex, "超分辨率模型缺失");
             AiModuleProgressText = string.Empty;
-            AppMessageBox.Show(
-                string.Format("AI 模型文件缺失，无法执行超分辨率。\n\n{0}", ex.Message),
-                "模型缺失",
-                MessageBoxButton.OK,
-                MessageBoxImage.Warning);
+            await AiModelMissingPrompt.HandleFileNotFoundAsync(ex, "超分辨率");
         }
         catch (Exception ex)
         {
@@ -1038,6 +1027,65 @@ public partial class ScreenshotPreviewViewModel : ObservableRecipient, IRecipien
             AiModuleProgressText = string.Empty;
             AppMessageBox.Show(
                 string.Format("超分辨率失败：{0}", ex.Message),
+                "操作失败",
+                MessageBoxButton.OK,
+                MessageBoxImage.Error);
+        }
+        finally
+        {
+            IsAiModuleProcessing = false;
+        }
+    }
+
+    [RelayCommand]
+    private async Task DescribeImage()
+    {
+        if (ScreenshotImage is null || IsAnyAiProcessing) return;
+
+        IsAiPopupOpen = false;
+        IsAiModuleProcessing = true;
+        AiModuleProgress = 0;
+        AiModuleProgressText = "正在准备 AI 读图...";
+        var token = CreateAiCancellationToken();
+        try
+        {
+            var progress = new Progress<(double Value, string Text)>(t =>
+            {
+                AiModuleProgress = t.Value;
+                AiModuleProgressText = t.Text;
+            });
+
+            string description = await VisionDescribeService.DescribeAsync(ScreenshotImage, progress: progress, cancellationToken: token);
+            ClipboardHelper.TrySetText(description);
+            AppMessageBox.Show(description, "AI 读图", MessageBoxButton.OK, MessageBoxImage.Information);
+            AiModuleProgress = 1;
+            AiModuleProgressText = "AI 读图完成";
+        }
+        catch (OperationCanceledException)
+        {
+            AiModuleProgressText = string.Empty;
+        }
+        catch (VisionDescribeService.VisionNotAvailableException ex)
+        {
+            AiModuleProgressText = string.Empty;
+            await AiModelMissingPrompt.HandleFeatureNotAvailableAsync("AI 读图", ex.Message);
+        }
+        catch (NotSupportedException ex)
+        {
+            AiModuleProgressText = string.Empty;
+            AppMessageBox.Show(ex.Message, "AI 读图", MessageBoxButton.OK, MessageBoxImage.Information);
+        }
+        catch (FileNotFoundException ex)
+        {
+            AiModuleProgressText = string.Empty;
+            await AiModelMissingPrompt.HandleFileNotFoundAsync(ex, "AI 读图");
+        }
+        catch (Exception ex)
+        {
+            Log.Error(ex, "AI 读图失败");
+            AiModuleProgressText = string.Empty;
+            AppMessageBox.Show(
+                string.Format("AI 读图失败：{0}", ex.Message),
                 "操作失败",
                 MessageBoxButton.OK,
                 MessageBoxImage.Error);
