@@ -4,6 +4,5 @@ namespace PixSnap.Models;
 public enum MattingModel
 {
     Rmbg14 = 0,
-    Rmbg20 = 1,
-    BiRefNet = 2
+    BiRefNet = 1
 }

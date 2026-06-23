@@ -1,3 +1,4 @@
+using PixSnap.Models;
 using Microsoft.ML.OnnxRuntime;
 using Microsoft.ML.OnnxRuntime.Tensors;
 using Serilog;
@@ -18,6 +19,9 @@ namespace PixSnap.Services;
 /// </summary>
 public static class BackgroundRemovalService
 {
+    private static readonly float[] ImageNetMean = [0.485f, 0.456f, 0.406f];
+    private static readonly float[] ImageNetStd = [0.229f, 0.224f, 0.225f];
+
     /// <summary>异步执行背景去除。将原图缩放至模型输入尺寸，推理得到前景掩码，再还原到原始分辨率并合成透明背景。</summary>
     public static async Task<BitmapSource?> RunAsync(
         BitmapSource originalImage,
@@ -58,7 +62,7 @@ public static class BackgroundRemovalService
             srcBitmap.ScalePixels(scaled, new SKSamplingOptions(SKFilterMode.Linear, SKMipmapMode.Linear));
 
             progress?.Report((0.35, "正在构建输入张量..."));
-            var imageTensor = BitmapToRgbTensor(scaled, modelW, modelH);
+            var imageTensor = BitmapToInputTensor(scaled, modelW, modelH, mattingModel);
 
             progress?.Report((0.55, "正在执行去背景推理..."));
             cancellationToken.ThrowIfCancellationRequested();
@@ -68,11 +72,14 @@ public static class BackgroundRemovalService
             };
             using var run = OnnxInferenceHelper.RunWithCpuFallback(session, providerName, modelPath, inputs);
             var outputTensor = run.First().AsTensor<float>();
-            using var maskBitmap = OutputToMaskBitmap(outputTensor, modelW, modelH);
+            using var maskBitmap = OutputToMaskBitmap(outputTensor, modelW, modelH, mattingModel);
 
             progress?.Report((0.78, "正在还原掩码分辨率..."));
             using var maskAtOriginal = new SKBitmap(new SKImageInfo(origW, origH, SKColorType.Bgra8888, SKAlphaType.Premul));
-            maskBitmap.ScalePixels(maskAtOriginal, new SKSamplingOptions(SKFilterMode.Linear, SKMipmapMode.Linear));
+            maskBitmap.ScalePixels(maskAtOriginal, new SKSamplingOptions(SKCubicResampler.Mitchell));
+
+            progress?.Report((0.84, "正在优化发丝边缘..."));
+            RefineMattingAlpha(maskAtOriginal);
 
             progress?.Report((0.90, "正在合成透明背景..."));
             cancellationToken.ThrowIfCancellationRequested();
@@ -91,12 +98,21 @@ public static class BackgroundRemovalService
         return dim > 0 ? dim : fallback;
     }
 
-    /// <summary>BGRA SKBitmap → [1, 3, H, W] RGB float32 张量（归一化到 0–1）。</summary>
-    private static DenseTensor<float> BitmapToRgbTensor(SKBitmap bmp, int w, int h)
+    /// <summary>BGRA SKBitmap → [1, 3, H, W] float32 张量（按抠图模型规范归一化）。</summary>
+    private static DenseTensor<float> BitmapToInputTensor(SKBitmap bmp, int w, int h, MattingModel model)
+    {
+        return model switch
+        {
+            MattingModel.BiRefNet => BitmapToImageNetTensor(bmp, w, h),
+            _ => BitmapToRmbgTensor(bmp, w, h)
+        };
+    }
+
+    /// <summary>RMBG-1.4：/255 后 mean=0.5、std=1.0。</summary>
+    private static DenseTensor<float> BitmapToRmbgTensor(SKBitmap bmp, int w, int h)
     {
         var tensor = new DenseTensor<float>([1, 3, h, w]);
         int rowBytes = bmp.RowBytes;
-
         var buf = tensor.Buffer.Span;
         int chStride = h * w;
 
@@ -109,9 +125,39 @@ public static class BackgroundRemovalService
                 {
                     int idx = y * rowBytes + x * 4;
                     int pos = y * w + x;
-                    buf[pos]                = ptr[idx + 2] / 255f; // R
-                    buf[chStride + pos]     = ptr[idx + 1] / 255f; // G
-                    buf[chStride * 2 + pos] = ptr[idx]     / 255f; // B
+                    buf[pos] = ptr[idx + 2] / 255f - 0.5f;
+                    buf[chStride + pos] = ptr[idx + 1] / 255f - 0.5f;
+                    buf[chStride * 2 + pos] = ptr[idx] / 255f - 0.5f;
+                }
+            }
+        }
+
+        return tensor;
+    }
+
+    /// <summary>BiRefNet：ImageNet 归一化。</summary>
+    private static DenseTensor<float> BitmapToImageNetTensor(SKBitmap bmp, int w, int h)
+    {
+        var tensor = new DenseTensor<float>([1, 3, h, w]);
+        int rowBytes = bmp.RowBytes;
+        var buf = tensor.Buffer.Span;
+        int chStride = h * w;
+
+        unsafe
+        {
+            var ptr = (byte*)bmp.GetPixels();
+            for (int y = 0; y < h; y++)
+            {
+                for (int x = 0; x < w; x++)
+                {
+                    int idx = y * rowBytes + x * 4;
+                    int pos = y * w + x;
+                    float r = ptr[idx + 2] / 255f;
+                    float g = ptr[idx + 1] / 255f;
+                    float b = ptr[idx] / 255f;
+                    buf[pos] = (r - ImageNetMean[0]) / ImageNetStd[0];
+                    buf[chStride + pos] = (g - ImageNetMean[1]) / ImageNetStd[1];
+                    buf[chStride * 2 + pos] = (b - ImageNetMean[2]) / ImageNetStd[2];
                 }
             }
         }
@@ -120,7 +166,7 @@ public static class BackgroundRemovalService
     }
 
     /// <summary>将模型输出张量转换为灰度掩码 SKBitmap（白色=前景，黑色=背景）。</summary>
-    private static SKBitmap OutputToMaskBitmap(Tensor<float> tensor, int fallbackW, int fallbackH)
+    private static SKBitmap OutputToMaskBitmap(Tensor<float> tensor, int fallbackW, int fallbackH, MattingModel model)
     {
         int rank = tensor.Rank;
         int h;
@@ -149,13 +195,16 @@ public static class BackgroundRemovalService
 
         float min = float.MaxValue;
         float max = float.MinValue;
-        foreach (var value in tensor)
+        bool useSigmoid = model == MattingModel.BiRefNet;
+        if (!useSigmoid)
         {
-            if (value < min) min = value;
-            if (value > max) max = value;
+            foreach (var value in tensor)
+            {
+                if (value < min) min = value;
+                if (value > max) max = value;
+            }
         }
 
-        // rank >= 3 时，tensor[0, (0,) y, x] 的线性偏移均为 y*w+x
         var tensorSpan = rank >= 3 && tensor is DenseTensor<float> dense
             ? dense.Buffer.Span
             : default;
@@ -169,8 +218,9 @@ public static class BackgroundRemovalService
                 for (int x = 0; x < w; x++)
                 {
                     float v = rank >= 3 ? tensorSpan[y * w + x] : 0f;
-
-                    float normalized = NormalizeToUnit(v, min, max);
+                    float normalized = useSigmoid
+                        ? Sigmoid(v)
+                        : NormalizeRmbgOutput(v, min, max);
                     byte gray = (byte)Math.Clamp(normalized * 255f, 0f, 255f);
                     int idx = y * rowBytes + x * 4;
                     ptr[idx] = gray;
@@ -184,17 +234,14 @@ public static class BackgroundRemovalService
         return mask;
     }
 
-    /// <summary>将模型输出值归一化到 [0, 1] 范围，自动识别值域（0–1 / -1–1 / 0–255）。</summary>
-    private static float NormalizeToUnit(float value, float min, float max)
+    private static float Sigmoid(float value) =>
+        1f / (1f + MathF.Exp(-value));
+
+    /// <summary>RMBG 官方后处理：按 batch min-max 归一化到 [0, 1]。</summary>
+    private static float NormalizeRmbgOutput(float value, float min, float max)
     {
         if (max - min > 1e-6f)
             return Math.Clamp((value - min) / (max - min), 0f, 1f);
-
-        if (min < 0f)
-            return Math.Clamp((value + 1f) * 0.5f, 0f, 1f);
-
-        if (max > 1f)
-            return Math.Clamp(value / 255f, 0f, 1f);
 
         return Math.Clamp(value, 0f, 1f);
     }
@@ -230,6 +277,92 @@ public static class BackgroundRemovalService
                     dstPtr[d + 2] = srcPtr[s + 2];
                     dstPtr[d + 3] = alpha;
                 }
+            }
+        }
+
+        return result;
+    }
+
+    /// <summary>柔化半透明边缘并尽量保留细发丝 Alpha。</summary>
+    private static void RefineMattingAlpha(SKBitmap mask)
+    {
+        int w = mask.Width;
+        int h = mask.Height;
+        int count = w * h;
+        var alpha = new byte[count];
+
+        unsafe
+        {
+            var ptr = (byte*)mask.GetPixels();
+            int rowBytes = mask.RowBytes;
+            for (int y = 0; y < h; y++)
+            {
+                for (int x = 0; x < w; x++)
+                {
+                    alpha[y * w + x] = ptr[y * rowBytes + x * 4];
+                }
+            }
+        }
+
+        var blurred = BoxBlurAlpha(alpha, w, h, radius: 1);
+
+        unsafe
+        {
+            var ptr = (byte*)mask.GetPixels();
+            int rowBytes = mask.RowBytes;
+            for (int y = 0; y < h; y++)
+            {
+                for (int x = 0; x < w; x++)
+                {
+                    int i = y * w + x;
+                    float a = alpha[i] / 255f;
+                    float b = blurred[i] / 255f;
+                    float edge = 4f * a * (1f - a);
+                    float softened = a * (1f - edge * 0.3f) + b * (edge * 0.3f);
+                    float recovered = Math.Max(softened, b * 0.92f);
+                    byte gray = (byte)Math.Clamp(recovered * 255f, 0f, 255f);
+                    int idx = y * rowBytes + x * 4;
+                    ptr[idx] = gray;
+                    ptr[idx + 1] = gray;
+                    ptr[idx + 2] = gray;
+                }
+            }
+        }
+    }
+
+    private static byte[] BoxBlurAlpha(byte[] source, int w, int h, int radius)
+    {
+        var temp = new byte[source.Length];
+        var result = new byte[source.Length];
+        int diameter = radius * 2 + 1;
+
+        for (int y = 0; y < h; y++)
+        {
+            int sum = 0;
+            for (int x = -radius; x <= radius; x++)
+                sum += source[y * w + Math.Clamp(x, 0, w - 1)];
+
+            for (int x = 0; x < w; x++)
+            {
+                temp[y * w + x] = (byte)(sum / diameter);
+                int removeX = Math.Clamp(x - radius, 0, w - 1);
+                int addX = Math.Clamp(x + radius + 1, 0, w - 1);
+                sum += source[y * w + addX] - source[y * w + removeX];
+            }
+        }
+
+        for (int x = 0; x < w; x++)
+        {
+            int sum = 0;
+            for (int y = -radius; y <= radius; y++)
+                sum += temp[Math.Clamp(y, 0, h - 1) * w + x];
+
+            for (int y = 0; y < h; y++)
+            {
+                result[y * w + x] = (byte)(sum / diameter);
+                int removeY = Math.Clamp(y - radius, 0, h - 1);
+                int addY = Math.Clamp(y + radius + 1, 0, h - 1);
+                sum += temp[addY * w + x] - temp[removeY * w + x];
             }
         }
 

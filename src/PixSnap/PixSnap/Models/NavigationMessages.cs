@@ -10,6 +10,8 @@ public sealed class ShowAboutMessage;
 
 public sealed class StartCaptureMessage;
 
+public sealed class OpenScreenshotPreviewMessage;
+
 public sealed class ShutdownApplicationMessage;
 
 public sealed record HotkeyChangedMessage(ModifierKeys Modifiers, Key Key);

@@ -40,6 +40,9 @@ namespace RapidOCRLib
         /// </summary>
         public int ThreadNum { get; set; } = (int)(Environment.ProcessorCount * 0.7);
 
+        /// <summary>跳过方向分类模型加载（截图场景默认关闭 cls）。</summary>
+        public bool InitAngleClassifier { get; set; } = true;
+
         /// <summary>跳过检测框可视化与 BoxImg 克隆，生产环境可显著提速。</summary>
         public bool SkipVisualization { get; set; }
 
@@ -104,7 +107,8 @@ namespace RapidOCRLib
                     ThreadNum = numThread;
                 }
                 await dbNet.InitModel(this.DetPath, ThreadNum);
-                await angleNet.InitModel(this.ClsPath, ThreadNum);
+                if (InitAngleClassifier)
+                    await angleNet.InitModel(this.ClsPath, ThreadNum);
                 await crnnNet.InitModel(this.RecPath, keysPath, ThreadNum);
             }
             catch (Exception ex)
@@ -128,7 +132,8 @@ namespace RapidOCRLib
         private void _CheckModelFilesExist()
         {
             _ = File.Exists(this.DetPath) ? true : throw new Exception("The det model file does not exist.");
-            _ = File.Exists(this.ClsPath) ? true : throw new Exception("The cls model file does not exist.");
+            if (InitAngleClassifier)
+                _ = File.Exists(this.ClsPath) ? true : throw new Exception("The cls model file does not exist.");
             _ = File.Exists(this.RecPath) ? true : throw new Exception("The rec model file does not exist.");
             _ = File.Exists(this.KeyDicPath) ? true : throw new Exception("The key dictory file does not exist.");
         }

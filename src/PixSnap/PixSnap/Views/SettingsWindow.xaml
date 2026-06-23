@@ -7,10 +7,10 @@
     xmlns:ikw="http://schemas.inkore.net/lib/ui/wpf"
     xmlns:ui="http://schemas.inkore.net/lib/ui/wpf/modern"
     Title="设置"
-    Width="580"
-    Height="720"
-    MinWidth="520"
-    MinHeight="560"
+    Width="600"
+    Height="760"
+    MinWidth="540"
+    MinHeight="600"
     ResizeMode="CanResize"
     SizeToContent="Manual"
     TextOptions.TextFormattingMode="Display"
@@ -54,235 +54,289 @@
             HorizontalScrollBarVisibility="Disabled"
             VerticalScrollBarVisibility="Auto">
             <Grid>
-                <ikw:SimpleStackPanel MaxWidth="640" Spacing="4">
+                <ikw:SimpleStackPanel MaxWidth="520" Spacing="0">
                     <TextBlock Style="{StaticResource SettingsSectionHeaderStyle}" Text="常规" />
 
-                    <ui:SettingsCard
-                        Description="登录 Windows 后自动在后台启动 PixSnap"
-                        Header="开机启动">
-                        <ui:SettingsCard.HeaderIcon>
-                            <ui:FontIcon Icon="{x:Static ui:SegoeFluentIcons.PowerButton}" />
-                        </ui:SettingsCard.HeaderIcon>
-                        <ui:ToggleSwitch
-                            IsOn="{Binding IsStartupEnabled}"
-                            Style="{StaticResource SettingsToggleSwitchStyle}" />
-                    </ui:SettingsCard>
+                    <Border Style="{StaticResource SettingsSectionCardStyle}">
+                        <ikw:SimpleStackPanel Spacing="0">
+                            <Border Style="{StaticResource SettingsFieldRowStyle}">
+                                <Grid>
+                                    <Grid.ColumnDefinitions>
+                                        <ColumnDefinition Width="*" />
+                                        <ColumnDefinition Width="Auto" />
+                                    </Grid.ColumnDefinitions>
+                                    <StackPanel VerticalAlignment="Center">
+                                        <TextBlock Style="{StaticResource SettingsRowTitleStyle}" Text="开机启动" />
+                                        <TextBlock Style="{StaticResource SettingsRowDescStyle}" Text="登录 Windows 后自动在后台运行" />
+                                    </StackPanel>
+                                    <ui:ToggleSwitch
+                                        Grid.Column="1"
+                                        IsOn="{Binding IsStartupEnabled}"
+                                        Style="{StaticResource SettingsToggleSwitchStyle}" />
+                                </Grid>
+                            </Border>
+                            <Border Style="{StaticResource SettingsFieldSeparatorStyle}" />
+                            <Border Style="{StaticResource SettingsFieldRowStyle}">
+                                <Grid>
+                                    <Grid.ColumnDefinitions>
+                                        <ColumnDefinition Width="*" />
+                                        <ColumnDefinition Width="Auto" />
+                                    </Grid.ColumnDefinitions>
+                                    <StackPanel VerticalAlignment="Center">
+                                        <TextBlock Style="{StaticResource SettingsRowTitleStyle}" Text="主题" />
+                                        <TextBlock Style="{StaticResource SettingsRowDescStyle}" Text="跟随系统或固定浅色 / 深色" />
+                                    </StackPanel>
+                                    <ComboBox
+                                        Grid.Column="1"
+                                        SelectedIndex="{Binding SelectedThemeIndex}"
+                                        Style="{StaticResource SettingsComboBoxStyle}">
+                                        <ComboBoxItem Content="自动" />
+                                        <ComboBoxItem Content="深色" />
+                                        <ComboBoxItem Content="浅色" />
+                                    </ComboBox>
+                                </Grid>
+                            </Border>
+                            <Border Style="{StaticResource SettingsFieldSeparatorStyle}" />
+                            <Border Style="{StaticResource SettingsFieldRowStyle}">
+                                <Grid>
+                                    <Grid.ColumnDefinitions>
+                                        <ColumnDefinition Width="*" />
+                                        <ColumnDefinition Width="Auto" />
+                                    </Grid.ColumnDefinitions>
+                                    <StackPanel VerticalAlignment="Center">
+                                        <TextBlock Style="{StaticResource SettingsRowTitleStyle}" Text="双击托盘图标" />
+                                        <TextBlock Style="{StaticResource SettingsRowDescStyle}" Text="双击任务栏右下角图标时的默认操作" />
+                                    </StackPanel>
+                                    <ComboBox
+                                        Grid.Column="1"
+                                        SelectedIndex="{Binding SelectedTrayDoubleClickActionIndex}"
+                                        Style="{StaticResource SettingsComboBoxStyle}">
+                                        <ComboBoxItem Content="截图" />
+                                        <ComboBoxItem Content="打开预览窗口" />
+                                    </ComboBox>
+                                </Grid>
+                            </Border>
+                        </ikw:SimpleStackPanel>
+                    </Border>
 
-                    <ui:SettingsCard
-                        Description="跟随系统或固定为浅色 / 深色外观"
-                        Header="主题">
-                        <ui:SettingsCard.HeaderIcon>
-                            <ui:FontIcon Icon="{x:Static ui:SegoeFluentIcons.Color}" />
-                        </ui:SettingsCard.HeaderIcon>
-                        <ComboBox MinWidth="96" SelectedIndex="{Binding SelectedThemeIndex}">
-                            <ComboBoxItem Content="自动" />
-                            <ComboBoxItem Content="深色" />
-                            <ComboBoxItem Content="浅色" />
-                        </ComboBox>
-                    </ui:SettingsCard>
+                    <TextBlock Style="{StaticResource SettingsSectionHeaderStyle}" Text="AI 推理" />
 
-                    <TextBlock Style="{StaticResource SettingsSectionHeaderStyle}" Text="AI" />
+                    <Border Style="{StaticResource SettingsSectionCardStyle}">
+                        <ikw:SimpleStackPanel Spacing="0">
+                            <TextBlock Style="{StaticResource SettingsSectionTitleInCardStyle}" Text="设备与模型" />
 
-                    <ui:SettingsCard
-                        Description="选择 OCR、去背景、超分、AI 擦除等功能的推理设备"
-                        Header="GPU 加速">
-                        <ui:SettingsCard.HeaderIcon>
-                            <ui:FontIcon Icon="{x:Static ui:SegoeFluentIcons.Robot}" />
-                        </ui:SettingsCard.HeaderIcon>
-                        <ComboBox
-                            MinWidth="220"
-                            MaxWidth="300"
-                            DisplayMemberPath="DisplayName"
-                            IsEnabled="{Binding IsGpuListReady}"
-                            ItemsSource="{Binding GpuDevices}"
-                            SelectedItem="{Binding SelectedGpuDevice}" />
-                    </ui:SettingsCard>
+                            <Border Style="{StaticResource SettingsFieldRowStyle}">
+                                <Grid>
+                                    <Grid.ColumnDefinitions>
+                                        <ColumnDefinition Width="*" />
+                                        <ColumnDefinition Width="Auto" />
+                                    </Grid.ColumnDefinitions>
+                                    <StackPanel VerticalAlignment="Center">
+                                        <TextBlock Style="{StaticResource SettingsRowTitleStyle}" Text="GPU 加速" />
+                                        <TextBlock Style="{StaticResource SettingsRowDescStyle}" Text="OCR、抠图、超分等功能的推理设备" />
+                                    </StackPanel>
+                                    <ComboBox
+                                        Grid.Column="1"
+                                        DisplayMemberPath="DisplayName"
+                                        IsEnabled="{Binding IsGpuListReady}"
+                                        ItemsSource="{Binding GpuDevices}"
+                                        SelectedItem="{Binding SelectedGpuDevice}"
+                                        Style="{StaticResource SettingsComboBoxStyle}" />
+                                </Grid>
+                            </Border>
+                            <Border Style="{StaticResource SettingsFieldSeparatorStyle}" />
 
-                    <ui:SettingsCard
-                        Description="Mobile 速度更快，Server 准确率更高（需下载模型）"
-                        Header="文字识别模型">
-                        <ui:SettingsCard.HeaderIcon>
-                            <ui:FontIcon Icon="{x:Static ui:SegoeFluentIcons.Font}" />
-                        </ui:SettingsCard.HeaderIcon>
-                        <ComboBox MinWidth="160" SelectedIndex="{Binding SelectedOcrModelIndex}">
-                            <ComboBoxItem Content="Mobile（推荐）" />
-                            <ComboBoxItem Content="Server（高精度）" />
-                        </ComboBox>
-                    </ui:SettingsCard>
+                            <Border Style="{StaticResource SettingsFieldRowStyle}">
+                                <Grid>
+                                    <Grid.ColumnDefinitions>
+                                        <ColumnDefinition Width="*" />
+                                        <ColumnDefinition Width="Auto" />
+                                    </Grid.ColumnDefinitions>
+                                    <StackPanel VerticalAlignment="Center">
+                                        <TextBlock Style="{StaticResource SettingsRowTitleStyle}" Text="文字识别" />
+                                        <TextBlock Style="{StaticResource SettingsRowDescStyle}" Text="Mobile 更快，Server 更准" />
+                                    </StackPanel>
+                                    <ComboBox
+                                        Grid.Column="1"
+                                        SelectedIndex="{Binding SelectedOcrModelIndex}"
+                                        Style="{StaticResource SettingsComboBoxStyle}">
+                                        <ComboBoxItem Content="Mobile（推荐）" />
+                                        <ComboBoxItem Content="Server（高精度）" />
+                                    </ComboBox>
+                                </Grid>
+                            </Border>
+                            <Border Style="{StaticResource SettingsFieldSeparatorStyle}" />
 
-                    <ui:SettingsCard
-                        Description="RMBG-1.4 / RMBG-2.0 / BiRefNet，在模型管理中下载"
-                        Header="抠图模型">
-                        <ui:SettingsCard.HeaderIcon>
-                            <ui:FontIcon Icon="{x:Static ui:SegoeFluentIcons.Color}" />
-                        </ui:SettingsCard.HeaderIcon>
-                        <ComboBox MinWidth="200" SelectedIndex="{Binding SelectedMattingModelIndex}">
-                            <ComboBoxItem Content="RMBG-1.4（默认）" />
-                            <ComboBoxItem Content="RMBG-2.0" />
-                            <ComboBoxItem Content="BiRefNet FP16" />
-                        </ComboBox>
-                    </ui:SettingsCard>
+                            <Border Style="{StaticResource SettingsFieldRowStyle}">
+                                <Grid>
+                                    <Grid.ColumnDefinitions>
+                                        <ColumnDefinition Width="*" />
+                                        <ColumnDefinition Width="Auto" />
+                                    </Grid.ColumnDefinitions>
+                                    <StackPanel VerticalAlignment="Center">
+                                        <TextBlock Style="{StaticResource SettingsRowTitleStyle}" Text="抠图" />
+                                        <TextBlock Style="{StaticResource SettingsRowDescStyle}" Text="去除背景所用模型" />
+                                    </StackPanel>
+                                    <ComboBox
+                                        Grid.Column="1"
+                                        SelectedIndex="{Binding SelectedMattingModelIndex}"
+                                        Style="{StaticResource SettingsComboBoxStyle}">
+                                        <ComboBoxItem Content="RMBG-1.4" />
+                                        <ComboBoxItem Content="BiRefNet" />
+                                    </ComboBox>
+                                </Grid>
+                            </Border>
+                            <Border Style="{StaticResource SettingsFieldSeparatorStyle}" />
 
-                    <ui:SettingsCard
-                        Description="2× 更快，4× 更清晰"
-                        Header="超分辨率模型">
-                        <ui:SettingsCard.HeaderIcon>
-                            <ui:FontIcon Icon="{x:Static ui:SegoeFluentIcons.ZoomIn}" />
-                        </ui:SettingsCard.HeaderIcon>
-                        <ComboBox MinWidth="160" SelectedIndex="{Binding SelectedSuperResolutionModelIndex}">
-                            <ComboBoxItem Content="4×（高质量）" />
-                            <ComboBoxItem Content="2×（更快）" />
-                        </ComboBox>
-                    </ui:SettingsCard>
+                            <Border Style="{StaticResource SettingsFieldRowStyle}">
+                                <Grid>
+                                    <Grid.ColumnDefinitions>
+                                        <ColumnDefinition Width="*" />
+                                        <ColumnDefinition Width="Auto" />
+                                    </Grid.ColumnDefinitions>
+                                    <StackPanel VerticalAlignment="Center">
+                                        <TextBlock Style="{StaticResource SettingsRowTitleStyle}" Text="超分辨率" />
+                                        <TextBlock Style="{StaticResource SettingsRowDescStyle}" Text="2× 与 4× 速度相当；4× 放大倍数更高" />
+                                    </StackPanel>
+                                    <ComboBox
+                                        Grid.Column="1"
+                                        SelectedIndex="{Binding SelectedSuperResolutionModelIndex}"
+                                        Style="{StaticResource SettingsComboBoxStyle}">
+                                        <ComboBoxItem Content="4×（高质量）" />
+                                        <ComboBoxItem Content="2×" />
+                                    </ComboBox>
+                                </Grid>
+                            </Border>
+                            <Border Style="{StaticResource SettingsFieldSeparatorStyle}" />
 
-                    <ui:SettingsCard
-                        Description="MobileSAM 支持点选；FastSAM 为整图分割"
-                        Header="图像分割模型">
-                        <ui:SettingsCard.HeaderIcon>
-                            <ui:FontIcon Glyph="&#xE7B3;" />
-                        </ui:SettingsCard.HeaderIcon>
-                        <ComboBox MinWidth="160" SelectedIndex="{Binding SelectedSegmentationModelIndex}">
-                            <ComboBoxItem Content="MobileSAM" />
-                            <ComboBoxItem Content="FastSAM-S" />
-                        </ComboBox>
-                    </ui:SettingsCard>
-
-                    <ui:SettingsCard
-                        Description="截图描述与问答（模型较大，按需下载）"
-                        Header="视觉理解模型">
-                        <ui:SettingsCard.HeaderIcon>
-                            <ui:FontIcon Icon="{x:Static ui:SegoeFluentIcons.Robot}" />
-                        </ui:SettingsCard.HeaderIcon>
-                        <ComboBox MinWidth="180" SelectedIndex="{Binding SelectedVisionModelIndex}">
-                            <ComboBoxItem Content="Florence-2" />
-                            <ComboBoxItem Content="Moondream2" />
-                        </ComboBox>
-                    </ui:SettingsCard>
-
-                    <ui:SettingsCard
-                        Description="OCR、抠图、超分、分割、读图等全部 ONNX 模型"
-                        Header="模型管理">
-                        <ui:SettingsCard.HeaderIcon>
-                            <ui:FontIcon Icon="{x:Static ui:SegoeFluentIcons.Download}" />
-                        </ui:SettingsCard.HeaderIcon>
-                        <Button
-                            MinWidth="120"
-                            Command="{Binding OpenAiModelsCommand}"
-                            Content="查看与下载"
-                            Style="{StaticResource SettingsActionButtonStyle}" />
-                    </ui:SettingsCard>
+                            <Border Padding="12,10">
+                                <Button
+                                    HorizontalAlignment="Left"
+                                    Command="{Binding OpenAiModelsCommand}"
+                                    Content="管理 ONNX 模型下载…"
+                                    Style="{StaticResource SettingsActionButtonStyle}" />
+                            </Border>
+                        </ikw:SimpleStackPanel>
+                    </Border>
 
                     <TextBlock Style="{StaticResource SettingsSectionHeaderStyle}" Text="快捷键" />
 
-                    <ui:SettingsCard
-                        ContentAlignment="Left"
-                        Description="点击输入框后按下组合键，Esc 取消录制"
-                        Header="截图 / 录制">
-                        <ui:SettingsCard.HeaderIcon>
-                            <ui:FontIcon Icon="{x:Static ui:SegoeFluentIcons.KeyboardClassic}" />
-                        </ui:SettingsCard.HeaderIcon>
-                        <Grid MinWidth="280">
-                            <Grid.ColumnDefinitions>
-                                <ColumnDefinition Width="*" MinWidth="140" />
-                                <ColumnDefinition Width="Auto" />
-                            </Grid.ColumnDefinitions>
-                            <TextBox
-                                Style="{StaticResource SettingsPathTextBoxStyle}"
-                                behaviors:HotkeyRecordBehavior.IsEnabled="True"
-                                Cursor="Hand"
-                                IsReadOnly="True"
-                                Text="{Binding HotkeyDisplayText, Mode=OneWay}" />
-                            <Button
-                                Grid.Column="1"
-                                Margin="8,0,0,0"
-                                Command="{Binding ClearHotkeyCommand}"
-                                Content="清除"
-                                Style="{StaticResource SettingsActionButtonStyle}" />
-                        </Grid>
-                    </ui:SettingsCard>
+                    <Border Style="{StaticResource SettingsSectionCardStyle}">
+                        <Border Style="{StaticResource SettingsFieldRowStyle}">
+                            <StackPanel>
+                                <TextBlock Style="{StaticResource SettingsRowTitleStyle}" Text="截图 / 录制" />
+                                <TextBlock
+                                    Margin="0,2,0,10"
+                                    Style="{StaticResource SettingsRowDescStyle}"
+                                    Text="点击输入框后按下组合键，Esc 取消" />
+                                <Grid>
+                                    <Grid.ColumnDefinitions>
+                                        <ColumnDefinition Width="*" />
+                                        <ColumnDefinition Width="Auto" />
+                                    </Grid.ColumnDefinitions>
+                                    <TextBox
+                                        Style="{StaticResource SettingsPathTextBoxStyle}"
+                                        behaviors:HotkeyRecordBehavior.IsEnabled="True"
+                                        Cursor="Hand"
+                                        IsReadOnly="True"
+                                        Text="{Binding HotkeyDisplayText, Mode=OneWay}" />
+                                    <Button
+                                        Grid.Column="1"
+                                        Margin="8,0,0,0"
+                                        Command="{Binding ClearHotkeyCommand}"
+                                        Content="清除"
+                                        Style="{StaticResource SettingsActionButtonStyle}" />
+                                </Grid>
+                            </StackPanel>
+                        </Border>
+                    </Border>
 
                     <TextBlock Style="{StaticResource SettingsSectionHeaderStyle}" Text="存储" />
 
-                    <ui:SettingsCard
-                        Description="截图完成后自动保存到指定目录"
-                        Header="自动保存">
-                        <ui:SettingsCard.HeaderIcon>
-                            <ui:FontIcon Icon="{x:Static ui:SegoeFluentIcons.Save}" />
-                        </ui:SettingsCard.HeaderIcon>
-                        <ui:ToggleSwitch
-                            IsOn="{Binding IsAutoSaveEnabled}"
-                            Style="{StaticResource SettingsToggleSwitchStyle}" />
-                    </ui:SettingsCard>
+                    <Border Style="{StaticResource SettingsSectionCardStyle}">
+                        <ikw:SimpleStackPanel Spacing="0">
+                            <Border Style="{StaticResource SettingsFieldRowStyle}">
+                                <Grid>
+                                    <Grid.ColumnDefinitions>
+                                        <ColumnDefinition Width="*" />
+                                        <ColumnDefinition Width="Auto" />
+                                    </Grid.ColumnDefinitions>
+                                    <StackPanel VerticalAlignment="Center">
+                                        <TextBlock Style="{StaticResource SettingsRowTitleStyle}" Text="自动保存" />
+                                        <TextBlock Style="{StaticResource SettingsRowDescStyle}" Text="截图后保存到指定目录" />
+                                    </StackPanel>
+                                    <ui:ToggleSwitch
+                                        Grid.Column="1"
+                                        IsOn="{Binding IsAutoSaveEnabled}"
+                                        Style="{StaticResource SettingsToggleSwitchStyle}" />
+                                </Grid>
+                            </Border>
+                            <Border Style="{StaticResource SettingsFieldSeparatorStyle}" />
 
-                    <ui:SettingsCard
-                        ContentAlignment="Left"
-                        Description="截图文件的默认保存位置"
-                        Header="保存目录">
-                        <ui:SettingsCard.HeaderIcon>
-                            <ui:FontIcon Icon="{x:Static ui:SegoeFluentIcons.Folder}" />
-                        </ui:SettingsCard.HeaderIcon>
-                        <Grid MinWidth="280">
-                            <Grid.ColumnDefinitions>
-                                <ColumnDefinition Width="*" MinWidth="140" />
-                                <ColumnDefinition Width="Auto" />
-                                <ColumnDefinition Width="Auto" />
-                            </Grid.ColumnDefinitions>
-                            <TextBox
-                                Grid.Column="0"
-                                Style="{StaticResource SettingsPathTextBoxStyle}"
-                                IsReadOnly="True"
-                                Text="{Binding SaveDirectory, Mode=OneWay}" />
-                            <Button
-                                Grid.Column="1"
-                                Margin="8,0,0,0"
-                                Command="{Binding BrowseSaveDirectoryCommand}"
-                                Content="浏览"
-                                Style="{StaticResource SettingsActionButtonStyle}" />
-                            <Button
-                                Grid.Column="2"
-                                Margin="4,0,0,0"
-                                Command="{Binding OpenSaveDirectoryCommand}"
-                                Style="{StaticResource SettingsIconButtonStyle}"
-                                ToolTip="在资源管理器中打开">
-                                <ui:FontIcon FontSize="14" Icon="{x:Static ui:SegoeFluentIcons.FolderOpen}" />
-                            </Button>
-                        </Grid>
-                    </ui:SettingsCard>
+                            <Border Style="{StaticResource SettingsFieldRowStyle}">
+                                <StackPanel>
+                                    <TextBlock Style="{StaticResource SettingsRowTitleStyle}" Text="保存目录" />
+                                    <Grid Margin="0,8,0,0">
+                                        <Grid.ColumnDefinitions>
+                                            <ColumnDefinition Width="*" />
+                                            <ColumnDefinition Width="Auto" />
+                                            <ColumnDefinition Width="Auto" />
+                                        </Grid.ColumnDefinitions>
+                                        <TextBox
+                                            Style="{StaticResource SettingsPathTextBoxStyle}"
+                                            IsReadOnly="True"
+                                            Text="{Binding SaveDirectory, Mode=OneWay}" />
+                                        <Button
+                                            Grid.Column="1"
+                                            Margin="8,0,0,0"
+                                            Command="{Binding BrowseSaveDirectoryCommand}"
+                                            Content="浏览"
+                                            Style="{StaticResource SettingsActionButtonStyle}" />
+                                        <Button
+                                            Grid.Column="2"
+                                            Margin="4,0,0,0"
+                                            Command="{Binding OpenSaveDirectoryCommand}"
+                                            Style="{StaticResource SettingsIconButtonStyle}"
+                                            ToolTip="在资源管理器中打开">
+                                            <ui:FontIcon FontSize="14" Icon="{x:Static ui:SegoeFluentIcons.FolderOpen}" />
+                                        </Button>
+                                    </Grid>
+                                </StackPanel>
+                            </Border>
+                            <Border Style="{StaticResource SettingsFieldSeparatorStyle}" />
 
-                    <ui:SettingsCard
-                        ContentAlignment="Left"
-                        Description="录制过程中临时文件的存放位置"
-                        Header="录屏临时目录">
-                        <ui:SettingsCard.HeaderIcon>
-                            <ui:FontIcon Icon="{x:Static ui:SegoeFluentIcons.Video}" />
-                        </ui:SettingsCard.HeaderIcon>
-                        <Grid MinWidth="280">
-                            <Grid.ColumnDefinitions>
-                                <ColumnDefinition Width="*" MinWidth="140" />
-                                <ColumnDefinition Width="Auto" />
-                                <ColumnDefinition Width="Auto" />
-                            </Grid.ColumnDefinitions>
-                            <TextBox
-                                Grid.Column="0"
-                                Style="{StaticResource SettingsPathTextBoxStyle}"
-                                IsReadOnly="True"
-                                Text="{Binding RecordingTempDirectory, Mode=OneWay}" />
-                            <Button
-                                Grid.Column="1"
-                                Margin="8,0,0,0"
-                                Command="{Binding BrowseRecordingTempDirectoryCommand}"
-                                Content="浏览"
-                                Style="{StaticResource SettingsActionButtonStyle}" />
-                            <Button
-                                Grid.Column="2"
-                                Margin="4,0,0,0"
-                                Command="{Binding OpenRecordingTempDirectoryCommand}"
-                                Style="{StaticResource SettingsIconButtonStyle}"
-                                ToolTip="在资源管理器中打开">
-                                <ui:FontIcon FontSize="14" Icon="{x:Static ui:SegoeFluentIcons.FolderOpen}" />
-                            </Button>
-                        </Grid>
-                    </ui:SettingsCard>
+                            <Border Style="{StaticResource SettingsFieldRowStyle}">
+                                <StackPanel>
+                                    <TextBlock Style="{StaticResource SettingsRowTitleStyle}" Text="录屏临时目录" />
+                                    <Grid Margin="0,8,0,0">
+                                        <Grid.ColumnDefinitions>
+                                            <ColumnDefinition Width="*" />
+                                            <ColumnDefinition Width="Auto" />
+                                            <ColumnDefinition Width="Auto" />
+                                        </Grid.ColumnDefinitions>
+                                        <TextBox
+                                            Style="{StaticResource SettingsPathTextBoxStyle}"
+                                            IsReadOnly="True"
+                                            Text="{Binding RecordingTempDirectory, Mode=OneWay}" />
+                                        <Button
+                                            Grid.Column="1"
+                                            Margin="8,0,0,0"
+                                            Command="{Binding BrowseRecordingTempDirectoryCommand}"
+                                            Content="浏览"
+                                            Style="{StaticResource SettingsActionButtonStyle}" />
+                                        <Button
+                                            Grid.Column="2"
+                                            Margin="4,0,0,0"
+                                            Command="{Binding OpenRecordingTempDirectoryCommand}"
+                                            Style="{StaticResource SettingsIconButtonStyle}"
+                                            ToolTip="在资源管理器中打开">
+                                            <ui:FontIcon FontSize="14" Icon="{x:Static ui:SegoeFluentIcons.FolderOpen}" />
+                                        </Button>
+                                    </Grid>
+                                </StackPanel>
+                            </Border>
+                        </ikw:SimpleStackPanel>
+                    </Border>
                 </ikw:SimpleStackPanel>
             </Grid>
         </ScrollViewer>

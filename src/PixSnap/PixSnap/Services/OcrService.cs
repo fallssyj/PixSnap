@@ -23,12 +23,12 @@ public static class OcrService
 {
     private const int DefaultPadding = 24;
 
-    /// <summary>检测阶段最长边上限（超过则等比缩小后再检测，兼顾速度与准确率）。</summary>
+    /// <summary>检测阶段最长边上限（超过则等比缩小后再检测）。</summary>
     private const int MobileDetectMaxSideLen = 1920;
     private const int ServerDetectMaxSideLen = 2560;
 
-    /// <summary>最长边低于此值时，OCR 前 2× 放大以提升小字号 UI 文字准确率。</summary>
-    private const int UpscaleWhenLongestSideBelow = 1280;
+    /// <summary>最长边低于此值时 2× 放大；覆盖 1080p/1440p 截图中的小字号 UI 文字。</summary>
+    private const int UpscaleWhenLongestSideBelow = 2560;
 
     private const int OcrUpscaleFactor = 2;
 
@@ -36,13 +36,16 @@ public static class OcrService
     private const bool UseAngleClassifier = false;
 
     /// <summary>PaddleOCR PP-OCRv5 默认 det_db_box_thresh。</summary>
-    private const float DetBoxScoreThresh = 0.60f;
+    private const float DetBoxScoreThresh = 0.55f;
 
-    /// <summary>PaddleOCR 默认 det_db_thresh。</summary>
-    private const float DetBoxThresh = 0.30f;
+    /// <summary>PaddleOCR 默认 det_db_thresh；略降低以包含抗锯齿边缘像素。</summary>
+    private const float DetBoxThresh = 0.25f;
 
-    /// <summary>PP-OCRv5 配置 unclip_ratio。</summary>
-    private const float DetUnClipRatio = 1.50f;
+    /// <summary>略大于 PP-OCRv5 默认 1.5，避免 UI 数字/日期左侧被裁切。</summary>
+    private const float DetUnClipRatio = 2.00f;
+
+    /// <summary>检测框在映射到原图后沿水平方向外扩（相对字高比例）。</summary>
+    private const double DetHorizontalPadRatio = 0.12;
 
     /// <summary>PaddleOCR 默认 drop_score：识别置信度低于此值的结果丢弃。</summary>
     private const float RecDropScore = 0.50f;
@@ -56,8 +59,11 @@ public static class OcrService
     /// <summary>原图像素坐标下，视为 UI 图标的最大边长。</summary>
     private const double MaxIconLikeBoxSide = 52.0;
 
-    /// <summary>宽高比超过此值且高度像 UI 行高时，视为「图标 + 文字」合并框。</summary>
-    private const double IconPlusTextMinAspectRatio = 2.40;
+    /// <summary>宽高比超过此值且高度像 UI 行高时，可能为「图标 + 文字」合并框。</summary>
+    private const double IconPlusTextMinAspectRatio = 3.20;
+
+    /// <summary>识别置信度低于此值才尝试图标行裁剪修正。</summary>
+    private const float IconPlusTextMaxRecScore = 0.72f;
 
     /// <summary>UI 行最大高度（像素，原图坐标）。</summary>
     private const double IconPlusTextMaxRowHeight = 96.0;
@@ -160,6 +166,8 @@ public static class OcrService
                         .ToArray();
                 }
 
+                points = ExpandBoxHorizontally(points, origW, origH);
+
                 var bounds = GetAxisAlignedBounds(points);
                 if (bounds.Width < 1 || bounds.Height < 1)
                     continue;
@@ -167,7 +175,7 @@ public static class OcrService
                 string text = block.Text.Trim();
                 float recScore = GetRecConfidence(block);
 
-                if (IsIconPlusTextMergedRow(bounds))
+                if (ShouldAttemptIconPlusTextRefine(bounds, recScore))
                 {
                     var refined = await TryRefineIconPlusTextAsync(
                         engine, snapshot, bounds, text, recScore, cancellationToken).ConfigureAwait(false);
@@ -224,6 +232,21 @@ public static class OcrService
         _ => "PaddleOCR PP-OCRv5 Mobile（离线）"
     };
 
+    /// <summary>PP-OCRv5 字典应约 18384 行；过少会导致 Server 识别乱码。</summary>
+    private static void ValidateDictionary(string dictPath)
+    {
+        if (!File.Exists(dictPath))
+            return;
+
+        int lines = File.ReadLines(dictPath).Count(static l => !string.IsNullOrWhiteSpace(l));
+        if (lines < 18_000)
+        {
+            Log.Warning(
+                "OCR 字典仅 {Lines} 行，与 PP-OCRv5 不匹配（需约 18384 行）。请在模型管理中重新下载字符字典。",
+                lines);
+        }
+    }
+
     /// <summary>后台预热 OCR 引擎，减少首次识别等待。</summary>
     public static async Task WarmUpAsync(CancellationToken cancellationToken = default)
     {
@@ -242,7 +265,7 @@ public static class OcrService
 
     private static async Task<OcrLite> EnsureEngineAsync(CancellationToken cancellationToken)
     {
-        var profile = $"{CurrentTier}|{DetPath}|{RecPath}";
+        var profile = $"{CurrentTier}|det={DetPath}|rec={RecPath}";
         if (_engine is not null && _engineProfile == profile)
             return _engine;
 
@@ -258,6 +281,8 @@ public static class OcrService
                     string.Format("未找到当前规格（{0}）所需的 OCR 模型。\n请在「设置 → AI → 模型管理」中下载。", CurrentTier));
             }
 
+            ValidateDictionary(DictPath);
+
             var previous = _engine;
             _engine = new OcrLite
             {
@@ -265,13 +290,15 @@ public static class OcrService
                 ClsPath = ClsPath,
                 RecPath = RecPath,
                 KeyDicPath = DictPath,
+                InitAngleClassifier = UseAngleClassifier,
                 SkipVisualization = true,
                 ThreadNum = ResolveThreadCount()
             };
             await _engine.InitModels().ConfigureAwait(false);
             previous?.Dispose();
             _engineProfile = profile;
-            Log.Information("PaddleOCR 引擎已加载: {Tier}", CurrentTier);
+            Log.Information("PaddleOCR 引擎已加载: {Tier}, det={Det}, rec={Rec}",
+                CurrentTier, Path.GetFileName(DetPath), Path.GetFileName(RecPath));
             return _engine;
         }
         finally
@@ -376,6 +403,30 @@ public static class OcrService
         return ratio is >= 0.70 and <= 1.40;
     }
 
+    private static bool ShouldAttemptIconPlusTextRefine(Rect bounds, float recScore)
+    {
+        if (recScore >= IconPlusTextMaxRecScore)
+            return false;
+
+        return IsIconPlusTextMergedRow(bounds) && HasLikelyLeadingIcon(bounds);
+    }
+
+    private static bool HasLikelyLeadingIcon(Rect bounds)
+    {
+        double h = bounds.Height;
+        double w = bounds.Width;
+        if (h <= 0 || w <= 0)
+            return false;
+
+        double iconSide = Math.Min(h * 1.05, w * 0.38);
+        if (iconSide < 12)
+            return false;
+
+        double sideToRow = iconSide / w;
+        double sideToHeight = iconSide / h;
+        return sideToRow is >= 0.18 and <= 0.42 && sideToHeight is >= 0.80 and <= 1.20;
+    }
+
     private static bool IsIconPlusTextMergedRow(Rect bounds)
     {
         if (bounds.Width <= 0 || bounds.Height <= 0)
@@ -420,6 +471,7 @@ public static class OcrService
             return null;
 
         var textBounds = new Rect(cropRect.X, cropRect.Y, cropRect.Width, cropRect.Height);
+        textBounds = Rect.Union(bounds, textBounds);
         var textPoints = RectToPoints(textBounds);
         return (refinedText, refinedScore, textBounds, textPoints);
     }
@@ -474,6 +526,20 @@ public static class OcrService
             new WpfPoint(rect.Right, rect.Bottom),
             new WpfPoint(rect.Left, rect.Bottom)
         ];
+    }
+
+    private static WpfPoint[] ExpandBoxHorizontally(WpfPoint[] points, int imageW, int imageH)
+    {
+        if (points.Length == 0)
+            return points;
+
+        var bounds = GetAxisAlignedBounds(points);
+        double pad = Math.Max(2, bounds.Height * DetHorizontalPadRatio);
+        double left = Math.Max(0, bounds.Left - pad);
+        double right = Math.Min(imageW - 1, bounds.Right + pad);
+        double top = Math.Max(0, bounds.Top);
+        double bottom = Math.Min(imageH - 1, bounds.Bottom);
+        return RectToPoints(new Rect(left, top, right - left, bottom - top));
     }
 
     private static Rect GetAxisAlignedBounds(IReadOnlyList<WpfPoint> points)

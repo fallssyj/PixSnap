@@ -60,11 +60,51 @@
         <Setter Property="Height" Value="32" />
     </Style>
 
+    <Style x:Key="SettingsSectionCardStyle" TargetType="Border">
+        <Setter Property="Background" Value="{DynamicResource CardBackgroundFillColorDefaultBrush}" />
+        <Setter Property="BorderBrush" Value="{DynamicResource CardStrokeColorDefaultBrush}" />
+        <Setter Property="BorderThickness" Value="1" />
+        <Setter Property="CornerRadius" Value="8" />
+        <Setter Property="Margin" Value="0,0,0,16" />
+        <Setter Property="Padding" Value="4,8,4,8" />
+    </Style>
+
+    <Style x:Key="SettingsSectionTitleInCardStyle" TargetType="TextBlock">
+        <Setter Property="Margin" Value="12,4,12,8" />
+        <Setter Property="FontSize" Value="13" />
+        <Setter Property="FontWeight" Value="SemiBold" />
+        <Setter Property="Foreground" Value="{DynamicResource TextFillColorPrimaryBrush}" />
+    </Style>
+
+    <Style x:Key="SettingsFieldRowStyle" TargetType="Border">
+        <Setter Property="Padding" Value="12,10" />
+    </Style>
+
+    <Style x:Key="SettingsFieldSeparatorStyle" TargetType="Border">
+        <Setter Property="Height" Value="1" />
+        <Setter Property="Margin" Value="12,0" />
+        <Setter Property="Background" Value="{DynamicResource DividerStrokeColorDefaultBrush}" />
+    </Style>
+
+    <Style
+        x:Key="SettingsComboBoxStyle"
+        BasedOn="{StaticResource {x:Type ComboBox}}"
+        TargetType="ComboBox">
+        <Setter Property="MinWidth" Value="200" />
+        <Setter Property="MaxWidth" Value="200" />
+        <Setter Property="MinHeight" Value="32" />
+        <Setter Property="HorizontalAlignment" Value="Right" />
+        <Setter Property="VerticalAlignment" Value="Center" />
+        <Setter Property="VerticalContentAlignment" Value="Center" />
+    </Style>
+
     <Style
         x:Key="SettingsSectionHeaderStyle"
         BasedOn="{StaticResource BodyStrongTextBlockStyle}"
         TargetType="TextBlock">
-        <Setter Property="Margin" Value="4,20,0,6" />
+        <Setter Property="Margin" Value="0,4,0,10" />
+        <Setter Property="FontSize" Value="12" />
+        <Setter Property="FontWeight" Value="SemiBold" />
         <Setter Property="Foreground" Value="{DynamicResource TextFillColorSecondaryBrush}" />
     </Style>
 

@@ -21,6 +21,9 @@ public partial class TrayViewModel : ObservableObject
     private void Capture() => RunNavigation(_navigation.StartCapture);
 
     [RelayCommand]
+    private void OpenPreview() => RunNavigation(_navigation.OpenScreenshotPreview);
+
+    [RelayCommand]
     private void ShowSettings() => RunNavigation(_navigation.ShowSettings);
 
     [RelayCommand]

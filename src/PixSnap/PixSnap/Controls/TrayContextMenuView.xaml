@@ -12,6 +12,13 @@
                 </StackPanel>
             </Button>
 
+            <Button Command="{Binding OpenPreviewCommand}" Style="{StaticResource FlyoutMenuButtonStyle}">
+                <StackPanel Orientation="Horizontal">
+                    <ui:FontIcon Icon="{x:Static ui:SegoeFluentIcons.Picture}" Style="{StaticResource FlyoutMenuIconStyle}" />
+                    <TextBlock Margin="10,0,0,0" Style="{StaticResource FlyoutMenuTextStyle}" Text="打开预览窗口" />
+                </StackPanel>
+            </Button>
+
             <Border Style="{StaticResource FlyoutMenuSeparatorStyle}" />
 
             <Button Command="{Binding ShowSettingsCommand}" Style="{StaticResource FlyoutMenuButtonStyle}">

@@ -1037,65 +1037,6 @@ public partial class ScreenshotPreviewViewModel : ObservableRecipient, IRecipien
         }
     }
 
-    [RelayCommand]
-    private async Task DescribeImage()
-    {
-        if (ScreenshotImage is null || IsAnyAiProcessing) return;
-
-        IsAiPopupOpen = false;
-        IsAiModuleProcessing = true;
-        AiModuleProgress = 0;
-        AiModuleProgressText = "正在准备 AI 读图...";
-        var token = CreateAiCancellationToken();
-        try
-        {
-            var progress = new Progress<(double Value, string Text)>(t =>
-            {
-                AiModuleProgress = t.Value;
-                AiModuleProgressText = t.Text;
-            });
-
-            string description = await VisionDescribeService.DescribeAsync(ScreenshotImage, progress: progress, cancellationToken: token);
-            ClipboardHelper.TrySetText(description);
-            AppMessageBox.Show(description, "AI 读图", MessageBoxButton.OK, MessageBoxImage.Information);
-            AiModuleProgress = 1;
-            AiModuleProgressText = "AI 读图完成";
-        }
-        catch (OperationCanceledException)
-        {
-            AiModuleProgressText = string.Empty;
-        }
-        catch (VisionDescribeService.VisionNotAvailableException ex)
-        {
-            AiModuleProgressText = string.Empty;
-            await AiModelMissingPrompt.HandleFeatureNotAvailableAsync("AI 读图", ex.Message);
-        }
-        catch (NotSupportedException ex)
-        {
-            AiModuleProgressText = string.Empty;
-            AppMessageBox.Show(ex.Message, "AI 读图", MessageBoxButton.OK, MessageBoxImage.Information);
-        }
-        catch (FileNotFoundException ex)
-        {
-            AiModuleProgressText = string.Empty;
-            await AiModelMissingPrompt.HandleFileNotFoundAsync(ex, "AI 读图");
-        }
-        catch (Exception ex)
-        {
-            Log.Error(ex, "AI 读图失败");
-            AiModuleProgressText = string.Empty;
-            AppMessageBox.Show(
-                string.Format("AI 读图失败：{0}", ex.Message),
-                "操作失败",
-                MessageBoxButton.OK,
-                MessageBoxImage.Error);
-        }
-        finally
-        {
-            IsAiModuleProcessing = false;
-        }
-    }
-
     /// <summary>创建新的 AI 操作取消令牌，取消上一个正在进行的 AI 操作（若有）。</summary>
     private CancellationToken CreateAiCancellationToken()
     {

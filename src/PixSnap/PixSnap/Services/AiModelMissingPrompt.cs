@@ -80,6 +80,7 @@ internal static class AiModelMissingPrompt
     {
         owner = WindowOwnerHelper.GetActiveOwner(owner);
         var missing = AiModelCatalog.GetOcrModelsForTier(OcrSettings.Tier)
+            .Where(m => AiModelCatalog.ResolveIntegrationStatus(m) != AiModelIntegrationStatus.Optional)
             .Where(m => !AiModelCatalog.IsDownloaded(m))
             .ToList();
 

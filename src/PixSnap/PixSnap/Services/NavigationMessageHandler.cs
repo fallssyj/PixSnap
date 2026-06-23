@@ -15,6 +15,7 @@ public sealed class NavigationMessageHandler :
     IRecipient<ShowLogViewerMessage>,
     IRecipient<ShowAboutMessage>,
     IRecipient<StartCaptureMessage>,
+    IRecipient<OpenScreenshotPreviewMessage>,
     IRecipient<ShutdownApplicationMessage>,
     IRecipient<HotkeyChangedMessage>
 {
@@ -36,6 +37,8 @@ public sealed class NavigationMessageHandler :
     public void Receive(ShowAboutMessage message) => ShowAbout();
 
     public void Receive(StartCaptureMessage message) => StartCapture();
+
+    public void Receive(OpenScreenshotPreviewMessage message) => OpenScreenshotPreview();
 
     public void Receive(ShutdownApplicationMessage message) => ShutdownApplication();
 
@@ -96,6 +99,34 @@ public sealed class NavigationMessageHandler :
 
         if (viewModel.StartCaptureCommand.CanExecute(null))
             viewModel.StartCaptureCommand.Execute(null);
+    }
+
+    private void OpenScreenshotPreview()
+    {
+        foreach (Window window in Application.Current.Windows)
+        {
+            if (window is ScreenshotPreviewWindow previewWindow)
+            {
+                if (!previewWindow.IsVisible)
+                    previewWindow.Show();
+
+                if (previewWindow.WindowState == WindowState.Minimized)
+                    previewWindow.WindowState = WindowState.Normal;
+
+                previewWindow.Activate();
+                return;
+            }
+        }
+
+        var previewViewModel = _services.GetRequiredService<ScreenshotPreviewViewModel>();
+        var newPreviewWindow = new ScreenshotPreviewWindow
+        {
+            DataContext = previewViewModel,
+            Topmost = false
+        };
+
+        newPreviewWindow.Show();
+        newPreviewWindow.Activate();
     }
 
     private void ShutdownApplication() => Application.Current.Shutdown();

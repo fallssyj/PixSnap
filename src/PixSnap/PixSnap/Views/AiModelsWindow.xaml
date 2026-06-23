@@ -158,10 +158,18 @@
                                                             </Grid.ColumnDefinitions>
 
                                                             <StackPanel VerticalAlignment="Center">
-                                                                <TextBlock
-                                                                    FontWeight="SemiBold"
-                                                                    Text="{Binding DisplayName}"
-                                                                    TextWrapping="Wrap" />
+                                                                <StackPanel Orientation="Horizontal">
+                                                                    <TextBlock
+                                                                        FontWeight="SemiBold"
+                                                                        Text="{Binding DisplayName}"
+                                                                        TextWrapping="Wrap" />
+                                                                    <TextBlock
+                                                                        Margin="8,0,0,0"
+                                                                        VerticalAlignment="Center"
+                                                                        FontSize="11"
+                                                                        Foreground="{DynamicResource TextFillColorSecondaryBrush}"
+                                                                        Text="{Binding IntegrationLabel}" />
+                                                                </StackPanel>
                                                                 <TextBlock
                                                                     Margin="0,2,0,0"
                                                                     FontSize="12"
@@ -240,7 +248,7 @@
             <TextBlock
                 FontSize="12"
                 Foreground="{DynamicResource TextFillColorSecondaryBrush}"
-                Text="模型保存在程序目录 onnx/ 下。Mobile 与 Server 各需检测+识别两个文件；设置中的「文字识别模型」决定实际使用哪一套。"
+                Text="已接入模型可在设置中选择。可手动删除 onnx/segment 与 onnx/vision/ 旧文件释放空间。"
                 TextWrapping="Wrap" />
         </Border>
     </Grid>

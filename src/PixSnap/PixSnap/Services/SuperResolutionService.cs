@@ -1,5 +1,6 @@
 using Microsoft.ML.OnnxRuntime;
 using Microsoft.ML.OnnxRuntime.Tensors;
+using PixSnap.Models;
 using Serilog;
 using SkiaSharp;
 using System;
@@ -12,9 +13,7 @@ using System.Windows.Media.Imaging;
 namespace PixSnap.Services;
 
 /// <summary>
-/// 基于 RealESRGAN-x4plus ONNX 模型的图像超分辨率服务。
-/// 采用分块推理策略，避免大图显存溢出，并通过重叠区域消除接缝。
-/// 模型文件路径：<程序目录>/onnx/realesrgan-x4plus.onnx
+/// Real-ESRGAN 超分辨率：x4 直接推理；x2 采用「半分辨率 + x4 模型」等效 2×（与 x4 同档分块速度）。
 /// </summary>
 public static class SuperResolutionService
 {
@@ -32,8 +31,11 @@ public static class SuperResolutionService
     {
         var frozen = ImageIOService.CreateFrozenSnapshot(originalImage);
         var model = AiFeatureSettings.SuperResolution;
-        string modelPath = AiModelCatalog.GetSuperResolutionModelPath(model);
-        int scaleFactor = AiModelCatalog.GetSuperResolutionScale(model);
+        bool useHalfResX4For2x = model == SuperResolutionModel.X2;
+        string modelPath = AiModelCatalog.GetSuperResolutionModelPath(
+            useHalfResX4For2x ? SuperResolutionModel.X4 : model);
+        int outputScale = AiModelCatalog.GetSuperResolutionScale(model);
+        int inferenceScale = useHalfResX4For2x ? 4 : outputScale;
 
         var export = await Task.Run(() =>
         {
@@ -45,20 +47,37 @@ public static class SuperResolutionService
                 throw new FileNotFoundException($"未找到 ONNX 模型：{modelPath}", modelPath);
             }
 
-            Log.Information("开始超分辨率({Scale}x): 图像 {W}×{H}, 模型={Model}",
-                scaleFactor, frozen.PixelWidth, frozen.PixelHeight, modelPath);
-
             using var srcBitmap = SkiaInteropHelper.BitmapSourceToSKBitmap(frozen);
-            int srcW = srcBitmap.Width;
-            int srcH = srcBitmap.Height;
+            int origW = srcBitmap.Width;
+            int origH = srcBitmap.Height;
+            int srcW = origW;
+            int srcH = origH;
 
-            // 若放大后输出超过安全阈值，先缩小源图再超分
-            long outputPixels = (long)srcW * scaleFactor * srcH * scaleFactor;
-            using var downscaled = outputPixels > MaxOutputPixels
-                ? DownscaleSource(srcBitmap, srcW, srcH, outputPixels, scaleFactor, progress, out srcW, out srcH)
+            using var halfRes = useHalfResX4For2x
+                ? PrepareHalfResolutionSource(srcBitmap, progress, out srcW, out srcH)
                 : null;
 
-            var actualSource = downscaled ?? srcBitmap;
+            var actualSource = halfRes ?? srcBitmap;
+
+            if (useHalfResX4For2x)
+            {
+                Log.Information(
+                    "开始超分辨率(2× 快速路径): 原图 {OrigW}×{OrigH} → 推理 {SrcW}×{SrcH} ×4, 模型={Model}",
+                    origW, origH, srcW, srcH, modelPath);
+            }
+            else
+            {
+                Log.Information("开始超分辨率({Scale}x): 图像 {W}×{H}, 模型={Model}",
+                    outputScale, srcW, srcH, modelPath);
+            }
+
+            // 若放大后输出超过安全阈值，先缩小源图再超分
+            long outputPixels = (long)srcW * inferenceScale * srcH * inferenceScale;
+            using var downscaled = outputPixels > MaxOutputPixels
+                ? DownscaleSource(actualSource, srcW, srcH, outputPixels, inferenceScale, progress, out srcW, out srcH)
+                : null;
+
+            actualSource = downscaled ?? actualSource;
 
             progress?.Report((0.20, "正在初始化推理引擎..."));
             var session = OnnxSessionFactory.GetOrCreateSession(modelPath, out var providerName);
@@ -67,13 +86,29 @@ public static class SuperResolutionService
             var tile = GetTileConfig(session, inputName);
 
             progress?.Report((0.35, "正在执行超分推理..."));
-            using var outputBitmap = RunTiled(session, providerName, modelPath, tile, inputName, actualSource, srcW, srcH, scaleFactor, progress, cancellationToken);
+            using var outputBitmap = RunTiled(
+                session, providerName, modelPath, tile, inputName,
+                actualSource, srcW, srcH, inferenceScale, progress, cancellationToken);
 
             progress?.Report((0.90, "正在生成超分结果..."));
             return (SkiaInteropHelper.CopyPixels(outputBitmap), outputBitmap.Width, outputBitmap.Height);
         }, cancellationToken);
 
         return SkiaInteropHelper.CreateFrozenBitmapFromBgra(export.Item1, export.Item2, export.Item3);
+    }
+
+    private static SKBitmap PrepareHalfResolutionSource(
+        SKBitmap source,
+        IProgress<(double Value, string Text)>? progress,
+        out int newW,
+        out int newH)
+    {
+        newW = Math.Max(1, source.Width / 2);
+        newH = Math.Max(1, source.Height / 2);
+        progress?.Report((0.10, string.Format("2× 模式：缩放至 {0}×{1} 后推理...", newW, newH)));
+        var half = new SKBitmap(new SKImageInfo(newW, newH, SKColorType.Bgra8888, SKAlphaType.Unpremul));
+        source.ScalePixels(half, new SKSamplingOptions(SKFilterMode.Linear, SKMipmapMode.Linear));
+        return half;
     }
 
     private static SKBitmap DownscaleSource(
@@ -99,16 +134,26 @@ public static class SuperResolutionService
         int tilePad = TilePad;
 
         if (session.InputMetadata.TryGetValue(inputName, out var meta)
-            && meta.Dimensions is { Length: >= 4 } dims
-            && dims[2] > 0
-            && dims[3] > 0)
+            && meta.Dimensions is { Length: >= 4 } dims)
         {
-            tileSize = (int)Math.Max(dims[2], dims[3]);
-            tilePad = Math.Clamp(TilePad, 0, tileSize / 4);
-            Log.Debug("超分模型输入尺寸: {H}×{W}, 分块 {TileSize}px", dims[2], dims[3], tileSize);
+            // 正数 = ONNX 固定空间尺寸（x2plus 为 64×64）；负数/0 = 动态尺寸（x4plus 用 256 分块）
+            if (dims[2] > 0 && dims[3] > 0)
+            {
+                tileSize = (int)Math.Max(dims[2], dims[3]);
+                tilePad = tileSize <= 96 ? Math.Max(4, tileSize / 8) : TilePad;
+                Log.Information(
+                    "超分模型固定输入 {H}×{W}，分块 {TileSize}px，重叠 {Pad}px",
+                    dims[2], dims[3], tileSize, tilePad);
+            }
+            else
+            {
+                Log.Debug("超分模型动态输入，分块 {TileSize}px", tileSize);
+            }
         }
 
-        return new TileConfig(tileSize, tilePad, tileSize - tilePad * 2);
+        tilePad = Math.Clamp(tilePad, 0, tileSize / 4);
+        int stride = Math.Max(1, tileSize - tilePad * 2);
+        return new TileConfig(tileSize, tilePad, stride);
     }
 
     private static string FormatProviderMessage(string providerName)
@@ -278,6 +323,40 @@ public static class SuperResolutionService
                     buf[rOff + si] = ptr[idx + 2] / 255f;
                     buf[gOff + si] = ptr[idx + 1] / 255f;
                     buf[bOff + si] = ptr[idx]     / 255f;
+                }
+            }
+
+            // 边缘块不足 tile 大小时，用最后一列/行像素外延填满固定尺寸张量
+            if (validW > 0 && validH > 0)
+            {
+                for (int y = 0; y < validH; y++)
+                {
+                    int spanRow = y * fixedW;
+                    int lastCol = spanRow + validW - 1;
+                    float r = buf[rOff + lastCol];
+                    float g = buf[gOff + lastCol];
+                    float b = buf[bOff + lastCol];
+                    for (int x = validW; x < fixedW; x++)
+                    {
+                        int si = spanRow + x;
+                        buf[rOff + si] = r;
+                        buf[gOff + si] = g;
+                        buf[bOff + si] = b;
+                    }
+                }
+
+                int lastRow = (validH - 1) * fixedW;
+                for (int y = validH; y < fixedH; y++)
+                {
+                    int spanRow = y * fixedW;
+                    for (int x = 0; x < fixedW; x++)
+                    {
+                        int si = spanRow + x;
+                        int srcSi = lastRow + x;
+                        buf[rOff + si] = buf[rOff + srcSi];
+                        buf[gOff + si] = buf[gOff + srcSi];
+                        buf[bOff + si] = buf[bOff + srcSi];
+                    }
                 }
             }
         }

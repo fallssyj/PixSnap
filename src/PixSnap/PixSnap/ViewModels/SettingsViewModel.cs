@@ -24,8 +24,7 @@ public partial class SettingsViewModel : ObservableObject
     private int _confirmedOcrModelIndex;
     private int _confirmedMattingModelIndex;
     private int _confirmedSuperResolutionModelIndex;
-    private int _confirmedSegmentationModelIndex;
-    private int _confirmedVisionModelIndex;
+    private int _confirmedTrayDoubleClickActionIndex;
 
     [ObservableProperty]
     private ObservableCollection<GpuDeviceOption> _gpuDevices = [];
@@ -47,17 +46,15 @@ public partial class SettingsViewModel : ObservableObject
     private int _selectedSuperResolutionModelIndex;
 
     [ObservableProperty]
-    private int _selectedSegmentationModelIndex;
-
-    [ObservableProperty]
-    private int _selectedVisionModelIndex;
-
-    [ObservableProperty]
     private bool _isStartupEnabled;
 
     /// <summary>主题索引：0 = 自动, 1 = 深色, 2 = 浅色。</summary>
     [ObservableProperty]
     private int _selectedThemeIndex;
+
+    /// <summary>托盘双击：0 = 截图, 1 = 打开预览窗口。</summary>
+    [ObservableProperty]
+    private int _selectedTrayDoubleClickActionIndex;
 
     /// <summary>自定义保存目录。</summary>
     [ObservableProperty]
@@ -87,6 +84,8 @@ public partial class SettingsViewModel : ObservableObject
         _isStartupEnabled = SettingsService.ReadStartupEnabled();
         _selectedThemeIndex = SettingsService.ReadTheme();
         _confirmedThemeIndex = _selectedThemeIndex;
+        _selectedTrayDoubleClickActionIndex = (int)SettingsService.ReadTrayDoubleClickAction();
+        _confirmedTrayDoubleClickActionIndex = _selectedTrayDoubleClickActionIndex;
         _saveDirectory = SettingsService.ReadSaveDirectory();
         _isAutoSaveEnabled = SettingsService.ReadAutoSave();
         _recordingTempDirectory = SettingsService.ReadRecordingTempDirectory();
@@ -101,10 +100,6 @@ public partial class SettingsViewModel : ObservableObject
         _confirmedMattingModelIndex = _selectedMattingModelIndex;
         _selectedSuperResolutionModelIndex = (int)SettingsService.ReadSuperResolutionModel();
         _confirmedSuperResolutionModelIndex = _selectedSuperResolutionModelIndex;
-        _selectedSegmentationModelIndex = (int)SettingsService.ReadSegmentationModel();
-        _confirmedSegmentationModelIndex = _selectedSegmentationModelIndex;
-        _selectedVisionModelIndex = (int)SettingsService.ReadVisionModel();
-        _confirmedVisionModelIndex = _selectedVisionModelIndex;
         GpuDevices = new ObservableCollection<GpuDeviceOption>(DirectMlDeviceEnumerator.GetCachedOrDefault());
         SelectedGpuDevice = GpuDevices.FirstOrDefault(g => g.DeviceId == _confirmedGpuDeviceId) ?? GpuDevices.FirstOrDefault();
         _ = LoadGpuDevicesAsync();
@@ -146,8 +141,7 @@ public partial class SettingsViewModel : ObservableObject
         SelectedOcrModelIndex = _confirmedOcrModelIndex;
         SelectedMattingModelIndex = _confirmedMattingModelIndex;
         SelectedSuperResolutionModelIndex = _confirmedSuperResolutionModelIndex;
-        SelectedSegmentationModelIndex = _confirmedSegmentationModelIndex;
-        SelectedVisionModelIndex = _confirmedVisionModelIndex;
+        SelectedTrayDoubleClickActionIndex = _confirmedTrayDoubleClickActionIndex;
     }
 
     /// <summary>
@@ -187,19 +181,15 @@ public partial class SettingsViewModel : ObservableObject
         _confirmedOcrModelIndex = SelectedOcrModelIndex;
         SettingsService.WriteMattingModel((MattingModel)SelectedMattingModelIndex);
         SettingsService.WriteSuperResolutionModel((SuperResolutionModel)SelectedSuperResolutionModelIndex);
-        SettingsService.WriteSegmentationModel((SegmentationModel)SelectedSegmentationModelIndex);
-        SettingsService.WriteVisionModel((VisionModel)SelectedVisionModelIndex);
         AiFeatureSettings.Apply(
             (MattingModel)SelectedMattingModelIndex,
-            (SuperResolutionModel)SelectedSuperResolutionModelIndex,
-            (SegmentationModel)SelectedSegmentationModelIndex,
-            (VisionModel)SelectedVisionModelIndex);
+            (SuperResolutionModel)SelectedSuperResolutionModelIndex);
         _confirmedMattingModelIndex = SelectedMattingModelIndex;
         _confirmedSuperResolutionModelIndex = SelectedSuperResolutionModelIndex;
-        _confirmedSegmentationModelIndex = SelectedSegmentationModelIndex;
-        _confirmedVisionModelIndex = SelectedVisionModelIndex;
-        Log.Information("设置已保存: 开机启动={Startup}, 快捷键={Modifiers}+{Key}, 主题={Theme}, AI GPU={Gpu}, OCR={OcrTier}, 抠图={Matting}, 超分={Sr}, 分割={Seg}, 读图={Vision}, 保存目录={SaveDir}, 自动保存={AutoSave}, 录屏目录={RecDir}",
-            IsStartupEnabled, (ModifierKeys)_pendingModifiers, (Key)_pendingKey, SelectedThemeIndex, gpuDeviceId, (OcrModelTier)SelectedOcrModelIndex, (MattingModel)SelectedMattingModelIndex, (SuperResolutionModel)SelectedSuperResolutionModelIndex, (SegmentationModel)SelectedSegmentationModelIndex, (VisionModel)SelectedVisionModelIndex, SaveDirectory, IsAutoSaveEnabled, RecordingTempDirectory);
+        SettingsService.WriteTrayDoubleClickAction((TrayDoubleClickAction)SelectedTrayDoubleClickActionIndex);
+        _confirmedTrayDoubleClickActionIndex = SelectedTrayDoubleClickActionIndex;
+        Log.Information("设置已保存: 开机启动={Startup}, 快捷键={Modifiers}+{Key}, 主题={Theme}, 托盘双击={TrayDbl}, AI GPU={Gpu}, OCR={OcrTier}, 抠图={Matting}, 超分={Sr}, 保存目录={SaveDir}, 自动保存={AutoSave}, 录屏目录={RecDir}",
+            IsStartupEnabled, (ModifierKeys)_pendingModifiers, (Key)_pendingKey, SelectedThemeIndex, (TrayDoubleClickAction)SelectedTrayDoubleClickActionIndex, gpuDeviceId, (OcrModelTier)SelectedOcrModelIndex, (MattingModel)SelectedMattingModelIndex, (SuperResolutionModel)SelectedSuperResolutionModelIndex, SaveDirectory, IsAutoSaveEnabled, RecordingTempDirectory);
         WeakReferenceMessenger.Default.Send(new HotkeyChangedMessage((ModifierKeys)_pendingModifiers, (Key)_pendingKey));
         _confirmedThemeIndex = SelectedThemeIndex;
         RequestClose?.Invoke();

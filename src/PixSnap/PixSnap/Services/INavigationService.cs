@@ -10,5 +10,7 @@ public interface INavigationService
 
     void StartCapture();
 
+    void OpenScreenshotPreview();
+
     void ShutdownApplication();
 }

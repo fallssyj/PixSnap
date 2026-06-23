@@ -40,7 +40,9 @@ public partial class AiModelsViewModel : ObservableObject
     [RelayCommand(CanExecute = nameof(CanDownloadMissing))]
     private async Task DownloadMissingAsync()
     {
-        var pending = Groups.SelectMany(g => g.Items).Where(m => m.ShowDownloadButton).ToList();
+        var pending = Groups.SelectMany(g => g.Items)
+            .Where(m => m.ShowDownloadButton && m.IsFeatureSelectable)
+            .ToList();
         if (pending.Count == 0)
             return;
 
@@ -60,7 +62,7 @@ public partial class AiModelsViewModel : ObservableObject
     }
 
     private bool CanDownloadMissing() =>
-        !IsBusy && Groups.SelectMany(g => g.Items).Any(m => m.ShowDownloadButton);
+        !IsBusy && Groups.SelectMany(g => g.Items).Any(m => m.ShowDownloadButton && m.IsFeatureSelectable);
 
     partial void OnIsBusyChanged(bool value) => DownloadMissingCommand.NotifyCanExecuteChanged();
 
@@ -113,6 +115,12 @@ public partial class AiModelItemViewModel : ObservableObject
 
     public string UsageHint => _descriptor.UsageHint ?? string.Empty;
 
+    public string IntegrationLabel => AiModelCatalog.GetIntegrationLabel(_descriptor);
+
+    public bool IsFeatureSelectable => AiModelCatalog.IsFeatureSelectable(_descriptor);
+
+    public bool IsPlanned => !IsFeatureSelectable;
+
     public string FileName => Path.GetFileName(_descriptor.RelativePath);
 
     [ObservableProperty]
@@ -138,7 +146,7 @@ public partial class AiModelItemViewModel : ObservableObject
 
     public bool CanDownload => !string.IsNullOrWhiteSpace(_descriptor.DownloadUrl);
 
-    public bool ShowDownloadButton => CanDownload && !IsDownloaded && !IsDownloading;
+    public bool ShowDownloadButton => CanDownload && !IsDownloaded && !IsDownloading && IsFeatureSelectable;
 
     public bool ShowReadyMark => IsDownloaded && !IsDownloading;
 
@@ -151,6 +159,18 @@ public partial class AiModelItemViewModel : ObservableObject
             StatusBrush = IsDownloaded
                 ? (Brush)Application.Current.FindResource("SystemFillColorSuccessBrush")
                 : (Brush)Application.Current.FindResource("SystemFillColorCriticalBrush");
+        }
+        else if (!IsFeatureSelectable)
+        {
+            StatusText = IsDownloaded ? "已下载" : IntegrationLabel;
+            StatusBrush = (Brush)Application.Current.FindResource("SystemFillColorNeutralBrush");
+        }
+        else if (AiModelCatalog.ResolveIntegrationStatus(_descriptor) == AiModelIntegrationStatus.Optional)
+        {
+            StatusText = IsDownloaded ? "可选·已就绪" : "可选";
+            StatusBrush = IsDownloaded
+                ? (Brush)Application.Current.FindResource("SystemFillColorSuccessBrush")
+                : (Brush)Application.Current.FindResource("SystemFillColorNeutralBrush");
         }
         else if (IsDownloaded)
         {

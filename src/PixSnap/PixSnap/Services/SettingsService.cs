@@ -33,8 +33,7 @@ public static class SettingsService
     private const string KeyOcrModelTier = "OcrModelTier";
     private const string KeyMattingModel = "MattingModel";
     private const string KeySuperResolutionModel = "SuperResolutionModel";
-    private const string KeySegmentationModel = "SegmentationModel";
-    private const string KeyVisionModel = "VisionModel";
+    private const string KeyTrayDoubleClickAction = "TrayDoubleClickAction";
 
     // ── 默认快捷键：Ctrl + Shift + Q ──────────────────────────────────────────
     public static readonly ModifierKeys DefaultHotkeyModifiers = ModifierKeys.Control | ModifierKeys.Shift;
@@ -306,8 +305,33 @@ public static class SettingsService
 
     // ── AI 功能模型偏好 ────────────────────────────────────────────────────────
 
-    public static MattingModel ReadMattingModel() =>
-        ReadEnum(KeyMattingModel, MattingModel.Rmbg14);
+    public static MattingModel ReadMattingModel()
+    {
+        try
+        {
+            if (!File.Exists(ConfigFilePath))
+                return MattingModel.Rmbg14;
+
+            var json = File.ReadAllText(ConfigFilePath);
+            var doc = JsonDocument.Parse(json);
+            if (doc.RootElement.TryGetProperty(KeyMattingModel, out var v) && v.TryGetInt32(out var raw))
+            {
+                return raw switch
+                {
+                    2 => MattingModel.BiRefNet,
+                    1 => MattingModel.Rmbg14,
+                    0 => MattingModel.Rmbg14,
+                    _ => Enum.IsDefined(typeof(MattingModel), raw) ? (MattingModel)raw : MattingModel.Rmbg14
+                };
+            }
+        }
+        catch (Exception ex)
+        {
+            Log.Warning(ex, "ReadMattingModel 失败，使用默认值");
+        }
+
+        return MattingModel.Rmbg14;
+    }
 
     public static void WriteMattingModel(MattingModel model) =>
         WriteEnum(KeyMattingModel, model, "抠图模型");
@@ -318,17 +342,11 @@ public static class SettingsService
     public static void WriteSuperResolutionModel(SuperResolutionModel model) =>
         WriteEnum(KeySuperResolutionModel, model, "超分模型");
 
-    public static SegmentationModel ReadSegmentationModel() =>
-        ReadEnum(KeySegmentationModel, SegmentationModel.MobileSam);
+    public static TrayDoubleClickAction ReadTrayDoubleClickAction() =>
+        ReadEnum(KeyTrayDoubleClickAction, TrayDoubleClickAction.OpenPreview);
 
-    public static void WriteSegmentationModel(SegmentationModel model) =>
-        WriteEnum(KeySegmentationModel, model, "分割模型");
-
-    public static VisionModel ReadVisionModel() =>
-        ReadEnum(KeyVisionModel, VisionModel.Florence2);
-
-    public static void WriteVisionModel(VisionModel model) =>
-        WriteEnum(KeyVisionModel, model, "视觉理解模型");
+    public static void WriteTrayDoubleClickAction(TrayDoubleClickAction action) =>
+        WriteEnum(KeyTrayDoubleClickAction, action, "托盘双击行为");
 
     private static TEnum ReadEnum<TEnum>(string key, TEnum fallback) where TEnum : struct, Enum
     {

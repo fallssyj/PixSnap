@@ -162,7 +162,7 @@ public partial class App : System.Windows.Application, IRecipient<ScreenshotCapt
 
         // ViewModels
         services.AddTransient<MainViewModel>();
-        services.AddTransient<ScreenshotPreviewViewModel>();
+        services.AddSingleton<ScreenshotPreviewViewModel>();
         services.AddTransient<SettingsViewModel>();
         services.AddSingleton<TrayViewModel>();
 
@@ -375,41 +375,16 @@ public partial class App : System.Windows.Application, IRecipient<ScreenshotCapt
     private void OnTrayMouseDoubleClick(object sender, RoutedEventArgs e)
     {
         e.Handled = true;
-        Dispatcher.BeginInvoke(ShowScreenshotPreviewFromTray, DispatcherPriority.Background);
+        Dispatcher.BeginInvoke(ExecuteTrayDoubleClickAction, DispatcherPriority.Background);
     }
 
-    private void ShowScreenshotPreviewFromTray()
+    private void ExecuteTrayDoubleClickAction()
     {
-        foreach (Window window in Windows)
-        {
-            if (window is ScreenshotPreviewWindow previewWindow)
-            {
-                if (!previewWindow.IsVisible)
-                    previewWindow.Show();
-
-                if (previewWindow.WindowState == WindowState.Minimized)
-                    previewWindow.WindowState = WindowState.Normal;
-
-                previewWindow.Activate();
-                return;
-            }
-        }
-
-        var previewViewModel = Services.GetRequiredService<ScreenshotPreviewViewModel>();
-        if (previewViewModel.ScreenshotImage is null)
-        {
-            Services.GetRequiredService<INavigationService>().StartCapture();
-            return;
-        }
-
-        var newPreviewWindow = new ScreenshotPreviewWindow
-        {
-            DataContext = previewViewModel,
-            Topmost = false
-        };
-
-        newPreviewWindow.Show();
-        newPreviewWindow.Activate();
+        var navigation = Services.GetRequiredService<INavigationService>();
+        if (SettingsService.ReadTrayDoubleClickAction() == TrayDoubleClickAction.Capture)
+            navigation.StartCapture();
+        else
+            navigation.OpenScreenshotPreview();
     }
 
     private void InitializeHotkey()
