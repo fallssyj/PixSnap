@@ -1415,7 +1415,7 @@ void ScreenRecorderState::OnFrameArrived(
         if (impl == nullptr) { frame.Close(); return; }
 
         std::lock_guard d3dLock(impl->D3dMutex);
-        if (impl == nullptr) return;
+        if (impl == nullptr) { frame.Close(); return; }
 
         if (!stagingTexture || stagingW != texW || stagingH != texH)
         {

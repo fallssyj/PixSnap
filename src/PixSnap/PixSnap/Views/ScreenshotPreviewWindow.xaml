@@ -155,6 +155,9 @@
                         <!--  裁剪框覆盖层：只在裁剪模式下显示  -->
                         <controls:CropOverlayControl x:Name="CropOverlay" Visibility="{Binding IsCropMode, Converter={StaticResource BooleanToVisibilityConverter}}" />
 
+                        <!--  圆角预览蒙版：只在圆角模式下显示  -->
+                        <controls:RoundCornerPreviewOverlay x:Name="RoundCornerOverlay" Visibility="{Binding IsRoundCornerMode, Converter={StaticResource BooleanToVisibilityConverter}}" />
+
                         <!--  编辑工具条：画布底部居中  -->
                         <Grid
                             Margin="0,0,0,20"
@@ -191,39 +194,71 @@
             <Border Grid.Row="1" Padding="10">
                 <!--  CornerRadius="0,0,10,10">  -->
                 <Grid>
-                    <StackPanel Orientation="Horizontal">
+                    <StackPanel
+                        Margin="4,0,0,0"
+                        Orientation="Horizontal"
+                        VerticalAlignment="Center">
                         <StackPanel.Style>
                             <Style TargetType="StackPanel">
                                 <Setter Property="Visibility" Value="Visible" />
                                 <Style.Triggers>
-                                    <DataTrigger Binding="{Binding CaptureTitleDisplay.Length}" Value="0">
+                                    <DataTrigger Binding="{Binding ImageSize.Length}" Value="0">
                                         <Setter Property="Visibility" Value="Collapsed" />
                                     </DataTrigger>
                                 </Style.Triggers>
                             </Style>
                         </StackPanel.Style>
-                        <ui:FontIcon
-                            Margin="10,0"
-                            VerticalAlignment="Center"
-                            FontSize="14"
-                            Foreground="{DynamicResource TextFillColorSecondaryBrush}"
-                            Icon="{x:Static ui:SegoeFluentIcons.FullScreen}" />
-                        <TextBlock
-                            VerticalAlignment="Center"
-                            Foreground="{DynamicResource TextFillColorSecondaryBrush}"
-                            Opacity="0.6"
-                            Text="{Binding ImageSize}" />
-                        <ui:FontIcon
-                            Margin="10,0"
-                            VerticalAlignment="Center"
-                            FontSize="14"
-                            Foreground="{DynamicResource TextFillColorSecondaryBrush}"
-                            Icon="{x:Static ui:SegoeFluentIcons.List}" />
-                        <TextBlock
-                            VerticalAlignment="Center"
-                            Foreground="{DynamicResource TextFillColorSecondaryBrush}"
-                            Opacity="0.6"
-                            Text="{Binding FileSize}" />
+
+                        <Border>
+                            <Border.Style>
+                                <Style BasedOn="{StaticResource PreviewMetaChipStyle}" TargetType="Border">
+                                    <Style.Triggers>
+                                        <DataTrigger Binding="{Binding CaptureTitleDisplay.Length}" Value="0">
+                                            <Setter Property="Visibility" Value="Collapsed" />
+                                        </DataTrigger>
+                                    </Style.Triggers>
+                                </Style>
+                            </Border.Style>
+                            <StackPanel Orientation="Horizontal">
+                                <ui:FontIcon
+                                    Icon="{x:Static ui:SegoeFluentIcons.OpenFile}"
+                                    Style="{StaticResource PreviewMetaChipIconStyle}" />
+                                <TextBlock
+                                    Style="{StaticResource PreviewMetaChipLabelStyle}"
+                                    Text="文件" />
+                                <TextBlock
+                                    Style="{StaticResource PreviewMetaChipFilenameTextStyle}"
+                                    Text="{Binding CaptureTitleDisplay}" />
+                            </StackPanel>
+                        </Border>
+
+                        <Border Style="{StaticResource PreviewMetaChipStyle}">
+                            <StackPanel Orientation="Horizontal">
+                                <ui:FontIcon
+                                    Icon="{x:Static ui:SegoeFluentIcons.Picture}"
+                                    Style="{StaticResource PreviewMetaChipIconStyle}" />
+                                <TextBlock
+                                    Style="{StaticResource PreviewMetaChipLabelStyle}"
+                                    Text="尺寸" />
+                                <TextBlock
+                                    Style="{StaticResource PreviewMetaChipTextStyle}"
+                                    Text="{Binding ImageSize}" />
+                            </StackPanel>
+                        </Border>
+
+                        <Border Style="{StaticResource PreviewMetaChipStyle}">
+                            <StackPanel Orientation="Horizontal">
+                                <ui:FontIcon
+                                    Icon="{x:Static ui:SegoeFluentIcons.Document}"
+                                    Style="{StaticResource PreviewMetaChipIconStyle}" />
+                                <TextBlock
+                                    Style="{StaticResource PreviewMetaChipLabelStyle}"
+                                    Text="大小" />
+                                <TextBlock
+                                    Style="{StaticResource PreviewMetaChipTextStyle}"
+                                    Text="{Binding FileSize}" />
+                            </StackPanel>
+                        </Border>
                     </StackPanel>
 
                     <StackPanel

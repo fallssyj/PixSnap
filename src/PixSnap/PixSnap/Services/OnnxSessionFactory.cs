@@ -1,22 +1,42 @@
 using Microsoft.ML.OnnxRuntime;
 using Serilog;
 using System.IO;
-using System.Management;
 
 namespace PixSnap.Services;
 
 /// <summary>
-/// ONNX InferenceSession 工厂：管理 DirectML / CPU 推理会话的创建与全局缓存。
+/// ONNX InferenceSession 工厂：每次推理创建新会话，用毕即释放显存。
 /// 自动探测独立 GPU（NVIDIA / AMD / Intel Arc），失败时回退到 CPU。
 /// </summary>
 public static class OnnxSessionFactory
 {
     private static bool _gpuListLogged;
+    private static readonly HashSet<string> CpuOnlyReasonLogged = new(StringComparer.OrdinalIgnoreCase);
 
-    // ── Session 缓存（按模型路径），避免每次推理重新加载 DML 权重 ──────────────
-    private static readonly Dictionary<string, (InferenceSession Session, string ProviderName, DateTime LastUsed)> _sessionCache = new();
-    private static readonly object _cacheLock = new();
-    private const int MaxCachedSessions = 4;
+    /// <summary>强制 CPU 会话（用于 DirectML 不兼容的模型），首次记录 Information 日志。</summary>
+    public static InferenceSession CreateCpuOnlySession(
+        string modelPath,
+        string reason,
+        out string providerName,
+        string? providerLabel = null)
+    {
+        var fileName = Path.GetFileName(modelPath);
+        providerName = providerLabel ?? "CPU(模型限制)";
+
+        if (CpuOnlyReasonLogged.Add(fileName))
+        {
+            Log.Information(
+                "ONNX 强制使用 CPU：{Model} — {Reason}",
+                fileName,
+                reason);
+        }
+        else
+        {
+            Log.Debug("ONNX 使用 CPU：{Model}", fileName);
+        }
+
+        return CreateCpuSession(modelPath);
+    }
 
     /// <summary>创建新的推理会话：优先尝试 DirectML GPU，失败则回退到 CPU。</summary>
     public static InferenceSession CreateSession(string modelPath, out string providerName)
@@ -41,7 +61,7 @@ public static class OnnxSessionFactory
                 Log.Debug("尝试 DirectML 设备 {DeviceId}", dmlDeviceId);
                 dmlOptions.AppendExecutionProvider_DML(dmlDeviceId);
                 providerName = $"DirectML(device={dmlDeviceId})";
-                Log.Information("创建 ONNX 会话成功: {Provider}, 模型 {Model}", providerName, Path.GetFileName(modelPath));
+                Log.Information("创建 ONNX 会话: {Provider}, 模型 {Model}", providerName, Path.GetFileName(modelPath));
                 return new InferenceSession(modelPath, dmlOptions);
             }
             catch (Exception ex)
@@ -56,84 +76,10 @@ public static class OnnxSessionFactory
         return new InferenceSession(modelPath, CreateBaseOptions());
     }
 
-    /// <summary>DirectML 推理失败后，将缓存会话替换为 CPU 并返回新会话。</summary>
-    public static InferenceSession RecreateSessionAsCpu(string modelPath, out string providerName)
-    {
-        lock (_cacheLock)
-        {
-            if (_sessionCache.TryGetValue(modelPath, out var cached)
-                && cached.ProviderName.StartsWith("CPU", StringComparison.OrdinalIgnoreCase))
-            {
-                _sessionCache[modelPath] = (cached.Session, cached.ProviderName, DateTime.UtcNow);
-                providerName = cached.ProviderName;
-                return cached.Session;
-            }
-
-            if (_sessionCache.TryGetValue(modelPath, out cached))
-            {
-                Log.Information("释放 DirectML 会话并切换 CPU: {Model}", Path.GetFileName(modelPath));
-                cached.Session.Dispose();
-                _sessionCache.Remove(modelPath);
-            }
-
-            providerName = "CPU(DirectML推理失败回退)";
-            var session = CreateCpuSession(modelPath);
-            _sessionCache[modelPath] = (session, providerName, DateTime.UtcNow);
-            return session;
-        }
-    }
-
     /// <summary>强制使用 CPU 执行提供程序（用于 DML 推理时崩溃的回退）。</summary>
     public static InferenceSession CreateCpuSession(string modelPath)
     {
         return new InferenceSession(modelPath, CreateBaseOptions());
-    }
-
-    /// <summary>
-    /// 获取或创建指定路径的 InferenceSession（带全局缓存）。
-    /// 首次调用时初始化；后续直接返回缓存实例，节省 DML 数百毫秒初始化开销。
-    /// </summary>
-    public static InferenceSession GetOrCreateSession(string modelPath, out string providerName)
-    {
-        lock (_cacheLock)
-        {
-            if (_sessionCache.TryGetValue(modelPath, out var cached))
-            {
-                Log.Debug("ONNX 会话缓存命中: {Model}", Path.GetFileName(modelPath));
-                _sessionCache[modelPath] = (cached.Session, cached.ProviderName, DateTime.UtcNow);
-                providerName = cached.ProviderName;
-                return cached.Session;
-            }
-
-            // 缓存已满时驱逐最久未使用的会话
-            if (_sessionCache.Count >= MaxCachedSessions)
-            {
-                var oldest = _sessionCache.MinBy(kv => kv.Value.LastUsed);
-                Log.Information("ONNX 缓存已满，驱逐最久未使用: {Model}", Path.GetFileName(oldest.Key));
-                oldest.Value.Session.Dispose();
-                _sessionCache.Remove(oldest.Key);
-            }
-
-            Log.Debug("ONNX 会话缓存未命中，创建新会话: {Model}", Path.GetFileName(modelPath));
-            var session = CreateSession(modelPath, out providerName);
-            _sessionCache[modelPath] = (session, providerName, DateTime.UtcNow);
-            return session;
-        }
-    }
-
-    /// <summary>释放所有缓存的 InferenceSession（应在应用退出或 GPU 设置变更时调用）。</summary>
-    public static void InvalidateAll() => DisposeAll();
-
-    /// <summary>释放所有缓存的 InferenceSession（应在应用退出时调用）。</summary>
-    public static void DisposeAll()
-    {
-        lock (_cacheLock)
-        {
-            Log.Debug("释放所有缓存的 ONNX 会话: {Count} 个", _sessionCache.Count);
-            foreach (var entry in _sessionCache.Values)
-                entry.Session.Dispose();
-            _sessionCache.Clear();
-        }
     }
 
     /// <summary>创建基础 SessionOptions，启用图优化。</summary>
@@ -151,37 +97,30 @@ public static class OnnxSessionFactory
             return;
 
         _gpuListLogged = true;
-        try
-        {
-            using var searcher = new ManagementObjectSearcher("SELECT Name, AdapterRAM FROM Win32_VideoController");
-            var devices = searcher.Get().Cast<ManagementObject>().ToList();
-            try
-            {
-                for (int index = 0; index < devices.Count; index++)
-                {
-                    var name = devices[index]["Name"]?.ToString() ?? "未知";
-                    var ramObj = devices[index]["AdapterRAM"];
-                    var ramMb = ramObj is uint ram && ram != uint.MaxValue ? ram / (1024 * 1024) : (uint?)null;
-                    Log.Information(
-                        "检测到显卡 [{Index}]: {Name}{Ram}",
-                        index,
-                        name,
-                        ramMb.HasValue ? $", 显存约 {ramMb} MB" : string.Empty);
-                }
 
-                Log.Information(
-                    "DirectML 设备可在「设置 → AI 加速」中选择；WMI 序号与 DirectML 设备 ID 不一定一致");
-            }
-            finally
-            {
-                foreach (var device in devices)
-                    device.Dispose();
-            }
-        }
-        catch (Exception ex)
+        var adapters = DxgiAdapterEnumerator.Enumerate()
+            .Where(a => !a.IsSoftware)
+            .ToList();
+
+        if (adapters.Count == 0)
         {
-            Log.Warning(ex, "WMI GPU 枚举失败");
+            Log.Information("未通过 DXGI 检测到硬件显卡，AI 将使用 CPU 或软件适配器");
+            return;
         }
+
+        foreach (var adapter in adapters)
+        {
+            Log.Information(
+                "检测到显卡 [DXGI {Index}]: {Name}{Ram}",
+                adapter.Index,
+                adapter.Name,
+                adapter.DedicatedVideoMemory >= 256 * 1024 * 1024
+                    ? $", 显存约 {adapter.DedicatedVideoMemory / (1024 * 1024)} MB"
+                    : string.Empty);
+        }
+
+        Log.Information(
+            "DirectML 设备 ID 与 DXGI 适配器索引一致，可在「设置 → AI 加速」中选择");
     }
 
     private static bool _onnxNativeLogged;
@@ -192,6 +131,7 @@ public static class OnnxSessionFactory
             return;
 
         _onnxNativeLogged = true;
+        LogAvailableGpusOnce();
         var baseDir = AppContext.BaseDirectory;
         var ortPath = Path.Combine(baseDir, "onnxruntime.dll");
         var dmlPath = Path.Combine(baseDir, "DirectML.dll");

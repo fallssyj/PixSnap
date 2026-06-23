@@ -26,16 +26,6 @@ public static class InpaintService
     // 模型固定输入尺寸（lama_fp32.onnx 要求 512×512）
     private const int ModelSize = 512;
 
-    /// <summary>兼容旧调用：默认羽化强度 20。</summary>
-    public static Task<BitmapSource?> RunAsync(
-        BitmapSource originalImage,
-        IReadOnlyList<(Point Center, double Radius)> strokes,
-        IProgress<(double Value, string Text)> progress,
-        CancellationToken token)
-    {
-        return RunWithOptionsAsync(originalImage, strokes, 20, progress, token);
-    }
-
     /// <summary>异步执行 AI 修复。将 strokes 覆盖的区域交给 LaMa 模型填充。</summary>
     public static async Task<BitmapSource?> RunWithOptionsAsync(
         BitmapSource originalImage,
@@ -97,43 +87,57 @@ public static class InpaintService
             progress?.Report((0.40, "AI 处理中，请稍候..."));
             token.ThrowIfCancellationRequested();
 
-            var session = OnnxSessionFactory.GetOrCreateSession(ModelPath, out var providerName);
-            token.ThrowIfCancellationRequested();
-            progress?.Report((0.45, string.Format("当前推理设备：{0}", providerName)));
-
-            var inputNames = session.InputMetadata.Keys.ToList();
-            var imageInputName = inputNames.FirstOrDefault(
-                n => n.Contains("image", StringComparison.OrdinalIgnoreCase)) ?? inputNames[0];
-            var maskInputName = inputNames.FirstOrDefault(
-                n => n.Contains("mask", StringComparison.OrdinalIgnoreCase))
-                ?? (inputNames.Count > 1 ? inputNames[1] : inputNames[0]);
-
-            var inputs = new List<NamedOnnxValue>
+            const string cpuReason =
+                "LaMa 含傅里叶卷积（FFC）算子，DirectML 无法执行；Windows 上 AI 擦除仅支持 CPU 推理";
+            var session = OnnxSessionFactory.CreateCpuOnlySession(
+                ModelPath,
+                cpuReason,
+                out var providerName,
+                "CPU（LaMa 不支持 DirectML）");
+            try
             {
-                NamedOnnxValue.CreateFromTensor(imageInputName, imageTensor),
-                NamedOnnxValue.CreateFromTensor(maskInputName, maskTensor)
-            };
+                token.ThrowIfCancellationRequested();
+                progress?.Report((0.45, string.Format("当前推理设备：{0}", providerName)));
 
-            progress?.Report((0.50, "AI 处理中，请稍候..."));
-            token.ThrowIfCancellationRequested();
+                var inputNames = session.InputMetadata.Keys.ToList();
+                var imageInputName = inputNames.FirstOrDefault(
+                    n => n.Contains("image", StringComparison.OrdinalIgnoreCase)) ?? inputNames[0];
+                var maskInputName = inputNames.FirstOrDefault(
+                    n => n.Contains("mask", StringComparison.OrdinalIgnoreCase))
+                    ?? (inputNames.Count > 1 ? inputNames[1] : inputNames[0]);
 
-            using var run = OnnxInferenceHelper.RunWithCpuFallback(session, providerName, ModelPath, inputs);
-            var outputTensor = run.First().AsTensor<float>();
+                var inputs = new List<NamedOnnxValue>
+                {
+                    NamedOnnxValue.CreateFromTensor(imageInputName, imageTensor),
+                    NamedOnnxValue.CreateFromTensor(maskInputName, maskTensor)
+                };
 
-            progress?.Report((0.90, "正在生成结果图像..."));
-            token.ThrowIfCancellationRequested();
+                progress?.Report((0.50, "AI 处理中，请稍候..."));
+                token.ThrowIfCancellationRequested();
 
-            using var outputBitmap = RgbTensorToSKBitmap(outputTensor, ModelSize, ModelSize);
-            using var outputAtRoi = new SKBitmap(new SKImageInfo(roiW, roiH, SKColorType.Bgra8888, SKAlphaType.Unpremul));
-            outputBitmap.ScalePixels(outputAtRoi, new SKSamplingOptions(SKFilterMode.Linear, SKMipmapMode.Linear));
-            using var blendedRoi = CompositeByMask(roiBitmap, outputAtRoi, maskOriginal, edgeFeatherStrength);
-            using var finalBitmap = new SKBitmap(new SKImageInfo(origW, origH, SKColorType.Bgra8888, SKAlphaType.Unpremul));
-            srcBitmap.CopyTo(finalBitmap);
-            BlitRoi(finalBitmap, blendedRoi, roiRect.Left, roiRect.Top);
+                using var run = new OnnxInferenceHelper.SessionRunResult(session.Run(inputs));
+                var outputTensor = run.First().AsTensor<float>();
 
-            progress?.Report((1.0, "完成"));
-            Log.Information("AI 修复完成");
-            return (SkiaInteropHelper.CopyPixels(finalBitmap), origW, origH);
+                progress?.Report((0.90, "正在生成结果图像..."));
+                token.ThrowIfCancellationRequested();
+
+                using var outputBitmap = RgbTensorToSKBitmap(outputTensor, ModelSize, ModelSize);
+                using var outputAtRoi = new SKBitmap(new SKImageInfo(roiW, roiH, SKColorType.Bgra8888, SKAlphaType.Unpremul));
+                outputBitmap.ScalePixels(outputAtRoi, new SKSamplingOptions(SKFilterMode.Linear, SKMipmapMode.Linear));
+                using var blendedRoi = CompositeByMask(roiBitmap, outputAtRoi, maskOriginal, edgeFeatherStrength);
+                using var finalBitmap = new SKBitmap(new SKImageInfo(origW, origH, SKColorType.Bgra8888, SKAlphaType.Unpremul));
+                srcBitmap.CopyTo(finalBitmap);
+                BlitRoi(finalBitmap, blendedRoi, roiRect.Left, roiRect.Top);
+
+                progress?.Report((1.0, "完成"));
+                Log.Information("AI 修复完成");
+                return (SkiaInteropHelper.CopyPixels(finalBitmap), origW, origH);
+            }
+            finally
+            {
+                session.Dispose();
+                InferenceResourceHelper.OnInferenceCompleted();
+            }
         }, token);
 
         return SkiaInteropHelper.CreateFrozenBitmapFromBgra(export.Item1, export.Item2, export.Item3);

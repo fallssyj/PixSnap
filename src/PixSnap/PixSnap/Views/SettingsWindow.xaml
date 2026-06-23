@@ -181,8 +181,8 @@
                                         Grid.Column="1"
                                         SelectedIndex="{Binding SelectedMattingModelIndex}"
                                         Style="{StaticResource SettingsComboBoxStyle}">
-                                        <ComboBoxItem Content="RMBG-1.4" />
-                                        <ComboBoxItem Content="BiRefNet" />
+                                        <ComboBoxItem Content="RMBG-1.4（通用快速）" />
+                                        <ComboBoxItem Content="BiRefNet（精细抠图）" />
                                     </ComboBox>
                                 </Grid>
                             </Border>
@@ -196,14 +196,14 @@
                                     </Grid.ColumnDefinitions>
                                     <StackPanel VerticalAlignment="Center">
                                         <TextBlock Style="{StaticResource SettingsRowTitleStyle}" Text="超分辨率" />
-                                        <TextBlock Style="{StaticResource SettingsRowDescStyle}" Text="2× 与 4× 速度相当；4× 放大倍数更高" />
+                                        <TextBlock Style="{StaticResource SettingsRowDescStyle}" Text="4× 放大更高清，2× 更省显存、速度相当" />
                                     </StackPanel>
                                     <ComboBox
                                         Grid.Column="1"
                                         SelectedIndex="{Binding SelectedSuperResolutionModelIndex}"
                                         Style="{StaticResource SettingsComboBoxStyle}">
-                                        <ComboBoxItem Content="4×（高质量）" />
-                                        <ComboBoxItem Content="2×" />
+                                        <ComboBoxItem Content="4×（高清放大）" />
+                                        <ComboBoxItem Content="2×（快速省显存）" />
                                     </ComboBox>
                                 </Grid>
                             </Border>
@@ -334,6 +334,35 @@
                                         </Button>
                                     </Grid>
                                 </StackPanel>
+                            </Border>
+                            <Border Style="{StaticResource SettingsFieldSeparatorStyle}" />
+
+                            <Border Style="{StaticResource SettingsFieldRowStyle}">
+                                <Grid>
+                                    <Grid.ColumnDefinitions>
+                                        <ColumnDefinition Width="*" />
+                                        <ColumnDefinition Width="Auto" />
+                                    </Grid.ColumnDefinitions>
+                                    <StackPanel VerticalAlignment="Center">
+                                        <TextBlock Style="{StaticResource SettingsRowTitleStyle}" Text="日志保留天数" />
+                                        <TextBlock Style="{StaticResource SettingsRowDescStyle}" Text="超过保留期的日志文件将在启动时自动删除" />
+                                    </StackPanel>
+                                    <StackPanel
+                                        Grid.Column="1"
+                                        VerticalAlignment="Center"
+                                        Orientation="Horizontal">
+                                        <TextBox
+                                            Width="72"
+                                            HorizontalContentAlignment="Center"
+                                            Style="{StaticResource SettingsPathTextBoxStyle}"
+                                            Text="{Binding LogRetentionDays, UpdateSourceTrigger=PropertyChanged}" />
+                                        <TextBlock
+                                            Margin="8,0,0,0"
+                                            VerticalAlignment="Center"
+                                            Foreground="{DynamicResource TextFillColorSecondaryBrush}"
+                                            Text="天" />
+                                    </StackPanel>
+                                </Grid>
                             </Border>
                         </ikw:SimpleStackPanel>
                     </Border>

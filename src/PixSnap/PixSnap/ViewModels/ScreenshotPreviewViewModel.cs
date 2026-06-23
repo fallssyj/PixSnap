@@ -201,6 +201,18 @@ public partial class ScreenshotPreviewViewModel : ObservableRecipient, IRecipien
     /// <summary>退出当前编辑模式，回到浏览状态。</summary>
     public void ExitEditMode() => ActiveEditMode = EditMode.None;
 
+    /// <summary>关闭预览或加载新图前：取消进行中的编辑并清理子面板状态。</summary>
+    private void ResetEditSessionState()
+    {
+        EraserPanel.CancelInpaintCommand.Execute(null);
+        AnnotationPanel.ClearAnnotationsCommand.Execute(null);
+
+        if (ActiveEditMode != EditMode.None)
+            ActiveEditMode = EditMode.None;
+        else
+            EraserPanel.ClearStrokesCommand.Execute(null);
+    }
+
     public CropViewModel CropPanel { get; } = new();
     public RoundCornerViewModel RoundCornerPanel { get; } = new();
     public EraserViewModel EraserPanel { get; } = new();
@@ -530,6 +542,7 @@ public partial class ScreenshotPreviewViewModel : ObservableRecipient, IRecipien
         if (dialog.ShowDialog() != true) return;
         if (!await PrepareForImageReplaceAsync()) return;
 
+        BeginPreviewSession();
         IsFileOperationProcessing = true;
         FileOperationProgress = 0.05;
         FileOperationProgressText = "正在加载图片...";
@@ -1150,15 +1163,15 @@ public partial class ScreenshotPreviewViewModel : ObservableRecipient, IRecipien
     }
 
     /// <summary>
-    /// 窗口关闭时调用：注销 Messenger、释放图像引用，阻止 GC 根保留。
+    /// 预览窗口关闭时调用：解除大图引用、取消进行中的 AI，并整理内存。
+    /// 注意：本 ViewModel 为单例，不可 Dispose 长期持有的同步原语。
     /// </summary>
     public void Cleanup()
     {
         Log.Debug("ScreenshotPreviewViewModel.Cleanup");
         _isClosing = true;
-        EraserPanel.CancelInpaintCommand.Execute(null);
+        ResetEditSessionState();
 
-        // 取消所有正在进行的 AI 操作，避免访问已释放的 ONNX Session
         _aiCts?.Cancel();
         _aiCts?.Dispose();
         _aiCts = null;
@@ -1179,23 +1192,13 @@ public partial class ScreenshotPreviewViewModel : ObservableRecipient, IRecipien
             Log.Warning(ex, "等待图片应用任务时出错");
         }
 
-        // 断开子 ViewModel 事件，避免循环引用
-        EraserPanel.InpaintApplied -= OnEraserApplied;
-        EraserPanel.PropertyChanged -= OnEraserPanelPropertyChanged;
-        CropPanel.PropertyChanged -= OnCropPanelPropertyChanged;
-        RoundCornerPanel.PropertyChanged -= OnRoundCornerPanelPropertyChanged;
-        AnnotationPanel.PropertyChanged -= OnAnnotationPanelPropertyChanged;
-        AnnotationPanel.AnnotationApplied -= OnAnnotationApplied;
-        AnnotationPanel.AnnotationCancelled -= OnAnnotationCancelled;
-
-        // 确保从 Messenger 注销（兼容未来可能重新激活的场景）
         IsActive = false;
-
-        // 显式置空，解除对大尺寸 BitmapSource 的引用，让 GC 及时回收
+        ClearOcrOverlay();
         ScreenshotImage = null;
+        _history.Reset();
 
-        _history.Dispose();
-        _imageApplySemaphore.Dispose();
+        OcrService.Shutdown();
+        MemoryManagementService.TrimAfterUiRelease();
     }
 
     protected override void OnActivated()
@@ -1210,6 +1213,8 @@ public partial class ScreenshotPreviewViewModel : ObservableRecipient, IRecipien
 
     public void Receive(ScreenshotCapturedMessage message)
     {
+        BeginPreviewSession();
+        ResetEditSessionState();
         Log.Information("接收截图: 模式={Mode}, 尺寸={W}×{H}", message.CaptureMode, message.Screenshot.PixelWidth, message.Screenshot.PixelHeight);
         SetCurrentImage(message.Screenshot, switchToFit: true);
         ResetHistory();
@@ -1250,23 +1255,30 @@ public partial class ScreenshotPreviewViewModel : ObservableRecipient, IRecipien
         _ = ApplyEditedImageAsync(newImage, switchToFit);
     }
 
+    /// <summary>预览窗口打开或加载新图时调用，允许再次应用编辑结果。</summary>
+    public void BeginPreviewSession()
+    {
+        _isClosing = false;
+        IsActive = true;
+    }
+
     public async Task ApplyEditedImageAsync(BitmapSource newImage, bool switchToFit = true)
     {
         if (_isClosing) return;
 
-        await _imageApplySemaphore.WaitAsync();
+        await _imageApplySemaphore.WaitAsync().ConfigureAwait(true);
         try
         {
             if (_isClosing) return;
-            await Task.Yield();
 
-            if (ScreenshotImage is not null)
+            var dispatcher = Application.Current?.Dispatcher;
+            if (dispatcher is not null && !dispatcher.CheckAccess())
             {
-                _history.PushUndo(ImageIOService.CreateSnapshotFast(ScreenshotImage), newImage);
+                await dispatcher.InvokeAsync(() => ApplyEditedImageCore(newImage, switchToFit));
+                return;
             }
 
-            SetCurrentImage(newImage, switchToFit);
-            NotifyUndoRedoStateChanged();
+            ApplyEditedImageCore(newImage, switchToFit);
         }
         finally
         {
@@ -1279,6 +1291,17 @@ public partial class ScreenshotPreviewViewModel : ObservableRecipient, IRecipien
                 // 窗口关闭 Cleanup 与进行中的图片应用竞态
             }
         }
+    }
+
+    private void ApplyEditedImageCore(BitmapSource newImage, bool switchToFit)
+    {
+        if (_isClosing) return;
+
+        if (ScreenshotImage is not null)
+            _history.PushUndo(ImageIOService.CreateSnapshotFast(ScreenshotImage), newImage);
+
+        SetCurrentImage(newImage, switchToFit);
+        NotifyUndoRedoStateChanged();
     }
 
     private void SetCurrentImage(BitmapSource? image, bool switchToFit)
@@ -1303,47 +1326,6 @@ public partial class ScreenshotPreviewViewModel : ObservableRecipient, IRecipien
 
         if (switchToFit)
             SwitchToFitMode();
-    }
-
-    private static Task<BitmapSource> LoadBitmapFromFileAsync(string filePath, IProgress<(double Value, string Text)>? progress = null)
-    {
-        return Task.Run(() =>
-        {
-            progress?.Report((0.2, "正在读取文件..."));
-            using var stream = File.OpenRead(filePath);
-            progress?.Report((0.55, "正在解码图片..."));
-            var decoder = BitmapDecoder.Create(
-                stream,
-                BitmapCreateOptions.IgnoreColorProfile | BitmapCreateOptions.PreservePixelFormat,
-                BitmapCacheOption.OnLoad);
-
-            var bitmap = decoder.Frames[0];
-            if (!bitmap.IsFrozen)
-            {
-                bitmap.Freeze();
-            }
-
-            progress?.Report((0.95, "正在准备显示..."));
-
-            return (BitmapSource)bitmap;
-        });
-    }
-
-    private static BitmapSource CreateFrozenSnapshot(BitmapSource source)
-    {
-        if (source.IsFrozen)
-            return source;
-
-        var copy = new WriteableBitmap(source);
-        copy.Freeze();
-        return copy;
-    }
-
-    private static BitmapSource CreateSnapshotFast(BitmapSource source)
-    {
-        // 使用引用快照，避免大图同步深拷贝导致 UI 卡顿。
-        // 当前编辑流程均产生新对象，不会原位修改旧图，因此引用快照可安全用于撤销/重做。
-        return source;
     }
 
     private void ResetHistory()

@@ -29,8 +29,9 @@ internal static class OnnxInferenceHelper
                                                    && !IsInputShapeMismatch(ex))
             {
                 Log.Warning(ex, "DirectML 推理失败，切换为 CPU 会话: {Model}", Path.GetFileName(modelPath));
-                var cpuSession = OnnxSessionFactory.RecreateSessionAsCpu(modelPath, out _);
-                return new SessionRunResult(cpuSession.Run(inputs));
+                var cpuSession = OnnxSessionFactory.CreateCpuSession(modelPath);
+                var outputs = cpuSession.Run(inputs);
+                return new SessionRunResult(cpuSession, outputs, adoptReplacement: true);
             }
         }
     }
@@ -43,17 +44,25 @@ internal static class OnnxInferenceHelper
     {
         private readonly InferenceSession? _ownedSession;
         private readonly IDisposableReadOnlyCollection<DisposableNamedOnnxValue> _outputs;
+        private readonly bool _adoptReplacement;
 
         public SessionRunResult(IDisposableReadOnlyCollection<DisposableNamedOnnxValue> outputs)
         {
             _outputs = outputs;
         }
 
-        public SessionRunResult(InferenceSession ownedSession, IDisposableReadOnlyCollection<DisposableNamedOnnxValue> outputs)
+        public SessionRunResult(
+            InferenceSession ownedSession,
+            IDisposableReadOnlyCollection<DisposableNamedOnnxValue> outputs,
+            bool adoptReplacement = false)
         {
             _ownedSession = ownedSession;
             _outputs = outputs;
+            _adoptReplacement = adoptReplacement;
         }
+
+        /// <summary>DirectML 回退 CPU 时，调用方应接管此会话并释放原会话。</summary>
+        public InferenceSession? ReplacementSession => _adoptReplacement ? _ownedSession : null;
 
         public IEnumerator<DisposableNamedOnnxValue> GetEnumerator() => _outputs.GetEnumerator();
         IEnumerator IEnumerable.GetEnumerator() => GetEnumerator();
@@ -62,7 +71,8 @@ internal static class OnnxInferenceHelper
         public void Dispose()
         {
             _outputs.Dispose();
-            _ownedSession?.Dispose();
+            if (!_adoptReplacement)
+                _ownedSession?.Dispose();
         }
     }
 }

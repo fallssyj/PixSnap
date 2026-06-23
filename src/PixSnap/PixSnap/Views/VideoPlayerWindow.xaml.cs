@@ -67,7 +67,7 @@ public partial class VideoPlayerWindow
         DataContext = null;
 
         // GC 回收 + 释放工作集
-        MemoryManagementService.ReleaseMemory();
+        MemoryManagementService.TrimAfterUiRelease();
     }
 
     private void OnCloseRequested() => Dispatcher.Invoke(Close);

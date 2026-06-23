@@ -3,11 +3,7 @@ using Microsoft.ML.OnnxRuntime.Tensors;
 using PixSnap.Models;
 using Serilog;
 using SkiaSharp;
-using System;
-using System.Collections.Generic;
 using System.IO;
-using System.Linq;
-using System.Threading.Tasks;
 using System.Windows.Media.Imaging;
 
 namespace PixSnap.Services;
@@ -80,18 +76,35 @@ public static class SuperResolutionService
             actualSource = downscaled ?? actualSource;
 
             progress?.Report((0.20, "正在初始化推理引擎..."));
-            var session = OnnxSessionFactory.GetOrCreateSession(modelPath, out var providerName);
-            progress?.Report((0.28, FormatProviderMessage(providerName)));
-            var inputName = session.InputMetadata.Keys.First();
-            var tile = GetTileConfig(session, inputName);
+            var session = OnnxSessionFactory.CreateSession(modelPath, out var providerName);
+            try
+            {
+                progress?.Report((0.28, FormatProviderMessage(providerName)));
+                var inputName = session.InputMetadata.Keys.First();
+                var tile = GetTileConfig(session, inputName);
 
-            progress?.Report((0.35, "正在执行超分推理..."));
-            using var outputBitmap = RunTiled(
-                session, providerName, modelPath, tile, inputName,
-                actualSource, srcW, srcH, inferenceScale, progress, cancellationToken);
+                progress?.Report((0.35, "正在执行超分推理..."));
+                using var outputBitmap = RunTiled(
+                    ref session,
+                    ref providerName,
+                    modelPath,
+                    tile,
+                    inputName,
+                    actualSource,
+                    srcW,
+                    srcH,
+                    inferenceScale,
+                    progress,
+                    cancellationToken);
 
-            progress?.Report((0.90, "正在生成超分结果..."));
-            return (SkiaInteropHelper.CopyPixels(outputBitmap), outputBitmap.Width, outputBitmap.Height);
+                progress?.Report((0.90, "正在生成超分结果..."));
+                return (SkiaInteropHelper.CopyPixels(outputBitmap), outputBitmap.Width, outputBitmap.Height);
+            }
+            finally
+            {
+                session.Dispose();
+                InferenceResourceHelper.OnInferenceCompleted();
+            }
         }, cancellationToken);
 
         return SkiaInteropHelper.CreateFrozenBitmapFromBgra(export.Item1, export.Item2, export.Item3);
@@ -181,14 +194,14 @@ public static class SuperResolutionService
     {
         int tileStride = tile.Stride;
         int tilePad = tile.Pad;
-        int srcX   = srcW > tileStride ? Math.Min(tx * tileStride, srcW - tileStride) : 0;
-        int srcY   = srcH > tileStride ? Math.Min(ty * tileStride, srcH - tileStride) : 0;
+        int srcX = srcW > tileStride ? Math.Min(tx * tileStride, srcW - tileStride) : 0;
+        int srcY = srcH > tileStride ? Math.Min(ty * tileStride, srcH - tileStride) : 0;
         int validW = Math.Min(tileStride, srcW - srcX);
         int validH = Math.Min(tileStride, srcH - srcY);
 
-        int padLeft   = Math.Min(srcX,                 tilePad);
-        int padTop    = Math.Min(srcY,                 tilePad);
-        int padRight  = Math.Min(srcW - srcX - validW, tilePad);
+        int padLeft = Math.Min(srcX, tilePad);
+        int padTop = Math.Min(srcY, tilePad);
+        int padRight = Math.Min(srcW - srcX - validW, tilePad);
         int padBottom = Math.Min(srcH - srcY - validH, tilePad);
 
         return new TileRegion(
@@ -200,8 +213,8 @@ public static class SuperResolutionService
 
     /// <summary>分块推理：将源图按 TileStride 步长切成若干块，逐块 4x 超分后写回结果位图。</summary>
     private static SKBitmap RunTiled(
-        InferenceSession session,
-        string providerName,
+        ref InferenceSession session,
+        ref string providerName,
         string modelPath,
         TileConfig tile,
         string inputName,
@@ -235,9 +248,6 @@ public static class SuperResolutionService
                     tileIndex++;
                     progress?.Report((0.35 + 0.45 * tileIndex / totalTiles, string.Format("正在分块超分 ({0}/{1})...", tileIndex, totalTiles)));
 
-                    // 若上一块触发 DirectML→CPU 回退，从缓存取最新 Session
-                    session = OnnxSessionFactory.GetOrCreateSession(modelPath, out providerName);
-
                     var tileRegion = ComputeTileRegion(tx, ty, srcW, srcH, tile);
 
                     var inputTensor = ExtractTileToTensor(
@@ -251,18 +261,18 @@ public static class SuperResolutionService
                     inputs.Clear();
                     inputs.Add(NamedOnnxValue.CreateFromTensor(inputName, inputTensor));
 
-                    RunTileInference(session, providerName, modelPath, inputs, outputTensor =>
+                    (session, providerName) = RunTileInference(session, providerName, modelPath, inputs, outputTensor =>
                     {
                         WriteTensorToBitmap(
                             outputTensor, result,
-                            destX:         tileRegion.SrcX    * scaleFactor,
-                            destY:         tileRegion.SrcY    * scaleFactor,
-                            tensorOffsetX: tileRegion.PadLeft  * scaleFactor,
-                            tensorOffsetY: tileRegion.PadTop   * scaleFactor,
-                            copyW:         tileRegion.ValidW   * scaleFactor,
-                            copyH:         tileRegion.ValidH   * scaleFactor,
-                            fullW:         outW,
-                            fullH:         outH);
+                            destX: tileRegion.SrcX * scaleFactor,
+                            destY: tileRegion.SrcY * scaleFactor,
+                            tensorOffsetX: tileRegion.PadLeft * scaleFactor,
+                            tensorOffsetY: tileRegion.PadTop * scaleFactor,
+                            copyW: tileRegion.ValidW * scaleFactor,
+                            copyH: tileRegion.ValidH * scaleFactor,
+                            fullW: outW,
+                            fullH: outH);
                     });
                 }
             }
@@ -277,7 +287,7 @@ public static class SuperResolutionService
     }
 
     /// <summary>执行单块推理，DirectML 失败时自动回退到 CPU。</summary>
-    private static void RunTileInference(
+    private static (InferenceSession Session, string ProviderName) RunTileInference(
         InferenceSession session,
         string providerName,
         string modelPath,
@@ -286,6 +296,13 @@ public static class SuperResolutionService
     {
         using var run = OnnxInferenceHelper.RunWithCpuFallback(session, providerName, modelPath, inputs);
         consumeOutput(run.First().AsTensor<float>());
+        if (run.ReplacementSession is { } replacement)
+        {
+            session.Dispose();
+            return (replacement, "CPU(DirectML推理失败回退)");
+        }
+
+        return (session, providerName);
     }
 
     /// <summary>从源位图指定区域抽取像素并转换为 [1,3,H,W] RGB float32 张量（归一化到 0–1）。</summary>
@@ -315,14 +332,14 @@ public static class SuperResolutionService
             for (int y = 0; y < validH; y++)
             {
                 int pixelBase = (startY + y) * rowBytes + startX * 4;
-                int spanBase  = y * fixedW;
+                int spanBase = y * fixedW;
                 for (int x = 0; x < validW; x++)
                 {
                     int idx = pixelBase + x * 4;
-                    int si  = spanBase + x;
+                    int si = spanBase + x;
                     buf[rOff + si] = ptr[idx + 2] / 255f;
                     buf[gOff + si] = ptr[idx + 1] / 255f;
-                    buf[bOff + si] = ptr[idx]     / 255f;
+                    buf[bOff + si] = ptr[idx] / 255f;
                 }
             }
 
@@ -386,7 +403,7 @@ public static class SuperResolutionService
 
         // 直接操作 tensor 底层 Span，布局 [1, 3, H, W]
         var dims = tensor.Dimensions;
-        int tensorW  = dims[3];
+        int tensorW = dims[3];
         int chStride = dims[2] * tensorW;    // H * W
         ReadOnlySpan<float> buf = tensor is DenseTensor<float> dense
             ? dense.Buffer.Span
@@ -402,17 +419,17 @@ public static class SuperResolutionService
             for (int y = 0; y < effH; y++)
             {
                 int tensorRowBase = (tensorOffsetY + y) * tensorW + tensorOffsetX;
-                int pixelRowBase  = (destY + y) * rowBytes + destX * 4;
+                int pixelRowBase = (destY + y) * rowBytes + destX * 4;
 
                 for (int x = 0; x < effW; x++)
                 {
-                    int ti  = tensorRowBase + x;
+                    int ti = tensorRowBase + x;
                     float r = Math.Clamp(buf[rOff + ti], 0f, 1f);
                     float g = Math.Clamp(buf[gOff + ti], 0f, 1f);
                     float b = Math.Clamp(buf[bOff + ti], 0f, 1f);
 
                     int idx = pixelRowBase + x * 4;
-                    ptr[idx]     = (byte)(b * 255f + 0.5f);
+                    ptr[idx] = (byte)(b * 255f + 0.5f);
                     ptr[idx + 1] = (byte)(g * 255f + 0.5f);
                     ptr[idx + 2] = (byte)(r * 255f + 0.5f);
                     ptr[idx + 3] = 255;

@@ -78,6 +78,9 @@ internal static class SkiaInteropHelper
     /// <summary>在 UI 线程从 BGRA 像素创建冻结的 BitmapSource。</summary>
     public static BitmapSource CreateFrozenBitmapFromBgra(byte[] pixels, int width, int height, double dpiX = 96, double dpiY = 96)
     {
+        if (Application.Current?.Dispatcher is { } dispatcher && !dispatcher.CheckAccess())
+            return dispatcher.Invoke(() => CreateFrozenBitmapFromBgra(pixels, width, height, dpiX, dpiY));
+
         var wb = new WriteableBitmap(width, height, dpiX, dpiY, PixelFormats.Bgra32, null);
         wb.WritePixels(new Int32Rect(0, 0, width, height), pixels, width * 4, 0);
         wb.Freeze();

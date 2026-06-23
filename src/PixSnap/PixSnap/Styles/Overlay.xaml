@@ -8,6 +8,5 @@
     <SolidColorBrush x:Key="OverlayFooterBackgroundBrush" Color="{DynamicResource SolidBackgroundFillColorBase}" />
     <SolidColorBrush x:Key="OverlayFooterForegroundBrush" Color="{DynamicResource TextFillColorPrimary}" />
     <SolidColorBrush x:Key="OverlayAccentForegroundBrush" Color="{DynamicResource TextOnAccentFillColorPrimary}" />
-    <SolidColorBrush x:Key="OverlayRecordingIndicatorBrush" Color="#E53935" />
     <SolidColorBrush x:Key="OverlayWarningForegroundBrush" Color="{DynamicResource SystemFillColorCaution}" />
 </ResourceDictionary>

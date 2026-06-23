@@ -16,9 +16,9 @@
                 Unit="px"
                 Value="{Binding RoundCornerPanel.CornerRadius, Mode=TwoWay}" />
 
-            <Border Style="{StaticResource EditDockSeparatorStyle}" />
+            <Border Margin="8,6,18,6" Style="{StaticResource EditDockSeparatorStyle}" />
 
-            <StackPanel Style="{StaticResource EditDockActionsStyle}">
+            <StackPanel Margin="0,8,0,0" Style="{StaticResource EditDockActionsStyle}">
                 <Button
                     Margin="0,0,6,0"
                     Command="{Binding RoundCornerPanel.CancelCommand}"

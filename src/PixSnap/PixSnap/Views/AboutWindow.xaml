@@ -2,13 +2,14 @@
     x:Class="PixSnap.Views.AboutWindow"
     xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
     xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+    xmlns:controls="clr-namespace:PixSnap.Controls"
     xmlns:ikw="http://schemas.inkore.net/lib/ui/wpf"
     xmlns:ui="http://schemas.inkore.net/lib/ui/wpf/modern"
     Title="关于 PixSnap"
-    Width="520"
-    Height="640"
-    MinWidth="460"
-    MinHeight="520"
+    Width="560"
+    Height="700"
+    MinWidth="480"
+    MinHeight="560"
     ResizeMode="CanResize"
     TextOptions.TextFormattingMode="Display"
     UseLayoutRounding="True"
@@ -28,171 +29,198 @@
             <RowDefinition Height="Auto" />
         </Grid.RowDefinitions>
 
-        <Border Grid.Row="0" Padding="32,24,32,16">
-            <Grid>
-                <Grid.ColumnDefinitions>
-                    <ColumnDefinition Width="Auto" />
-                    <ColumnDefinition Width="*" />
-                </Grid.ColumnDefinitions>
-                <Border
-                    Width="64"
-                    Height="64"
-                    Background="{DynamicResource SubtleFillColorSecondaryBrush}"
-                    BorderBrush="{DynamicResource CardStrokeColorDefaultBrush}"
-                    BorderThickness="1"
-                    ClipToBounds="True"
-                    CornerRadius="14">
-                    <Image
-                        Width="48"
-                        Height="48"
-                        HorizontalAlignment="Center"
-                        VerticalAlignment="Center"
-                        RenderOptions.BitmapScalingMode="HighQuality"
-                        Source="/Assets/icons/app.png"
-                        Stretch="Uniform" />
-                </Border>
-                <StackPanel
-                    Grid.Column="1"
-                    Margin="16,0,0,0"
-                    VerticalAlignment="Center">
-                    <TextBlock
-                        FontSize="22"
-                        FontWeight="SemiBold"
-                        Text="PixSnap" />
-                    <TextBlock
-                        Margin="0,4,0,0"
-                        Foreground="{DynamicResource TextFillColorSecondaryBrush}"
-                        Text="截图 · 录屏 · 标注 · AI 编辑" />
-                    <TextBlock
-                        Margin="0,8,0,0"
-                        FontSize="12"
-                        Foreground="{DynamicResource TextFillColorSecondaryBrush}"
-                        Text="{Binding Version}" />
-                </StackPanel>
-            </Grid>
+        <Border Grid.Row="0" Padding="28,22,28,10">
+            <controls:PageHeader Subtitle="截图、录屏与本地 AI 编辑工具" Title="关于">
+                <controls:PageHeader.IconContent>
+                    <ui:FontIcon
+                        FontSize="18"
+                        Foreground="{DynamicResource SystemControlForegroundAccentBrush}"
+                        Icon="{x:Static ui:SegoeFluentIcons.Info}" />
+                </controls:PageHeader.IconContent>
+            </controls:PageHeader>
         </Border>
 
         <Border
             Grid.Row="1"
             Height="1"
-            Margin="32,0"
+            Margin="28,0"
             Background="{DynamicResource DividerStrokeColorDefaultBrush}" />
 
         <ScrollViewer
             Grid.Row="2"
-            Padding="32,12,32,8"
+            Padding="28,14,28,8"
             HorizontalScrollBarVisibility="Disabled"
             VerticalScrollBarVisibility="Auto">
-            <Grid>
-                <ikw:SimpleStackPanel MaxWidth="560" Spacing="4">
-                    <TextBlock
-                        Margin="4,0,0,4"
-                        Foreground="{DynamicResource TextFillColorSecondaryBrush}"
-                        Text="基于 Windows Graphics Capture 与 ONNX 本地推理，AI 能力完全离线可用。"
-                        TextWrapping="Wrap" />
+            <ikw:SimpleStackPanel MaxWidth="520" Spacing="16">
 
-                    <TextBlock Style="{StaticResource SettingsSectionHeaderStyle}" Text="功能" />
+                <!--  品牌区  -->
+                <Border Style="{StaticResource AboutHeroCardStyle}">
+                    <StackPanel HorizontalAlignment="Center">
+                        <Border Style="{StaticResource AboutAppIconHostStyle}">
+                            <Image
+                                Width="52"
+                                Height="52"
+                                HorizontalAlignment="Center"
+                                VerticalAlignment="Center"
+                                RenderOptions.BitmapScalingMode="HighQuality"
+                                Source="/Assets/icons/app.png"
+                                Stretch="Uniform" />
+                        </Border>
+                        <TextBlock
+                            Margin="0,14,0,0"
+                            HorizontalAlignment="Center"
+                            FontSize="24"
+                            FontWeight="SemiBold"
+                            Text="PixSnap" />
+                        <TextBlock
+                            Margin="0,6,0,0"
+                            HorizontalAlignment="Center"
+                            FontSize="13"
+                            Foreground="{DynamicResource TextFillColorSecondaryBrush}"
+                            Text="基于 Windows Graphics Capture 与 ONNX 本地推理"
+                            TextAlignment="Center"
+                            TextWrapping="Wrap" />
+                        <Border Style="{StaticResource AboutVersionBadgeStyle}">
+                            <TextBlock
+                                FontSize="12"
+                                Foreground="{DynamicResource TextFillColorSecondaryBrush}"
+                                Text="{Binding Version}" />
+                        </Border>
+                    </StackPanel>
+                </Border>
 
-                    <ui:SettingsCard
-                        Description="窗口、矩形、全屏三种模式"
-                        Header="截图"
-                        IsActionIconVisible="False">
-                        <ui:SettingsCard.HeaderIcon>
-                            <ui:FontIcon
-                                FontSize="16"
-                                Foreground="{DynamicResource SystemControlForegroundAccentBrush}"
-                                Icon="{x:Static ui:SegoeFluentIcons.Crop}" />
-                        </ui:SettingsCard.HeaderIcon>
-                    </ui:SettingsCard>
-
-                    <ui:SettingsCard
-                        Description="H.264 视频 + AAC 音频，支持暂停与恢复"
-                        Header="录屏"
-                        IsActionIconVisible="False">
-                        <ui:SettingsCard.HeaderIcon>
-                            <ui:FontIcon
-                                FontSize="16"
-                                Foreground="{DynamicResource SystemControlForegroundAccentBrush}"
-                                Icon="{x:Static ui:SegoeFluentIcons.Video}" />
-                        </ui:SettingsCard.HeaderIcon>
-                    </ui:SettingsCard>
-
-                    <ui:SettingsCard
-                        Description="箭头、文字、画笔、马赛克等标注工具"
-                        Header="标注编辑"
-                        IsActionIconVisible="False">
-                        <ui:SettingsCard.HeaderIcon>
-                            <ui:FontIcon
-                                FontSize="16"
-                                Foreground="{DynamicResource SystemControlForegroundAccentBrush}"
-                                Icon="{x:Static ui:SegoeFluentIcons.Highlight}" />
-                        </ui:SettingsCard.HeaderIcon>
-                    </ui:SettingsCard>
-
-                    <ui:SettingsCard
-                        Description="识别图片中的文字内容"
-                        Header="OCR 识别"
-                        IsActionIconVisible="False">
-                        <ui:SettingsCard.HeaderIcon>
-                            <ui:FontIcon
-                                FontSize="16"
-                                Foreground="{DynamicResource SystemControlForegroundAccentBrush}"
-                                Icon="{x:Static ui:SegoeFluentIcons.Font}" />
-                        </ui:SettingsCard.HeaderIcon>
-                    </ui:SettingsCard>
-
-                    <ui:SettingsExpander
-                        Description="DirectML GPU 本地推理，数据不上传"
-                        Header="AI 能力"
-                        IsExpanded="True">
-                        <ui:SettingsExpander.HeaderIcon>
-                            <ui:FontIcon
-                                FontSize="16"
-                                Foreground="{DynamicResource SystemControlForegroundAccentBrush}"
-                                Icon="{x:Static ui:SegoeFluentIcons.Diagnostic}" />
-                        </ui:SettingsExpander.HeaderIcon>
-                        <ui:SettingsExpander.Items>
-                            <ui:SettingsCard
-                                Description="涂抹区域自动修复"
-                                Header="AI 擦除"
-                                IsActionIconVisible="False">
-                                <ui:SettingsCard.HeaderIcon>
+                <!--  核心功能  -->
+                <StackPanel>
+                    <TextBlock Style="{StaticResource SettingsSectionHeaderStyle}" Text="核心功能" />
+                    <UniformGrid Columns="2">
+                        <Border Margin="0,0,6,6" Style="{StaticResource AboutFeatureTileStyle}">
+                            <StackPanel>
+                                <Border HorizontalAlignment="Left" Style="{StaticResource AboutFeatureIconHostStyle}">
                                     <ui:FontIcon
-                                        FontSize="16"
-                                        Foreground="{DynamicResource SystemControlForegroundAccentBrush}"
-                                        Icon="{x:Static ui:SegoeFluentIcons.EraseTool}" />
-                                </ui:SettingsCard.HeaderIcon>
-                            </ui:SettingsCard>
-                            <ui:SettingsCard
-                                Description="一键去除图片背景"
-                                Header="背景去除"
-                                IsActionIconVisible="False">
-                                <ui:SettingsCard.HeaderIcon>
+                                        HorizontalAlignment="Center"
+                                        VerticalAlignment="Center"
+                                        Icon="{x:Static ui:SegoeFluentIcons.Crop}"
+                                        Style="{StaticResource AboutFeatureIconStyle}" />
+                                </Border>
+                                <TextBlock Style="{StaticResource AboutFeatureTitleStyle}" Text="截图" />
+                                <TextBlock Style="{StaticResource AboutFeatureDescStyle}" Text="窗口、矩形、全屏三种模式" />
+                            </StackPanel>
+                        </Border>
+                        <Border Margin="6,0,0,6" Style="{StaticResource AboutFeatureTileStyle}">
+                            <StackPanel>
+                                <Border HorizontalAlignment="Left" Style="{StaticResource AboutFeatureIconHostStyle}">
                                     <ui:FontIcon
-                                        FontSize="16"
-                                        Foreground="{DynamicResource SystemControlForegroundAccentBrush}"
-                                        Icon="{x:Static ui:SegoeFluentIcons.Color}" />
-                                </ui:SettingsCard.HeaderIcon>
-                            </ui:SettingsCard>
-                            <ui:SettingsCard
-                                Description="Real-ESRGAN 4× 放大增强"
-                                Header="超分辨率"
-                                IsActionIconVisible="False">
-                                <ui:SettingsCard.HeaderIcon>
+                                        HorizontalAlignment="Center"
+                                        VerticalAlignment="Center"
+                                        Icon="{x:Static ui:SegoeFluentIcons.Video}"
+                                        Style="{StaticResource AboutFeatureIconStyle}" />
+                                </Border>
+                                <TextBlock Style="{StaticResource AboutFeatureTitleStyle}" Text="录屏" />
+                                <TextBlock Style="{StaticResource AboutFeatureDescStyle}" Text="H.264 视频与 AAC 音频，支持暂停" />
+                            </StackPanel>
+                        </Border>
+                        <Border Margin="0,6,6,0" Style="{StaticResource AboutFeatureTileStyle}">
+                            <StackPanel>
+                                <Border HorizontalAlignment="Left" Style="{StaticResource AboutFeatureIconHostStyle}">
                                     <ui:FontIcon
-                                        FontSize="16"
-                                        Foreground="{DynamicResource SystemControlForegroundAccentBrush}"
-                                        Icon="{x:Static ui:SegoeFluentIcons.ZoomIn}" />
-                                </ui:SettingsCard.HeaderIcon>
-                            </ui:SettingsCard>
-                        </ui:SettingsExpander.Items>
-                    </ui:SettingsExpander>
+                                        HorizontalAlignment="Center"
+                                        VerticalAlignment="Center"
+                                        Icon="{x:Static ui:SegoeFluentIcons.Highlight}"
+                                        Style="{StaticResource AboutFeatureIconStyle}" />
+                                </Border>
+                                <TextBlock Style="{StaticResource AboutFeatureTitleStyle}" Text="标注" />
+                                <TextBlock Style="{StaticResource AboutFeatureDescStyle}" Text="箭头、文字、画笔、马赛克等工具" />
+                            </StackPanel>
+                        </Border>
+                        <Border Margin="6,6,0,0" Style="{StaticResource AboutFeatureTileStyle}">
+                            <StackPanel>
+                                <Border HorizontalAlignment="Left" Style="{StaticResource AboutFeatureIconHostStyle}">
+                                    <ui:FontIcon
+                                        HorizontalAlignment="Center"
+                                        VerticalAlignment="Center"
+                                        Icon="{x:Static ui:SegoeFluentIcons.Font}"
+                                        Style="{StaticResource AboutFeatureIconStyle}" />
+                                </Border>
+                                <TextBlock Style="{StaticResource AboutFeatureTitleStyle}" Text="OCR" />
+                                <TextBlock Style="{StaticResource AboutFeatureDescStyle}" Text="PaddleOCR 离线识别图片文字" />
+                            </StackPanel>
+                        </Border>
+                    </UniformGrid>
+                </StackPanel>
 
-                    <TextBlock Style="{StaticResource SettingsSectionHeaderStyle}" Text="快捷操作" />
-
+                <!--  AI 能力  -->
+                <StackPanel>
+                    <TextBlock Style="{StaticResource SettingsSectionHeaderStyle}" Text="AI 本地推理" />
                     <Border Style="{StaticResource SettingsGroupCardStyle}">
                         <StackPanel>
-                            <Border Style="{StaticResource SettingsCardRowStyle}">
+                            <Border Style="{StaticResource AboutListRowStyle}">
+                                <Grid>
+                                    <Grid.ColumnDefinitions>
+                                        <ColumnDefinition Width="Auto" />
+                                        <ColumnDefinition Width="*" />
+                                    </Grid.ColumnDefinitions>
+                                    <ui:FontIcon
+                                        Icon="{x:Static ui:SegoeFluentIcons.EraseTool}"
+                                        Style="{StaticResource AboutListIconStyle}" />
+                                    <StackPanel Grid.Column="1" Margin="12,0,0,0">
+                                        <TextBlock Style="{StaticResource SettingsRowTitleStyle}" Text="AI 擦除" />
+                                        <TextBlock Style="{StaticResource SettingsRowDescStyle}" Text="涂抹区域智能修复" />
+                                    </StackPanel>
+                                </Grid>
+                            </Border>
+                            <Border
+                                Height="1"
+                                Margin="16,0"
+                                Background="{DynamicResource DividerStrokeColorDefaultBrush}" />
+                            <Border Style="{StaticResource AboutListRowStyle}">
+                                <Grid>
+                                    <Grid.ColumnDefinitions>
+                                        <ColumnDefinition Width="Auto" />
+                                        <ColumnDefinition Width="*" />
+                                    </Grid.ColumnDefinitions>
+                                    <ui:FontIcon
+                                        Icon="{x:Static ui:SegoeFluentIcons.Color}"
+                                        Style="{StaticResource AboutListIconStyle}" />
+                                    <StackPanel Grid.Column="1" Margin="12,0,0,0">
+                                        <TextBlock Style="{StaticResource SettingsRowTitleStyle}" Text="背景去除" />
+                                        <TextBlock Style="{StaticResource SettingsRowDescStyle}" Text="一键抠图，数据不上传" />
+                                    </StackPanel>
+                                </Grid>
+                            </Border>
+                            <Border
+                                Height="1"
+                                Margin="16,0"
+                                Background="{DynamicResource DividerStrokeColorDefaultBrush}" />
+                            <Border Style="{StaticResource AboutListRowStyle}">
+                                <Grid>
+                                    <Grid.ColumnDefinitions>
+                                        <ColumnDefinition Width="Auto" />
+                                        <ColumnDefinition Width="*" />
+                                    </Grid.ColumnDefinitions>
+                                    <ui:FontIcon
+                                        Icon="{x:Static ui:SegoeFluentIcons.ZoomIn}"
+                                        Style="{StaticResource AboutListIconStyle}" />
+                                    <StackPanel Grid.Column="1" Margin="12,0,0,0">
+                                        <TextBlock Style="{StaticResource SettingsRowTitleStyle}" Text="超分辨率" />
+                                        <TextBlock Style="{StaticResource SettingsRowDescStyle}" Text="Real-ESRGAN 放大增强" />
+                                    </StackPanel>
+                                </Grid>
+                            </Border>
+                        </StackPanel>
+                    </Border>
+                    <TextBlock
+                        Margin="4,0,0,0"
+                        FontSize="12"
+                        Foreground="{DynamicResource TextFillColorSecondaryBrush}"
+                        Text="DirectML GPU 加速，可在设置中切换设备" />
+                </StackPanel>
+
+                <!--  截图快捷键  -->
+                <StackPanel>
+                    <TextBlock Style="{StaticResource SettingsSectionHeaderStyle}" Text="截图快捷键" />
+                    <Border Style="{StaticResource SettingsGroupCardStyle}">
+                        <StackPanel>
+                            <Border Style="{StaticResource AboutListRowStyle}">
                                 <Grid>
                                     <Grid.ColumnDefinitions>
                                         <ColumnDefinition Width="*" />
@@ -200,11 +228,12 @@
                                     </Grid.ColumnDefinitions>
                                     <StackPanel Orientation="Horizontal">
                                         <ui:FontIcon
-                                            Style="{StaticResource SettingsRowIconStyle}"
-                                            Icon="{x:Static ui:SegoeFluentIcons.WindowSnipping}" />
+                                            Icon="{x:Static ui:SegoeFluentIcons.WindowSnipping}"
+                                            Style="{StaticResource AboutListIconStyle}" />
                                         <TextBlock
                                             Margin="12,0,0,0"
                                             VerticalAlignment="Center"
+                                            Style="{StaticResource SettingsRowTitleStyle}"
                                             Text="窗口截图" />
                                     </StackPanel>
                                     <Border Grid.Column="1" Style="{StaticResource AboutShortcutKeyStyle}">
@@ -216,7 +245,7 @@
                                 Height="1"
                                 Margin="16,0"
                                 Background="{DynamicResource DividerStrokeColorDefaultBrush}" />
-                            <Border Style="{StaticResource SettingsCardRowStyle}">
+                            <Border Style="{StaticResource AboutListRowStyle}">
                                 <Grid>
                                     <Grid.ColumnDefinitions>
                                         <ColumnDefinition Width="*" />
@@ -224,11 +253,12 @@
                                     </Grid.ColumnDefinitions>
                                     <StackPanel Orientation="Horizontal">
                                         <ui:FontIcon
-                                            Style="{StaticResource SettingsRowIconStyle}"
-                                            Icon="{x:Static ui:SegoeFluentIcons.Crop}" />
+                                            Icon="{x:Static ui:SegoeFluentIcons.Crop}"
+                                            Style="{StaticResource AboutListIconStyle}" />
                                         <TextBlock
                                             Margin="12,0,0,0"
                                             VerticalAlignment="Center"
+                                            Style="{StaticResource SettingsRowTitleStyle}"
                                             Text="矩形截图" />
                                     </StackPanel>
                                     <Border Grid.Column="1" Style="{StaticResource AboutShortcutKeyStyle}">
@@ -240,7 +270,7 @@
                                 Height="1"
                                 Margin="16,0"
                                 Background="{DynamicResource DividerStrokeColorDefaultBrush}" />
-                            <Border Style="{StaticResource SettingsCardRowStyle}">
+                            <Border Style="{StaticResource AboutListRowStyle}">
                                 <Grid>
                                     <Grid.ColumnDefinitions>
                                         <ColumnDefinition Width="*" />
@@ -248,11 +278,12 @@
                                     </Grid.ColumnDefinitions>
                                     <StackPanel Orientation="Horizontal">
                                         <ui:FontIcon
-                                            Style="{StaticResource SettingsRowIconStyle}"
-                                            Icon="{x:Static ui:SegoeFluentIcons.FullScreen}" />
+                                            Icon="{x:Static ui:SegoeFluentIcons.FullScreen}"
+                                            Style="{StaticResource AboutListIconStyle}" />
                                         <TextBlock
                                             Margin="12,0,0,0"
                                             VerticalAlignment="Center"
+                                            Style="{StaticResource SettingsRowTitleStyle}"
                                             Text="全屏截图" />
                                     </StackPanel>
                                     <Border Grid.Column="1" Style="{StaticResource AboutShortcutKeyStyle}">
@@ -264,7 +295,7 @@
                                 Height="1"
                                 Margin="16,0"
                                 Background="{DynamicResource DividerStrokeColorDefaultBrush}" />
-                            <Border Style="{StaticResource SettingsCardRowStyle}">
+                            <Border Style="{StaticResource AboutListRowStyle}">
                                 <Grid>
                                     <Grid.ColumnDefinitions>
                                         <ColumnDefinition Width="*" />
@@ -272,11 +303,12 @@
                                     </Grid.ColumnDefinitions>
                                     <StackPanel Orientation="Horizontal">
                                         <ui:FontIcon
-                                            Style="{StaticResource SettingsRowIconStyle}"
-                                            Icon="{x:Static ui:SegoeFluentIcons.Cancel}" />
+                                            Icon="{x:Static ui:SegoeFluentIcons.Cancel}"
+                                            Style="{StaticResource AboutListIconStyle}" />
                                         <TextBlock
                                             Margin="12,0,0,0"
                                             VerticalAlignment="Center"
+                                            Style="{StaticResource SettingsRowTitleStyle}"
                                             Text="退出截图" />
                                     </StackPanel>
                                     <Border Grid.Column="1" Style="{StaticResource AboutShortcutKeyStyle}">
@@ -286,28 +318,40 @@
                             </Border>
                         </StackPanel>
                     </Border>
+                </StackPanel>
 
-                    <TextBlock Style="{StaticResource SettingsSectionHeaderStyle}" Text="链接" />
-
-                    <ui:SettingsCard ContentAlignment="Left" Header="获取源码与反馈">
-                        <ui:SettingsCard.HeaderIcon>
+                <!--  链接  -->
+                <StackPanel>
+                    <TextBlock Style="{StaticResource SettingsSectionHeaderStyle}" Text="开源与反馈" />
+                    <Border Padding="14,12" Style="{StaticResource SettingsGroupCardStyle}">
+                        <StackPanel Orientation="Horizontal">
                             <ui:FontIcon
-                                FontSize="16"
-                                Foreground="{DynamicResource SystemControlForegroundAccentBrush}"
-                                Icon="{x:Static ui:SegoeFluentIcons.Info}" />
-                        </ui:SettingsCard.HeaderIcon>
-                        <StackPanel Margin="-12,0,0,0">
-                            <ui:HyperlinkButton Content="GitHub 仓库" NavigateUri="{Binding RepositoryUrl}" />
-                            <ui:HyperlinkButton Content="反馈问题" NavigateUri="{Binding IssuesUrl}" />
+                                Margin="0,0,10,0"
+                                VerticalAlignment="Center"
+                                Icon="{x:Static ui:SegoeFluentIcons.OpenInNewWindow}"
+                                Style="{StaticResource AboutListIconStyle}" />
+                            <ui:HyperlinkButton
+                                Content="GitHub 仓库"
+                                NavigateUri="{Binding RepositoryUrl}"
+                                Style="{StaticResource AboutLinkButtonStyle}" />
+                            <ui:FontIcon
+                                Margin="0,0,10,0"
+                                VerticalAlignment="Center"
+                                Icon="{x:Static ui:SegoeFluentIcons.Feedback}"
+                                Style="{StaticResource AboutListIconStyle}" />
+                            <ui:HyperlinkButton
+                                Content="反馈问题"
+                                NavigateUri="{Binding IssuesUrl}" />
                         </StackPanel>
-                    </ui:SettingsCard>
-                </ikw:SimpleStackPanel>
-            </Grid>
+                    </Border>
+                </StackPanel>
+
+            </ikw:SimpleStackPanel>
         </ScrollViewer>
 
         <Border
             Grid.Row="3"
-            Padding="32,12,32,20"
+            Padding="28,12,28,18"
             BorderBrush="{DynamicResource DividerStrokeColorDefaultBrush}"
             BorderThickness="0,1,0,0">
             <TextBlock

@@ -64,6 +64,9 @@ public partial class AiModelsViewModel : ObservableObject
     private bool CanDownloadMissing() =>
         !IsBusy && Groups.SelectMany(g => g.Items).Any(m => m.ShowDownloadButton && m.IsFeatureSelectable);
 
+    [RelayCommand]
+    private void OpenModelsDirectory() => ShellHelper.OpenDirectory(AiModelCatalog.ModelsRootDirectory, "模型目录");
+
     partial void OnIsBusyChanged(bool value) => DownloadMissingCommand.NotifyCanExecuteChanged();
 
     private void RefreshSummary()

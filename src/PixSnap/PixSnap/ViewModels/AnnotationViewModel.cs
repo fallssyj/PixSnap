@@ -1382,7 +1382,7 @@ public partial class AnnotationViewModel : ObservableObject
 
         Log.Information("应用标注: {Count} 项", Annotations.Count);
         var frozen = ImageIOService.CreateFrozenSnapshot(originalImage);
-        var export = await Task.Run(() => RenderAnnotationsToPixels(frozen));
+        var export = await Task.Run(() => RenderAnnotationsToPixels(frozen)).ConfigureAwait(true);
         if (export is null)
             return;
 

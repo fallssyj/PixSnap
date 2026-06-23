@@ -20,10 +20,12 @@ public sealed class NavigationMessageHandler :
     IRecipient<HotkeyChangedMessage>
 {
     private readonly IServiceProvider _services;
+    private readonly ScreenshotPreviewWindowService _previewWindows;
 
-    public NavigationMessageHandler(IServiceProvider services)
+    public NavigationMessageHandler(IServiceProvider services, ScreenshotPreviewWindowService previewWindows)
     {
         _services = services;
+        _previewWindows = previewWindows;
     }
 
     public void Register() => WeakReferenceMessenger.Default.RegisterAll(this);
@@ -101,33 +103,7 @@ public sealed class NavigationMessageHandler :
             viewModel.StartCaptureCommand.Execute(null);
     }
 
-    private void OpenScreenshotPreview()
-    {
-        foreach (Window window in Application.Current.Windows)
-        {
-            if (window is ScreenshotPreviewWindow previewWindow)
-            {
-                if (!previewWindow.IsVisible)
-                    previewWindow.Show();
-
-                if (previewWindow.WindowState == WindowState.Minimized)
-                    previewWindow.WindowState = WindowState.Normal;
-
-                previewWindow.Activate();
-                return;
-            }
-        }
-
-        var previewViewModel = _services.GetRequiredService<ScreenshotPreviewViewModel>();
-        var newPreviewWindow = new ScreenshotPreviewWindow
-        {
-            DataContext = previewViewModel,
-            Topmost = false
-        };
-
-        newPreviewWindow.Show();
-        newPreviewWindow.Activate();
-    }
+    private void OpenScreenshotPreview() => _previewWindows.Open();
 
     private void ShutdownApplication() => Application.Current.Shutdown();
 

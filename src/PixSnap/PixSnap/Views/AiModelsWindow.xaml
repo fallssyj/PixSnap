@@ -67,6 +67,7 @@
                     <ColumnDefinition Width="*" />
                     <ColumnDefinition Width="Auto" />
                     <ColumnDefinition Width="Auto" />
+                    <ColumnDefinition Width="Auto" />
                 </Grid.ColumnDefinitions>
                 <TextBlock
                     VerticalAlignment="Center"
@@ -75,11 +76,17 @@
                 <Button
                     Grid.Column="1"
                     Margin="0,0,8,0"
+                    Command="{Binding OpenModelsDirectoryCommand}"
+                    Content="打开模型目录"
+                    Style="{StaticResource PixSnapButtonStyle}" />
+                <Button
+                    Grid.Column="2"
+                    Margin="0,0,8,0"
                     Command="{Binding RefreshCommand}"
                     Content="刷新"
                     Style="{StaticResource PixSnapButtonStyle}" />
                 <Button
-                    Grid.Column="2"
+                    Grid.Column="3"
                     Command="{Binding DownloadMissingCommand}"
                     Content="下载缺失"
                     Style="{StaticResource PixSnapAccentButtonStyle}" />

@@ -56,20 +56,13 @@ public partial class App : System.Windows.Application, IRecipient<ScreenshotCapt
         base.OnStartup(e);
 
         // 初始化 Serilog 文件日志：按天建立子目录 logs/yyyy-MM-dd/pixsnap.log
-        var todayLogDir = Path.Combine(AppContext.BaseDirectory, "logs", DateTime.Now.ToString("yyyy-MM-dd"));
-        Directory.CreateDirectory(todayLogDir);
-        Log.Logger = new LoggerConfiguration()
-            .MinimumLevel.Information()
-            .WriteTo.File(
-                Path.Combine(todayLogDir, "pixsnap.log"),
-                fileSizeLimitBytes: null,
-                outputTemplate: "{Timestamp:yyyy-MM-dd HH:mm:ss.fff} [{Level:u3}] {Message:lj}{NewLine}{Exception}")
-            .CreateLogger();
+        LogFileService.ConfigureLogger();
 
         Log.Information("PixSnap 启动");
 
         // 清理过期的录屏临时文件（7天前），异步执行避免阻塞启动
         _ = Task.Run(CleanupOldRecordingFiles);
+        _ = Task.Run(() => LogFileService.DeleteExpiredFiles(SettingsService.ReadLogRetentionDays()));
 
         DispatcherUnhandledException += OnDispatcherUnhandledException;
         AppDomain.CurrentDomain.UnhandledException += OnCurrentDomainUnhandledException;
@@ -122,7 +115,6 @@ public partial class App : System.Windows.Application, IRecipient<ScreenshotCapt
         _ = Task.Run(async () =>
         {
             await DirectMlDeviceEnumerator.EnsureEnumeratedAsync().ConfigureAwait(false);
-            await OcrService.WarmUpAsync().ConfigureAwait(false);
         });
         Dispatcher.BeginInvoke(
             () => ThemeHelper.ApplyTheme(SettingsService.ReadTheme()),
@@ -157,6 +149,7 @@ public partial class App : System.Windows.Application, IRecipient<ScreenshotCapt
         services.AddSingleton<IScreenCaptureService, ScreenCaptureService>();
         services.AddSingleton<GlobalHotkeyService>();
         services.AddSingleton<INavigationService, NavigationService>();
+        services.AddSingleton<ScreenshotPreviewWindowService>();
         services.AddSingleton<NavigationMessageHandler>();
         services.AddSingleton<TrayMenuService>();
 
@@ -181,7 +174,6 @@ public partial class App : System.Windows.Application, IRecipient<ScreenshotCapt
         _taskbarIcon?.Dispose();
         _taskbarIcon = null;
 
-        OnnxSessionFactory.DisposeAll();
         OcrService.Shutdown();
 
         // 释放 DI 容器（同时 Dispose 所有 Singleton）
@@ -224,17 +216,7 @@ public partial class App : System.Windows.Application, IRecipient<ScreenshotCapt
         try
         {
             var message = new ScreenshotCapturedMessage(screenshot, captureMode);
-            var previewViewModel = Services.GetRequiredService<ScreenshotPreviewViewModel>();
-            previewViewModel.Receive(message);
-
-            var previewWindow = new ScreenshotPreviewWindow
-            {
-                DataContext = previewViewModel,
-                Topmost = false
-            };
-
-            previewWindow.Show();
-            previewWindow.Activate();
+            Services.GetRequiredService<ScreenshotPreviewWindowService>().Open(message);
         }
         catch (Exception exception)
         {

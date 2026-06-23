@@ -161,32 +161,46 @@ public partial class ScreenshotPreviewWindow : Window
         DetachViewModelHandlers(viewModel);
         viewModel?.Cleanup();
 
-        // 2. 彻底移除 WPF 绑定表达式（光设 Source=null 只是覆盖值，绑定对象本身仍存在）
-        BindingOperations.ClearBinding(ActualSizeImage, Image.SourceProperty);
+        // 2. 清除图片引用与绑定，便于释放 MIL 资源（OnLoaded 会按需恢复绑定）
+        BindingOperations.ClearBinding(ActualSizeImage, System.Windows.Controls.Image.SourceProperty);
         ActualSizeImage.Source = null;
 
         // 3. 清除擦除画布视觉元素
         ClearEraserVisualStrokes();
 
-        // 4. 断开整个可视化树 + DataContext，强制 WPF 渲染线程释放 MIL composition 资源
-        Content = null;
+        // 4. 断开 DataContext，避免关闭后仍持有单例 VM 的视图引用
         DataContext = null;
 
         // 5. GC 回收 + 释放工作集
-        MemoryManagementService.ReleaseMemory();
+        MemoryManagementService.TrimAfterUiRelease();
     }
 
     private void OnLoaded(object sender, RoutedEventArgs e)
     {
+        EnsurePreviewImageBinding();
         AttachViewModelHandlers(DataContext as ScreenshotPreviewViewModel);
         UpdatePreviewModeVisibility();
         UpdateFitZoomFactor();
+    }
+
+    private void EnsurePreviewImageBinding()
+    {
+        if (BindingOperations.GetBinding(ActualSizeImage, System.Windows.Controls.Image.SourceProperty) is not null)
+            return;
+
+        ActualSizeImage.SetBinding(
+            System.Windows.Controls.Image.SourceProperty,
+            new Binding(nameof(ScreenshotPreviewViewModel.ScreenshotImage))
+            {
+                Mode = BindingMode.OneWay
+            });
     }
 
     private void OnDataContextChanged(object sender, DependencyPropertyChangedEventArgs e)
     {
         DetachViewModelHandlers(e.OldValue as ScreenshotPreviewViewModel);
         AttachViewModelHandlers(e.NewValue as ScreenshotPreviewViewModel);
+        EnsurePreviewImageBinding();
         UpdatePreviewModeVisibility();
         UpdateFitZoomFactor();
     }
@@ -197,20 +211,31 @@ public partial class ScreenshotPreviewWindow : Window
         {
             case nameof(ScreenshotPreviewViewModel.IsActualSize):
                 UpdatePreviewModeVisibility();
+                RefreshRoundCornerOverlayIfActive();
                 break;
 
             case nameof(ScreenshotPreviewViewModel.ScreenshotImage):
                 UpdateFitZoomFactor();
                 if (DataContext is ScreenshotPreviewViewModel vmImg)
                     UpdateEraserCanvasSize(vmImg);
+                RefreshRoundCornerOverlayIfActive();
                 break;
 
             case nameof(ScreenshotPreviewViewModel.IsCropMode):
                 UpdateCropOverlayState();
                 break;
 
+            case nameof(ScreenshotPreviewViewModel.IsRoundCornerMode):
+                UpdateRoundCornerOverlayState();
+                break;
+
             case nameof(ScreenshotPreviewViewModel.IsEraserMode):
                 UpdateEraserCanvasState();
+                break;
+
+            case nameof(ScreenshotPreviewViewModel.ZoomFactor):
+            case nameof(ScreenshotPreviewViewModel.FitZoomFactor):
+                RefreshRoundCornerOverlayIfActive();
                 break;
 
             case nameof(ScreenshotPreviewViewModel.IsPinned):
@@ -229,6 +254,7 @@ public partial class ScreenshotPreviewWindow : Window
             viewModel.CropPanel.PropertyChanged += OnCropPanelPropertyChanged;
             viewModel.RoundCornerPanel.RoundCornerApplied += OnRoundCornerApplied;
             viewModel.RoundCornerPanel.RoundCornerCancelled += OnRoundCornerCancelled;
+            viewModel.RoundCornerPanel.PropertyChanged += OnRoundCornerPanelPropertyChanged;
             viewModel.EraserPanel.StrokesCleared += OnEraserStrokesCleared;
             viewModel.EraserPanel.InpaintApplied += OnEraserInpaintApplied;
 
@@ -248,6 +274,7 @@ public partial class ScreenshotPreviewWindow : Window
             viewModel.CropPanel.PropertyChanged -= OnCropPanelPropertyChanged;
             viewModel.RoundCornerPanel.RoundCornerApplied -= OnRoundCornerApplied;
             viewModel.RoundCornerPanel.RoundCornerCancelled -= OnRoundCornerCancelled;
+            viewModel.RoundCornerPanel.PropertyChanged -= OnRoundCornerPanelPropertyChanged;
             viewModel.EraserPanel.StrokesCleared -= OnEraserStrokesCleared;
             viewModel.EraserPanel.InpaintApplied -= OnEraserInpaintApplied;
 
@@ -270,6 +297,8 @@ public partial class ScreenshotPreviewWindow : Window
                 CropOverlay.RefreshForResize(imgRect, vm.ScreenshotImage.PixelWidth, vm.ScreenshotImage.PixelHeight);
             }, DispatcherPriority.Loaded);
         }
+
+        RefreshRoundCornerOverlayIfActive();
     }
 
     private void UpdatePreviewModeVisibility()
@@ -635,6 +664,57 @@ public partial class ScreenshotPreviewWindow : Window
     {
         if (DataContext is ScreenshotPreviewViewModel vm)
             vm.ExitEditMode();
+    }
+
+    // ══════════════════════════════════════════════════════════════════════════
+    // 圆角预览蒙版
+    // ══════════════════════════════════════════════════════════════════════════
+
+    private void UpdateRoundCornerOverlayState()
+    {
+        if (DataContext is not ScreenshotPreviewViewModel vm) return;
+        if (vm.IsRoundCornerMode)
+        {
+            Dispatcher.InvokeAsync(() =>
+            {
+                PreviewViewport.UpdateLayout();
+                RefreshRoundCornerOverlay(vm);
+            }, DispatcherPriority.Loaded);
+        }
+        else
+        {
+            RoundCornerOverlay.Hide();
+        }
+    }
+
+    private void RefreshRoundCornerOverlayIfActive()
+    {
+        if (DataContext is not ScreenshotPreviewViewModel vm || !vm.IsRoundCornerMode || vm.ScreenshotImage is null)
+            return;
+
+        Dispatcher.InvokeAsync(() => RefreshRoundCornerOverlay(vm), DispatcherPriority.Render);
+    }
+
+    private void OnRoundCornerPanelPropertyChanged(object? sender, PropertyChangedEventArgs e)
+    {
+        if (e.PropertyName is nameof(RoundCornerViewModel.CornerRadius))
+            RefreshRoundCornerOverlayIfActive();
+    }
+
+    private void RefreshRoundCornerOverlay(ScreenshotPreviewViewModel vm)
+    {
+        if (!vm.IsRoundCornerMode || vm.ScreenshotImage is null)
+        {
+            RoundCornerOverlay.Hide();
+            return;
+        }
+
+        var img = vm.ScreenshotImage;
+        RoundCornerOverlay.Update(
+            GetImageDisplayRect(),
+            img.PixelWidth,
+            img.PixelHeight,
+            vm.RoundCornerPanel.CornerRadius);
     }
 
     private void PreviewViewport_MouseRightButtonUp(object sender, MouseButtonEventArgs e)

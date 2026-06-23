@@ -15,10 +15,7 @@ using WpfPoint = System.Windows.Point;
 
 namespace PixSnap.Services;
 
-/// <summary>
-/// 离线 OCR：基于 PaddleOCR（PP-OCRv5）ONNX 模型，通过 RapidOCR 推理。
-/// 模型目录：<程序目录>/onnx/ocr/
-/// </summary>
+/// <summary>离线 OCR：基于 PaddleOCR（PP-OCRv5）ONNX；每次识别后卸载引擎以释放显存。</summary>
 public static class OcrService
 {
     private const int DefaultPadding = 24;
@@ -83,7 +80,7 @@ public static class OcrService
 
     public sealed class OcrNotAvailableException(string message) : Exception(message);
 
-    public static bool IsAvailable => AiModelCatalog.IsOcrTierReady(OcrSettings.Tier);
+    private static bool IsAvailable => AiModelCatalog.IsOcrTierReady(OcrSettings.Tier);
 
     private static OcrModelTier CurrentTier => OcrSettings.Tier;
 
@@ -106,6 +103,12 @@ public static class OcrService
         BitmapSource image,
         IProgress<(double Value, string Text)>? progress = null,
         CancellationToken cancellationToken = default)
+        => await RecognizeCoreAsync(image, progress, cancellationToken).ConfigureAwait(false);
+
+    private static async Task<OcrResult> RecognizeCoreAsync(
+        BitmapSource image,
+        IProgress<(double Value, string Text)>? progress,
+        CancellationToken cancellationToken)
     {
         ArgumentNullException.ThrowIfNull(image);
 
@@ -210,7 +213,9 @@ public static class OcrService
         finally
         {
             raw?.BoxImg?.Dispose();
+            ReleaseEngineLocked();
             InferenceLock.Release();
+            InferenceResourceHelper.OnInferenceCompleted();
         }
 
         progress?.Report((1.0, string.Format("识别完成，共 {0} 处", regions.Count)));
@@ -244,22 +249,6 @@ public static class OcrService
             Log.Warning(
                 "OCR 字典仅 {Lines} 行，与 PP-OCRv5 不匹配（需约 18384 行）。请在模型管理中重新下载字符字典。",
                 lines);
-        }
-    }
-
-    /// <summary>后台预热 OCR 引擎，减少首次识别等待。</summary>
-    public static async Task WarmUpAsync(CancellationToken cancellationToken = default)
-    {
-        if (!IsAvailable)
-            return;
-
-        try
-        {
-            await EnsureEngineAsync(cancellationToken).ConfigureAwait(false);
-        }
-        catch (Exception ex)
-        {
-            Log.Debug(ex, "OCR 预热失败");
         }
     }
 
@@ -551,15 +540,40 @@ public static class OcrService
         return new Rect(minX, minY, Math.Max(1, maxX - minX), Math.Max(1, maxY - minY));
     }
 
-    /// <summary>应用退出时释放 OCR 引擎，避免 ONNX Session 泄漏。</summary>
-    public static void Shutdown()
+    /// <summary>在 InferenceLock 内释放 OCR 引擎与显存。</summary>
+    private static void ReleaseEngineLocked()
     {
-        bool acquired = false;
+        InitLock.Wait();
         try
         {
-            acquired = InferenceLock.Wait(TimeSpan.FromSeconds(3));
-            if (!acquired)
+            if (_engine is null)
+                return;
+
+            _engine.Dispose();
+            _engine = null;
+            _engineProfile = null;
+            Log.Debug("PaddleOCR 引擎已释放");
+        }
+        finally
+        {
+            InitLock.Release();
+        }
+    }
+
+    /// <summary>应用退出或 GPU 设置变更时释放 OCR 引擎。</summary>
+    public static void Shutdown()
+    {
+        bool inferenceAcquired = false;
+        bool initAcquired = false;
+        try
+        {
+            inferenceAcquired = InferenceLock.Wait(TimeSpan.FromSeconds(3));
+            if (!inferenceAcquired)
                 Log.Warning("等待 OCR 推理结束超时，仍将尝试释放引擎");
+
+            initAcquired = InitLock.Wait(TimeSpan.FromSeconds(3));
+            if (!initAcquired)
+                Log.Warning("等待 OCR 引擎初始化锁超时，仍将尝试释放引擎");
 
             _engine?.Dispose();
             _engine = null;
@@ -571,7 +585,9 @@ public static class OcrService
         }
         finally
         {
-            if (acquired)
+            if (initAcquired)
+                InitLock.Release();
+            if (inferenceAcquired)
                 InferenceLock.Release();
         }
     }

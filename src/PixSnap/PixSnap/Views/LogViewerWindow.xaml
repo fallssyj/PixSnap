@@ -38,12 +38,26 @@
             DockPanel.Dock="Top" />
 
         <Border
-            Padding="24,8,24,16"
+            Padding="24,12,24,8"
             DockPanel.Dock="Top">
-            <TextBlock
-                FontSize="12"
-                Foreground="{DynamicResource TextFillColorSecondaryBrush}"
-                Text="{Binding SelectedFileName, StringFormat=当前文件：{0}}" />
+            <Grid>
+                <TextBlock
+                    VerticalAlignment="Center"
+                    FontSize="12"
+                    Foreground="{DynamicResource TextFillColorSecondaryBrush}"
+                    Text="{Binding SelectedFileName, StringFormat=当前文件：{0}}" />
+                <StackPanel HorizontalAlignment="Right" Orientation="Horizontal">
+                    <Button
+                        Margin="0,0,8,0"
+                        Command="{Binding OpenLogDirectoryCommand}"
+                        Content="打开日志目录"
+                        Style="{StaticResource PixSnapButtonStyle}" />
+                    <Button
+                        Command="{Binding ClearLogsCommand}"
+                        Content="清空日志"
+                        Style="{StaticResource PixSnapButtonStyle}" />
+                </StackPanel>
+            </Grid>
         </Border>
 
         <Grid Margin="16,0,16,16">
@@ -88,6 +102,7 @@
 
             <Border Grid.Column="2" Style="{StaticResource SettingsGroupCardStyle}">
                 <TextBox
+                    x:Name="LogContentTextBox"
                     Margin="4"
                     Padding="8"
                     VerticalContentAlignment="Top"

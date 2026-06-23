@@ -54,9 +54,5 @@ public static class AiGpuSettings
         };
     }
 
-    private static void InvalidateInferenceSessions()
-    {
-        OnnxSessionFactory.InvalidateAll();
-        OcrService.Shutdown();
-    }
+    private static void InvalidateInferenceSessions() => OcrService.Shutdown();
 }

@@ -1,18 +1,93 @@
-<ResourceDictionary xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation" xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml">
-    <SolidColorBrush x:Key="HeroBadgeBackgroundBrush" Color="{DynamicResource CardBackgroundFillColorDefault}" />
-    <SolidColorBrush x:Key="HeroBadgeIndicatorBrush" Color="{DynamicResource TextFillColorSecondary}" />
-    <SolidColorBrush x:Key="HeroBadgeForegroundBrush" Color="{DynamicResource TextFillColorPrimary}" />
+<ResourceDictionary
+    xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+    xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+    xmlns:ui="http://schemas.inkore.net/lib/ui/wpf/modern">
 
-    <SolidColorBrush x:Key="FeatureWindowBackgroundBrush" Color="{DynamicResource CardBackgroundFillColorDefault}" />
-    <SolidColorBrush x:Key="FeatureWindowForegroundBrush" Color="{DynamicResource TextFillColorPrimary}" />
-    <SolidColorBrush x:Key="FeatureWindowDescriptionBrush" Color="{DynamicResource TextFillColorSecondary}" />
-    <SolidColorBrush x:Key="FeatureRegionBackgroundBrush" Color="{DynamicResource CardBackgroundFillColorSecondary}" />
-    <SolidColorBrush x:Key="FeatureRegionForegroundBrush" Color="{DynamicResource TextFillColorPrimary}" />
-    <SolidColorBrush x:Key="FeatureRegionDescriptionBrush" Color="{DynamicResource TextFillColorSecondary}" />
-    <SolidColorBrush x:Key="FeatureMonitorBackgroundBrush" Color="{DynamicResource CardBackgroundFillColorDefault}" />
-    <SolidColorBrush x:Key="FeatureMonitorForegroundBrush" Color="{DynamicResource TextFillColorPrimary}" />
-    <SolidColorBrush x:Key="FeatureMonitorDescriptionBrush" Color="{DynamicResource TextFillColorSecondary}" />
-    <SolidColorBrush x:Key="FeatureExitBackgroundBrush" Color="{DynamicResource CardBackgroundFillColorSecondary}" />
-    <SolidColorBrush x:Key="FeatureExitForegroundBrush" Color="{DynamicResource TextFillColorPrimary}" />
-    <SolidColorBrush x:Key="FeatureExitDescriptionBrush" Color="{DynamicResource TextFillColorSecondary}" />
+    <Style x:Key="AboutHeroCardStyle" TargetType="Border">
+        <Setter Property="Margin" Value="0,0,0,4" />
+        <Setter Property="Padding" Value="20,20" />
+        <Setter Property="Background" Value="{DynamicResource CardBackgroundFillColorDefaultBrush}" />
+        <Setter Property="BorderBrush" Value="{DynamicResource CardStrokeColorDefaultBrush}" />
+        <Setter Property="BorderThickness" Value="1" />
+        <Setter Property="CornerRadius" Value="12" />
+    </Style>
+
+    <Style x:Key="AboutAppIconHostStyle" TargetType="Border">
+        <Setter Property="Width" Value="72" />
+        <Setter Property="Height" Value="72" />
+        <Setter Property="CornerRadius" Value="16" />
+        <Setter Property="Background" Value="{DynamicResource SubtleFillColorSecondaryBrush}" />
+        <Setter Property="BorderBrush" Value="{DynamicResource CardStrokeColorDefaultBrush}" />
+        <Setter Property="BorderThickness" Value="1" />
+    </Style>
+
+    <Style x:Key="AboutVersionBadgeStyle" TargetType="Border">
+        <Setter Property="Margin" Value="0,10,0,0" />
+        <Setter Property="Padding" Value="10,4" />
+        <Setter Property="HorizontalAlignment" Value="Center" />
+        <Setter Property="Background" Value="{DynamicResource SubtleFillColorSecondaryBrush}" />
+        <Setter Property="BorderBrush" Value="{DynamicResource ControlStrokeColorDefaultBrush}" />
+        <Setter Property="BorderThickness" Value="1" />
+        <Setter Property="CornerRadius" Value="12" />
+    </Style>
+
+    <Style x:Key="AboutFeatureTileStyle" TargetType="Border">
+        <Setter Property="Padding" Value="14,12" />
+        <Setter Property="Background" Value="{DynamicResource CardBackgroundFillColorDefaultBrush}" />
+        <Setter Property="BorderBrush" Value="{DynamicResource CardStrokeColorDefaultBrush}" />
+        <Setter Property="BorderThickness" Value="1" />
+        <Setter Property="CornerRadius" Value="10" />
+    </Style>
+
+    <Style x:Key="AboutFeatureIconHostStyle" TargetType="Border">
+        <Setter Property="Width" Value="36" />
+        <Setter Property="Height" Value="36" />
+        <Setter Property="Margin" Value="0,0,0,10" />
+        <Setter Property="CornerRadius" Value="8" />
+        <Setter Property="Background" Value="{DynamicResource SubtleFillColorSecondaryBrush}" />
+    </Style>
+
+    <Style x:Key="AboutFeatureIconStyle" TargetType="ui:FontIcon">
+        <Setter Property="FontSize" Value="16" />
+        <Setter Property="Foreground" Value="{DynamicResource SystemControlForegroundAccentBrush}" />
+    </Style>
+
+    <Style x:Key="AboutFeatureTitleStyle" TargetType="TextBlock">
+        <Setter Property="FontSize" Value="13" />
+        <Setter Property="FontWeight" Value="SemiBold" />
+        <Setter Property="Foreground" Value="{DynamicResource TextFillColorPrimaryBrush}" />
+    </Style>
+
+    <Style x:Key="AboutFeatureDescStyle" TargetType="TextBlock">
+        <Setter Property="Margin" Value="0,4,0,0" />
+        <Setter Property="FontSize" Value="12" />
+        <Setter Property="Foreground" Value="{DynamicResource TextFillColorSecondaryBrush}" />
+        <Setter Property="TextWrapping" Value="Wrap" />
+        <Setter Property="LineHeight" Value="18" />
+    </Style>
+
+    <Style x:Key="AboutListRowStyle" TargetType="Border">
+        <Setter Property="Padding" Value="14,12" />
+    </Style>
+
+    <Style x:Key="AboutListIconStyle" TargetType="ui:FontIcon">
+        <Setter Property="Width" Value="20" />
+        <Setter Property="FontSize" Value="16" />
+        <Setter Property="VerticalAlignment" Value="Center" />
+        <Setter Property="Foreground" Value="{DynamicResource SystemControlForegroundAccentBrush}" />
+    </Style>
+
+    <Style x:Key="AboutShortcutKeyStyle" TargetType="Border">
+        <Setter Property="Padding" Value="8,4" />
+        <Setter Property="CornerRadius" Value="6" />
+        <Setter Property="Background" Value="{DynamicResource SubtleFillColorSecondaryBrush}" />
+        <Setter Property="BorderBrush" Value="{DynamicResource ControlStrokeColorDefaultBrush}" />
+        <Setter Property="BorderThickness" Value="1" />
+    </Style>
+
+    <Style x:Key="AboutLinkButtonStyle" TargetType="ui:HyperlinkButton">
+        <Setter Property="Margin" Value="0,0,12,0" />
+        <Setter Property="VerticalAlignment" Value="Center" />
+    </Style>
+
 </ResourceDictionary>

@@ -49,42 +49,56 @@ public static class BackgroundRemovalService
             int origH = srcBitmap.Height;
 
             progress?.Report((0.20, "正在初始化推理引擎..."));
-            var session = OnnxSessionFactory.GetOrCreateSession(modelPath, out var providerName);
-            progress?.Report((0.28, string.Format("当前推理设备：{0}", providerName)));
-            var inputName = session.InputMetadata.Keys.First();
-            var inputMeta = session.InputMetadata[inputName];
-            var inputDims = inputMeta.Dimensions;
-
-            int modelH = ResolveDim(inputDims, 2, 1024);
-            int modelW = ResolveDim(inputDims, 3, 1024);
-
-            using var scaled = new SKBitmap(new SKImageInfo(modelW, modelH, SKColorType.Bgra8888, SKAlphaType.Unpremul));
-            srcBitmap.ScalePixels(scaled, new SKSamplingOptions(SKFilterMode.Linear, SKMipmapMode.Linear));
-
-            progress?.Report((0.35, "正在构建输入张量..."));
-            var imageTensor = BitmapToInputTensor(scaled, modelW, modelH, mattingModel);
-
-            progress?.Report((0.55, "正在执行去背景推理..."));
-            cancellationToken.ThrowIfCancellationRequested();
-            var inputs = new List<NamedOnnxValue>
+            var session = OnnxSessionFactory.CreateSession(modelPath, out var providerName);
+            try
             {
-                NamedOnnxValue.CreateFromTensor(inputName, imageTensor)
-            };
-            using var run = OnnxInferenceHelper.RunWithCpuFallback(session, providerName, modelPath, inputs);
-            var outputTensor = run.First().AsTensor<float>();
-            using var maskBitmap = OutputToMaskBitmap(outputTensor, modelW, modelH, mattingModel);
+                progress?.Report((0.28, string.Format("当前推理设备：{0}", providerName)));
+                var inputName = session.InputMetadata.Keys.First();
+                var inputMeta = session.InputMetadata[inputName];
+                var inputDims = inputMeta.Dimensions;
 
-            progress?.Report((0.78, "正在还原掩码分辨率..."));
-            using var maskAtOriginal = new SKBitmap(new SKImageInfo(origW, origH, SKColorType.Bgra8888, SKAlphaType.Premul));
-            maskBitmap.ScalePixels(maskAtOriginal, new SKSamplingOptions(SKCubicResampler.Mitchell));
+                int modelH = ResolveDim(inputDims, 2, 1024);
+                int modelW = ResolveDim(inputDims, 3, 1024);
 
-            progress?.Report((0.84, "正在优化发丝边缘..."));
-            RefineMattingAlpha(maskAtOriginal);
+                using var scaled = new SKBitmap(new SKImageInfo(modelW, modelH, SKColorType.Bgra8888, SKAlphaType.Unpremul));
+                srcBitmap.ScalePixels(scaled, new SKSamplingOptions(SKFilterMode.Linear, SKMipmapMode.Linear));
 
-            progress?.Report((0.90, "正在合成透明背景..."));
-            cancellationToken.ThrowIfCancellationRequested();
-            using var composed = ApplyMaskAsAlpha(srcBitmap, maskAtOriginal);
-            return (SkiaInteropHelper.CopyPixels(composed), composed.Width, composed.Height);
+                progress?.Report((0.35, "正在构建输入张量..."));
+                var imageTensor = BitmapToInputTensor(scaled, modelW, modelH, mattingModel);
+
+                progress?.Report((0.55, "正在执行去背景推理..."));
+                cancellationToken.ThrowIfCancellationRequested();
+                var inputs = new List<NamedOnnxValue>
+                {
+                    NamedOnnxValue.CreateFromTensor(inputName, imageTensor)
+                };
+                using var run = OnnxInferenceHelper.RunWithCpuFallback(session, providerName, modelPath, inputs);
+                if (run.ReplacementSession is { } replacement)
+                {
+                    session.Dispose();
+                    session = replacement;
+                }
+
+                var outputTensor = run.First().AsTensor<float>();
+                using var maskBitmap = OutputToMaskBitmap(outputTensor, modelW, modelH, mattingModel);
+
+                progress?.Report((0.78, "正在还原掩码分辨率..."));
+                using var maskAtOriginal = new SKBitmap(new SKImageInfo(origW, origH, SKColorType.Bgra8888, SKAlphaType.Premul));
+                maskBitmap.ScalePixels(maskAtOriginal, new SKSamplingOptions(SKCubicResampler.Mitchell));
+
+                progress?.Report((0.84, "正在优化发丝边缘..."));
+                RefineMattingAlpha(maskAtOriginal);
+
+                progress?.Report((0.90, "正在合成透明背景..."));
+                cancellationToken.ThrowIfCancellationRequested();
+                using var composed = ApplyMaskAsAlpha(srcBitmap, maskAtOriginal);
+                return (SkiaInteropHelper.CopyPixels(composed), composed.Width, composed.Height);
+            }
+            finally
+            {
+                session.Dispose();
+                InferenceResourceHelper.OnInferenceCompleted();
+            }
         }, cancellationToken);
 
         return SkiaInteropHelper.CreateFrozenBitmapFromBgra(export.Item1, export.Item2, export.Item3);

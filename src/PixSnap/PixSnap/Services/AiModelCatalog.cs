@@ -272,6 +272,8 @@ public static class AiModelCatalog
 
         Path.Combine(AppContext.BaseDirectory, model.RelativePath);
 
+    public static string ModelsRootDirectory => Path.Combine(AppContext.BaseDirectory, "onnx");
+
 
 
     public static bool IsDownloaded(AiModelDescriptor model)
@@ -506,8 +508,6 @@ public static class AiModelCatalog
     public static AiModelDescriptor? FindById(string id) =>
 
         All.FirstOrDefault(m => string.Equals(m.Id, id, StringComparison.Ordinal));
-
-    public static AiModelDescriptor GetRequired(string id) => Require(id);
 
     public static IReadOnlyList<AiModelDescriptor> GetModelsForFeature(string featureName) =>
 

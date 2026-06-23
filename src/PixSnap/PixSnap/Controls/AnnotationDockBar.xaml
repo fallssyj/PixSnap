@@ -12,7 +12,7 @@
 
     <Grid>
         <Border Style="{StaticResource EditDockHostStyle}">
-            <StackPanel HorizontalAlignment="Center" MinWidth="520">
+            <StackPanel HorizontalAlignment="Center" MinWidth="840">
                 <!--  第一行：历史 · 工具 · 操作  -->
                 <Grid>
                     <Grid.ColumnDefinitions>
@@ -135,10 +135,10 @@
 
                 <Border Style="{StaticResource EditDockRowDividerStyle}" />
 
-                <!--  第二行：色板 · 描边 · 工具选项  -->
+                <!--  第二行：色板 + 属性分组  -->
                 <StackPanel
                     HorizontalAlignment="Center"
-                    VerticalAlignment="Center"
+                    VerticalAlignment="Top"
                     Orientation="Horizontal">
                     <ItemsControl ItemsSource="{Binding AnnotationColors}">
                         <ItemsControl.ItemsPanel>
@@ -160,7 +160,7 @@
 
                     <Button
                         x:Name="CustomColorChip"
-                        Margin="14,0,0,0"
+                        Margin="10,0,0,0"
                         VerticalAlignment="Center"
                         Command="{Binding AnnotationPanel.PickCustomColorCommand}"
                         Style="{StaticResource CustomAnnotationColorButtonStyle}"
@@ -172,14 +172,11 @@
                             CornerRadius="2" />
                     </Button>
 
-                    <!--  描边：线宽 / 透明度  -->
                     <StackPanel
-                        Margin="{StaticResource EditDockSectionMargin}"
-                        VerticalAlignment="Center"
-                        Orientation="Horizontal"
+                        Style="{StaticResource EditDockPropertyStripStyle}"
                         Visibility="{Binding AnnotationPanel.IsStrokeSettingsVisible, Converter={StaticResource BoolVis}}">
-                        <Border Style="{StaticResource EditDockSeparatorStyle}" />
                         <controls:DockSliderField
+                            Style="{StaticResource EditDockPropertyFieldSpacingStyle}"
                             Label="线宽"
                             LargeChange="2"
                             Maximum="20"
@@ -189,7 +186,6 @@
                             Value="{Binding AnnotationPanel.StrokeWidth, Mode=TwoWay}"
                             Visibility="{Binding AnnotationPanel.IsShapeSettingsVisible, Converter={StaticResource BoolVis}}" />
                         <controls:DockSliderField
-                            Margin="24,0,0,0"
                             Label="透明度"
                             LargeChange="10"
                             Maximum="100"
@@ -201,23 +197,22 @@
                             Visibility="{Binding AnnotationPanel.IsColorSettingsVisible, Converter={StaticResource BoolVis}}" />
                     </StackPanel>
 
-                    <!--  形状 / 模糊工具选项（与描边同行，不再单独占一行）  -->
                     <StackPanel
-                        Margin="{StaticResource EditDockSectionMargin}"
-                        VerticalAlignment="Center"
-                        Orientation="Horizontal"
+                        Style="{StaticResource EditDockPropertyStripStyle}"
                         Visibility="{Binding AnnotationPanel.IsToolOptionsBarVisible, Converter={StaticResource BoolVis}}">
-                        <Border Style="{StaticResource EditDockSeparatorStyle}" />
-
-                        <ToggleButton
-                            VerticalAlignment="Center"
-                            Content="填充"
-                            IsChecked="{Binding AnnotationPanel.HasFill, Mode=TwoWay}"
-                            Style="{StaticResource EditDockTextToggleStyle}"
-                            ToolTip="形状填充"
-                            Visibility="{Binding AnnotationPanel.IsFillSettingsVisible, Converter={StaticResource BoolVis}}" />
+                        <StackPanel
+                            MinWidth="72"
+                            Margin="0,0,22,0"
+                            VerticalAlignment="Top"
+                            Visibility="{Binding AnnotationPanel.IsFillSettingsVisible, Converter={StaticResource BoolVis}}">
+                            <ToggleButton
+                                Content="填充"
+                                IsChecked="{Binding AnnotationPanel.HasFill, Mode=TwoWay}"
+                                Style="{StaticResource EditDockPropertyChipToggleStyle}"
+                                ToolTip="形状填充" />
+                        </StackPanel>
                         <controls:DockSliderField
-                            Margin="16,0,0,0"
+                            Style="{StaticResource EditDockPropertyFieldSpacingStyle}"
                             Label="填充"
                             LargeChange="10"
                             Maximum="100"
@@ -227,9 +222,8 @@
                             Unit="%"
                             Value="{Binding AnnotationPanel.FillOpacity, Mode=TwoWay}"
                             Visibility="{Binding AnnotationPanel.HasFill, Converter={StaticResource BoolVis}}" />
-
                         <controls:DockSliderField
-                            Margin="16,0,0,0"
+                            Style="{StaticResource EditDockPropertyFieldSpacingStyle}"
                             Label="圆角"
                             LargeChange="5"
                             Maximum="50"
@@ -239,8 +233,8 @@
                             Unit="px"
                             Value="{Binding AnnotationPanel.CornerRadius, Mode=TwoWay}"
                             Visibility="{Binding AnnotationPanel.IsRectangleSettingsVisible, Converter={StaticResource BoolVis}}" />
-
                         <controls:DockSliderField
+                            Style="{StaticResource EditDockPropertyFieldSpacingStyle}"
                             Label="强度"
                             LargeChange="5"
                             Maximum="50"
@@ -249,14 +243,16 @@
                             TickFrequency="1"
                             Value="{Binding AnnotationPanel.BlurRadius, Mode=TwoWay}"
                             Visibility="{Binding AnnotationPanel.IsBlurSettingsVisible, Converter={StaticResource BoolVis}}" />
-                        <ToggleButton
-                            Margin="16,0,0,0"
-                            VerticalAlignment="Center"
-                            Content="马赛克"
-                            IsChecked="{Binding AnnotationPanel.UseMosaic, Mode=TwoWay}"
-                            Style="{StaticResource EditDockTextToggleStyle}"
-                            ToolTip="马赛克模式"
-                            Visibility="{Binding AnnotationPanel.IsBlurSettingsVisible, Converter={StaticResource BoolVis}}" />
+                        <StackPanel
+                            MinWidth="80"
+                            VerticalAlignment="Top"
+                            Visibility="{Binding AnnotationPanel.IsBlurSettingsVisible, Converter={StaticResource BoolVis}}">
+                            <ToggleButton
+                                Content="马赛克"
+                                IsChecked="{Binding AnnotationPanel.UseMosaic, Mode=TwoWay}"
+                                Style="{StaticResource EditDockPropertyChipToggleStyle}"
+                                ToolTip="马赛克模式" />
+                        </StackPanel>
                     </StackPanel>
                 </StackPanel>
 

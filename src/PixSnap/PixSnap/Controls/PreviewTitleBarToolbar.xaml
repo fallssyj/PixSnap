@@ -1,138 +1,150 @@
-<UserControl
-    x:Class="PixSnap.Controls.PreviewTitleBarToolbar"
-    xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
-    xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
-    xmlns:shell="clr-namespace:System.Windows.Shell;assembly=PresentationFramework"
-    xmlns:ui="http://schemas.inkore.net/lib/ui/wpf/modern">
-    <UserControl.Resources>
-        <BooleanToVisibilityConverter x:Key="BoolToVisibility" />
-    </UserControl.Resources>
-    <Grid>
-        <Grid.ColumnDefinitions>
-            <ColumnDefinition Width="*" />
-            <ColumnDefinition Width="Auto" />
-        </Grid.ColumnDefinitions>
-
-        <StackPanel
-            Grid.Column="0"
-            Margin="8,0,0,0"
-            VerticalAlignment="Center"
-            Orientation="Horizontal">
-            <Button
-                shell:WindowChrome.IsHitTestVisibleInChrome="True"
-                Command="{Binding OpenFileCommand}"
-                Style="{StaticResource PreviewPrimaryActionButtonStyle}"
-                ToolTip="打开 (Ctrl+O)">
-                <StackPanel Orientation="Horizontal">
-                    <ui:FontIcon
-                        VerticalAlignment="Center"
-                        FontSize="14"
-                        Icon="{x:Static ui:SegoeFluentIcons.OpenFile}" />
-                    <TextBlock
-                        Margin="6,0,0,0"
-                        VerticalAlignment="Center"
-                        FontSize="13"
-                        Text="打开" />
-                </StackPanel>
-            </Button>
-            <Button
-                Margin="12,0,0,0"
-                shell:WindowChrome.IsHitTestVisibleInChrome="True"
-                Command="{Binding SaveToFileCommand}"
-                Style="{StaticResource BorderlessToolbarButtonStyle}"
-                ToolTip="保存 (Ctrl+S)">
-                <ui:FontIcon FontSize="14" Icon="{x:Static ui:SegoeFluentIcons.Save}" />
-            </Button>
-            <Button
-                shell:WindowChrome.IsHitTestVisibleInChrome="True"
-                Command="{Binding UndoCommand}"
-                Style="{StaticResource BorderlessToolbarButtonStyle}"
-                ToolTip="撤销 (Ctrl+Z)"
-                Visibility="{Binding IsTitleBarHistoryVisible, Converter={StaticResource BoolToVisibility}}">
-                <ui:FontIcon FontSize="14" Icon="{x:Static ui:SegoeFluentIcons.Undo}" />
-            </Button>
-            <Button
-                shell:WindowChrome.IsHitTestVisibleInChrome="True"
-                Command="{Binding RedoCommand}"
-                Style="{StaticResource BorderlessToolbarButtonStyle}"
-                ToolTip="重做 (Ctrl+Y)"
-                Visibility="{Binding IsTitleBarHistoryVisible, Converter={StaticResource BoolToVisibility}}">
-                <ui:FontIcon FontSize="14" Icon="{x:Static ui:SegoeFluentIcons.Redo}" />
-            </Button>
-            <Border Style="{StaticResource ToolbarSeparatorStyle}" />
-            <Button
-                shell:WindowChrome.IsHitTestVisibleInChrome="True"
-                Command="{Binding RotateImageCommand}"
-                Style="{StaticResource BorderlessToolbarButtonStyle}"
-                ToolTip="顺时针旋转 90°">
-                <ui:FontIcon FontSize="14" Icon="{x:Static ui:SegoeFluentIcons.Rotate}" />
-            </Button>
-            <Button
-                shell:WindowChrome.IsHitTestVisibleInChrome="True"
-                Command="{Binding CopyToClipboardCommand}"
-                Style="{StaticResource BorderlessToolbarButtonStyle}"
-                ToolTip="复制到剪贴板 (Ctrl+C)">
-                <ui:FontIcon FontSize="14" Icon="{x:Static ui:SegoeFluentIcons.Copy}" />
-            </Button>
-            <Border Style="{StaticResource ToolbarSeparatorStyle}" />
-            <Button
-                shell:WindowChrome.IsHitTestVisibleInChrome="True"
-                Command="{Binding ToggleCropCommand}"
-                Style="{StaticResource PreviewCropModeButtonStyle}"
-                ToolTip="裁剪（再次点击退出）">
-                <ui:FontIcon FontSize="14" Icon="{x:Static ui:SegoeFluentIcons.Crop}" />
-            </Button>
-            <Button
-                shell:WindowChrome.IsHitTestVisibleInChrome="True"
-                Command="{Binding ToggleRoundCornerCommand}"
-                Style="{StaticResource PreviewRoundCornerModeButtonStyle}"
-                ToolTip="圆角（再次点击退出）">
-                <ui:FontIcon FontSize="14" Glyph="&#xF16B;" />
-            </Button>
-            <Button
-                shell:WindowChrome.IsHitTestVisibleInChrome="True"
-                Command="{Binding ToggleEraserCommand}"
-                Style="{StaticResource PreviewEraserModeButtonStyle}"
-                ToolTip="AI 擦除（再次点击退出）">
-                <ui:FontIcon FontSize="14" Icon="{x:Static ui:SegoeFluentIcons.EraseTool}" />
-            </Button>
-            <Button
-                shell:WindowChrome.IsHitTestVisibleInChrome="True"
-                Command="{Binding ToggleAnnotationCommand}"
-                Style="{StaticResource PreviewAnnotateModeButtonStyle}"
-                ToolTip="标注（再次点击退出）">
-                <ui:FontIcon FontSize="14" Icon="{x:Static ui:SegoeFluentIcons.Highlight}" />
-            </Button>
-            <Border Style="{StaticResource PreviewTitleChipStyle}">
-                <TextBlock Style="{StaticResource PreviewTitleTextStyle}" Text="{Binding CaptureTitleDisplay}" />
-            </Border>
-        </StackPanel>
-
-        <StackPanel
-            Grid.Column="1"
-            Margin="0,0,4,0"
-            VerticalAlignment="Center"
-            Orientation="Horizontal">
-            <ToggleButton
-                shell:WindowChrome.IsHitTestVisibleInChrome="True"
-                IsChecked="{Binding IsPinned}"
-                Style="{StaticResource BorderlessPinToggleButtonStyle}">
-                <ui:FontIcon FontSize="14" Icon="{x:Static ui:SegoeFluentIcons.Pin}" />
-            </ToggleButton>
-            <Button
-                shell:WindowChrome.IsHitTestVisibleInChrome="True"
-                Command="{Binding OpenLogFolderCommand}"
-                Style="{StaticResource BorderlessToolbarButtonStyle}"
-                ToolTip="打开日志文件夹">
-                <ui:FontIcon FontSize="14" Icon="{x:Static ui:SegoeFluentIcons.Diagnostic}" />
-            </Button>
-            <Button
-                shell:WindowChrome.IsHitTestVisibleInChrome="True"
-                Command="{Binding OpenSettingsCommand}"
-                Style="{StaticResource BorderlessToolbarButtonStyle}"
-                ToolTip="设置">
-                <ui:FontIcon FontSize="14" Icon="{x:Static ui:SegoeFluentIcons.Settings}" />
-            </Button>
-        </StackPanel>
-    </Grid>
-</UserControl>
+<UserControl
+    x:Class="PixSnap.Controls.PreviewTitleBarToolbar"
+    xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+    xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+    xmlns:shell="clr-namespace:System.Windows.Shell;assembly=PresentationFramework"
+    xmlns:ui="http://schemas.inkore.net/lib/ui/wpf/modern">
+    <UserControl.Resources>
+        <BooleanToVisibilityConverter x:Key="BoolToVisibility" />
+    </UserControl.Resources>
+    <Grid>
+        <Grid.ColumnDefinitions>
+            <ColumnDefinition Width="*" />
+            <ColumnDefinition Width="Auto" />
+        </Grid.ColumnDefinitions>
+
+        <StackPanel
+            Grid.Column="0"
+            VerticalAlignment="Center"
+            Orientation="Horizontal">
+            <Button
+                shell:WindowChrome.IsHitTestVisibleInChrome="True"
+                Command="{Binding OpenFileCommand}"
+                Style="{StaticResource PreviewPrimaryActionButtonStyle}"
+                ToolTip="打开 (Ctrl+O)">
+                <StackPanel Orientation="Horizontal">
+                    <ui:FontIcon
+                        VerticalAlignment="Center"
+                        FontSize="15"
+                        Icon="{x:Static ui:SegoeFluentIcons.OpenFile}" />
+                    <TextBlock
+                        Margin="6,0,0,0"
+                        VerticalAlignment="Center"
+                        FontSize="13"
+                        Text="打开" />
+                </StackPanel>
+            </Button>
+            <Button
+                Margin="8,0,0,0"
+                shell:WindowChrome.IsHitTestVisibleInChrome="True"
+                Command="{Binding SaveToFileCommand}"
+                Style="{StaticResource BorderlessToolbarButtonStyle}"
+                ToolTip="保存 (Ctrl+S)">
+                <ui:FontIcon FontSize="15" Icon="{x:Static ui:SegoeFluentIcons.Save}" />
+            </Button>
+
+            <Border Margin="6,0,4,0" Style="{StaticResource ToolbarSeparatorStyle}" />
+
+            <Button
+                shell:WindowChrome.IsHitTestVisibleInChrome="True"
+                Command="{Binding UndoCommand}"
+                Style="{StaticResource BorderlessToolbarButtonStyle}"
+                ToolTip="撤销 (Ctrl+Z)"
+                Visibility="{Binding IsTitleBarHistoryVisible, Converter={StaticResource BoolToVisibility}}">
+                <ui:FontIcon FontSize="15" Icon="{x:Static ui:SegoeFluentIcons.Undo}" />
+            </Button>
+            <Button
+                shell:WindowChrome.IsHitTestVisibleInChrome="True"
+                Command="{Binding RedoCommand}"
+                Style="{StaticResource BorderlessToolbarButtonStyle}"
+                ToolTip="重做 (Ctrl+Y)"
+                Visibility="{Binding IsTitleBarHistoryVisible, Converter={StaticResource BoolToVisibility}}">
+                <ui:FontIcon FontSize="15" Icon="{x:Static ui:SegoeFluentIcons.Redo}" />
+            </Button>
+            <Button
+                shell:WindowChrome.IsHitTestVisibleInChrome="True"
+                Command="{Binding CopyToClipboardCommand}"
+                Style="{StaticResource BorderlessToolbarButtonStyle}"
+                ToolTip="复制到剪贴板 (Ctrl+C)">
+                <ui:FontIcon FontSize="15" Icon="{x:Static ui:SegoeFluentIcons.Copy}" />
+            </Button>
+            <Button
+                shell:WindowChrome.IsHitTestVisibleInChrome="True"
+                Command="{Binding PasteFromClipboardCommand}"
+                Style="{StaticResource BorderlessToolbarButtonStyle}"
+                ToolTip="粘贴 (Ctrl+V)">
+                <ui:FontIcon FontSize="15" Icon="{x:Static ui:SegoeFluentIcons.Paste}" />
+            </Button>
+
+            <Border Margin="6,0,4,0" Style="{StaticResource ToolbarSeparatorStyle}" />
+
+            <Button
+                shell:WindowChrome.IsHitTestVisibleInChrome="True"
+                Command="{Binding RotateImageCommand}"
+                Style="{StaticResource BorderlessToolbarButtonStyle}"
+                ToolTip="顺时针旋转 90°">
+                <ui:FontIcon FontSize="15" Icon="{x:Static ui:SegoeFluentIcons.Rotate}" />
+            </Button>
+
+            <Border Margin="6,0,4,0" Style="{StaticResource ToolbarSeparatorStyle}" />
+
+            <Button
+                shell:WindowChrome.IsHitTestVisibleInChrome="True"
+                Command="{Binding ToggleCropCommand}"
+                Style="{StaticResource PreviewCropModeButtonStyle}"
+                ToolTip="裁剪（再次点击退出）">
+                <ui:FontIcon FontSize="15" Icon="{x:Static ui:SegoeFluentIcons.Crop}" />
+            </Button>
+            <Button
+                shell:WindowChrome.IsHitTestVisibleInChrome="True"
+                Command="{Binding ToggleRoundCornerCommand}"
+                Style="{StaticResource PreviewRoundCornerModeButtonStyle}"
+                ToolTip="圆角（再次点击退出）">
+                <ui:FontIcon FontSize="15" Icon="{x:Static ui:SegoeFluentIcons.RectangularClipping}" />
+            </Button>
+            <Button
+                shell:WindowChrome.IsHitTestVisibleInChrome="True"
+                Command="{Binding ToggleEraserCommand}"
+                Style="{StaticResource PreviewEraserModeButtonStyle}"
+                ToolTip="AI 擦除（再次点击退出）">
+                <ui:FontIcon FontSize="15" Icon="{x:Static ui:SegoeFluentIcons.EraseTool}" />
+            </Button>
+            <Button
+                shell:WindowChrome.IsHitTestVisibleInChrome="True"
+                Command="{Binding ToggleAnnotationCommand}"
+                Style="{StaticResource PreviewAnnotateModeButtonStyle}"
+                ToolTip="标注（再次点击退出）">
+                <ui:FontIcon FontSize="15" Icon="{x:Static ui:SegoeFluentIcons.Highlight}" />
+            </Button>
+        </StackPanel>
+
+        <StackPanel
+            Grid.Column="1"
+            Margin="0,0,4,0"
+            VerticalAlignment="Center"
+            Orientation="Horizontal">
+            <ToggleButton
+                shell:WindowChrome.IsHitTestVisibleInChrome="True"
+                IsChecked="{Binding IsPinned}"
+                Style="{StaticResource BorderlessPinToggleButtonStyle}"
+                ToolTip="置顶窗口">
+                <ui:FontIcon FontSize="15" Icon="{x:Static ui:SegoeFluentIcons.Pin}" />
+            </ToggleButton>
+            <Button
+                shell:WindowChrome.IsHitTestVisibleInChrome="True"
+                Command="{Binding OpenLogFolderCommand}"
+                Style="{StaticResource BorderlessToolbarButtonStyle}"
+                ToolTip="日志查看器">
+                <ui:FontIcon FontSize="15" Icon="{x:Static ui:SegoeFluentIcons.Diagnostic}" />
+            </Button>
+            <Button
+                shell:WindowChrome.IsHitTestVisibleInChrome="True"
+                Command="{Binding OpenSettingsCommand}"
+                Style="{StaticResource BorderlessToolbarButtonStyle}"
+                ToolTip="设置">
+                <ui:FontIcon FontSize="15" Icon="{x:Static ui:SegoeFluentIcons.Settings}" />
+            </Button>
+        </StackPanel>
+    </Grid>
+</UserControl>
+

@@ -34,12 +34,17 @@ public static class SettingsService
     private const string KeyMattingModel = "MattingModel";
     private const string KeySuperResolutionModel = "SuperResolutionModel";
     private const string KeyTrayDoubleClickAction = "TrayDoubleClickAction";
+    private const string KeyLogRetentionDays = "LogRetentionDays";
+
+    public const int DefaultLogRetentionDays = 7;
+    public const int MinLogRetentionDays = 1;
+    public const int MaxLogRetentionDays = 365;
 
     // ── 默认快捷键：Ctrl + Shift + Q ──────────────────────────────────────────
     public static readonly ModifierKeys DefaultHotkeyModifiers = ModifierKeys.Control | ModifierKeys.Shift;
     public static readonly Key DefaultHotkeyKey = Key.Q;
     // settings.json 的 schema 版本号；新增字段时递增，用于未来向后兼容迁移
-    private const int CurrentSettingsVersion = 4;
+    private const int CurrentSettingsVersion = 5;
     // ── 开机启动 ─────────────────────────────────────────────────────────────
 
     public static bool ReadStartupEnabled()
@@ -251,7 +256,7 @@ public static class SettingsService
             var json = File.ReadAllText(ConfigFilePath);
             var doc = JsonDocument.Parse(json);
             if (doc.RootElement.TryGetProperty(KeyAiGpuDeviceId, out var v) && v.TryGetInt32(out var id))
-                return id is >= -2 and <= 3 ? id : AiGpuSettings.AutoDeviceId;
+                return id >= AiGpuSettings.AutoDeviceId ? id : AiGpuSettings.AutoDeviceId;
         }
         catch (Exception ex)
         {
@@ -316,13 +321,12 @@ public static class SettingsService
             var doc = JsonDocument.Parse(json);
             if (doc.RootElement.TryGetProperty(KeyMattingModel, out var v) && v.TryGetInt32(out var raw))
             {
-                return raw switch
-                {
-                    2 => MattingModel.BiRefNet,
-                    1 => MattingModel.Rmbg14,
-                    0 => MattingModel.Rmbg14,
-                    _ => Enum.IsDefined(typeof(MattingModel), raw) ? (MattingModel)raw : MattingModel.Rmbg14
-                };
+                // 旧版错误映射曾将 BiRefNet 写成 2
+                if (raw == 2)
+                    return MattingModel.BiRefNet;
+
+                if (Enum.IsDefined(typeof(MattingModel), raw))
+                    return (MattingModel)raw;
             }
         }
         catch (Exception ex)
@@ -347,6 +351,38 @@ public static class SettingsService
 
     public static void WriteTrayDoubleClickAction(TrayDoubleClickAction action) =>
         WriteEnum(KeyTrayDoubleClickAction, action, "托盘双击行为");
+
+    public static int ReadLogRetentionDays() => ReadInt(KeyLogRetentionDays, DefaultLogRetentionDays);
+
+    public static void WriteLogRetentionDays(int days)
+    {
+        days = Math.Clamp(days, MinLogRetentionDays, MaxLogRetentionDays);
+        Log.Information("写入日志保留天数: {Days}", days);
+        var dict = ReadConfigDict();
+        dict[KeyLogRetentionDays] = days;
+        dict[KeyVersion] = CurrentSettingsVersion;
+        WriteConfigDict(dict);
+    }
+
+    private static int ReadInt(string key, int fallback)
+    {
+        try
+        {
+            if (!File.Exists(ConfigFilePath))
+                return fallback;
+
+            var json = File.ReadAllText(ConfigFilePath);
+            var doc = JsonDocument.Parse(json);
+            if (doc.RootElement.TryGetProperty(key, out var v) && v.TryGetInt32(out var raw))
+                return Math.Clamp(raw, MinLogRetentionDays, MaxLogRetentionDays);
+        }
+        catch (Exception ex)
+        {
+            Log.Warning(ex, "ReadInt({Key}) 失败，使用默认值", key);
+        }
+
+        return fallback;
+    }
 
     private static TEnum ReadEnum<TEnum>(string key, TEnum fallback) where TEnum : struct, Enum
     {

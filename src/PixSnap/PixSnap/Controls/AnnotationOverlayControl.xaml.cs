@@ -9,6 +9,7 @@ using System.Windows.Input;
 using System.Windows.Media;
 using System.Windows.Media.Imaging;
 using System.Windows.Shapes;
+using System.Windows.Threading;
 
 namespace PixSnap.Controls;
 
@@ -135,7 +136,18 @@ public partial class AnnotationOverlayControl : UserControl
         }
     }
 
-    private void OnAnnotationRequestRedraw() => RedrawAnnotationOverlay();
+    private void OnAnnotationRequestRedraw() => EnsureRedrawOnUiThread();
+
+    private void EnsureRedrawOnUiThread()
+    {
+        if (!Dispatcher.CheckAccess())
+        {
+            Dispatcher.BeginInvoke(EnsureRedrawOnUiThread, DispatcherPriority.Render);
+            return;
+        }
+
+        RedrawAnnotationOverlay();
+    }
 
     private void UpdateAnnotationCursor()
     {
@@ -567,6 +579,12 @@ public partial class AnnotationOverlayControl : UserControl
     /// <summary>重绘所有标注到画布上（使用 WPF Shapes 实时预览）。</summary>
     private void RedrawAnnotationOverlay()
     {
+        if (!Dispatcher.CheckAccess())
+        {
+            Dispatcher.BeginInvoke(RedrawAnnotationOverlay, DispatcherPriority.Render);
+            return;
+        }
+
         if (ViewModel is null) return;
 
         // 保留活跃的文本输入框
@@ -780,11 +798,8 @@ public partial class AnnotationOverlayControl : UserControl
                     int smallH = Math.Max(1, ph / blockSize);
                     var down = new TransformedBitmap(cropped, new ScaleTransform(
                         smallW / (double)pw, smallH / (double)ph));
-                    down.Freeze();
-                    var up = new TransformedBitmap(down, new ScaleTransform(
+                    previewSource = new TransformedBitmap(down, new ScaleTransform(
                         pw / (double)smallW, ph / (double)smallH));
-                    up.Freeze();
-                    previewSource = up;
                 }
 
                 var blurImage = new System.Windows.Controls.Image
