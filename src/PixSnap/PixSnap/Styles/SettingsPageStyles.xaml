@@ -14,7 +14,7 @@
 
     <Style
         x:Key="SettingsPathTextBoxStyle"
-        BasedOn="{StaticResource {x:Type TextBox}}"
+        BasedOn="{StaticResource {x:Static ui:ThemeKeys.DefaultTextBoxStyleKey}}"
         TargetType="TextBox">
         <Setter Property="MinHeight" Value="32" />
         <Setter Property="Padding" Value="10,6" />
@@ -74,7 +74,7 @@
 
     <Style
         x:Key="SettingsComboBoxStyle"
-        BasedOn="{StaticResource {x:Type ComboBox}}"
+        BasedOn="{StaticResource {x:Static ui:ThemeKeys.DefaultComboBoxStyleKey}}"
         TargetType="ComboBox">
         <Setter Property="MinWidth" Value="200" />
         <Setter Property="MaxWidth" Value="200" />

@@ -234,7 +234,6 @@
                             Minimum="0"
                             SmallChange="1"
                             TickFrequency="1"
-                            Unit="px"
                             Visibility="{Binding AnnotationPanel.IsRectangleSettingsVisible, Converter={StaticResource BoolToVisibility}}"
                             Value="{Binding AnnotationPanel.CornerRadius, Mode=TwoWay}" />
                     </StackPanel>
@@ -295,7 +294,7 @@
                                 FontSize="13"
                                 Style="{StaticResource FieldInputStyle}"
                                 Text="{Binding AnnotationPanel.FontSize, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}"
-                                ToolTip="字号 (px)" />
+                                ToolTip="字号" />
                             <UniformGrid
                                 Grid.Column="1"
                                 Margin="6,0,0,0"

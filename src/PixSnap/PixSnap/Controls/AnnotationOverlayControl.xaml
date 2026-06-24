@@ -4,13 +4,41 @@
     xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
     Focusable="False"
     IsHitTestVisible="False">
-    <Canvas
-        x:Name="AnnotationCanvas"
-        Background="Transparent"
-        Focusable="True"
-        IsHitTestVisible="False"
-        KeyDown="AnnotationCanvas_KeyDown"
-        MouseLeftButtonDown="AnnotationCanvas_MouseLeftButtonDown"
-        MouseLeftButtonUp="AnnotationCanvas_MouseLeftButtonUp"
-        MouseMove="AnnotationCanvas_MouseMove" />
+    <Grid>
+        <Canvas
+            x:Name="AnnotationCanvas"
+            HorizontalAlignment="Left"
+            VerticalAlignment="Top"
+            Background="Transparent"
+            Focusable="True"
+            FocusVisualStyle="{x:Null}"
+            IsHitTestVisible="False"
+            KeyDown="AnnotationCanvas_KeyDown"
+            MouseEnter="AnnotationCanvas_MouseEnter"
+            MouseLeave="AnnotationCanvas_MouseLeave"
+            MouseLeftButtonDown="AnnotationCanvas_MouseLeftButtonDown"
+            MouseLeftButtonUp="AnnotationCanvas_MouseLeftButtonUp"
+            MouseMove="AnnotationCanvas_MouseMove" />
+        <!--  画笔粗细预览：白/黑双环，避免与背景同色不可见  -->
+        <Canvas
+            x:Name="PenBrushOverlay"
+            HorizontalAlignment="Left"
+            VerticalAlignment="Top"
+            IsHitTestVisible="False">
+            <Ellipse
+                x:Name="PenBrushOuterRing"
+                Fill="#26FFFFFF"
+                IsHitTestVisible="False"
+                Stroke="White"
+                StrokeThickness="2.5"
+                Visibility="Collapsed" />
+            <Ellipse
+                x:Name="PenBrushInnerRing"
+                Fill="#1A000000"
+                IsHitTestVisible="False"
+                Stroke="#CC000000"
+                StrokeThickness="1.5"
+                Visibility="Collapsed" />
+        </Canvas>
+    </Grid>
 </UserControl>

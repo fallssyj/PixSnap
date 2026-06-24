@@ -58,14 +58,21 @@
         <BooleanToVisibilityConverter x:Key="BooleanToVisibilityConverter" />
         <converters:InverseBooleanToVisibilityConverter x:Key="InverseBoolToVisibility" />
         <converters:TitleBarInsetMarginConverter x:Key="TitleBarInsetMarginConverter" />
+        <!--  预览窗口非画布区域：不参与 Tab 焦点，不显示白色焦点框  -->
+        <Style x:Key="PreviewWindowChromeElementStyle" TargetType="FrameworkElement">
+            <Setter Property="Focusable" Value="False" />
+            <Setter Property="KeyboardNavigation.IsTabStop" Value="False" />
+            <Setter Property="FocusVisualStyle" Value="{x:Null}" />
+        </Style>
     </Window.Resources>
 
-    <Grid>
+    <Grid Style="{StaticResource PreviewWindowChromeElementStyle}">
         <!--  标题栏工具栏（ExtendViewIntoTitleBar 区域）  -->
         <Grid
             Height="48"
             VerticalAlignment="Top"
-            Panel.ZIndex="2">
+            Panel.ZIndex="2"
+            Style="{StaticResource PreviewWindowChromeElementStyle}">
             <Grid.Margin>
                 <Binding
                     Converter="{StaticResource TitleBarInsetMarginConverter}"
@@ -78,51 +85,64 @@
             <controls:PreviewTitleBarToolbar VerticalAlignment="Center" />
         </Grid>
 
-        <Grid Margin="0,48,0,0">
+        <Grid Margin="0,48,0,0" Style="{StaticResource PreviewWindowChromeElementStyle}">
             <Grid.RowDefinitions>
                 <RowDefinition Height="*" />
                 <RowDefinition Height="Auto" />
             </Grid.RowDefinitions>
 
             <!--  预览区域  -->
-            <Grid Grid.Row="0">
-                <!--  Background="{StaticResource TransparencyCheckerBrush}">  -->
-                <Border PreviewMouseWheel="PreviewHost_PreviewMouseWheel">
+            <Grid Grid.Row="0" Style="{StaticResource PreviewWindowChromeElementStyle}">
+                <Border
+                    Focusable="False"
+                    PreviewMouseWheel="PreviewHost_PreviewMouseWheel">
                     <Grid
                         x:Name="PreviewViewport"
                         ClipToBounds="True"
                         Focusable="True"
+                        FocusVisualStyle="{x:Null}"
+                        KeyboardNavigation.IsTabStop="True"
+                        MouseLeave="PreviewViewport_MouseLeave"
                         MouseRightButtonUp="PreviewViewport_MouseRightButtonUp"
+                        PreviewMouseDown="PreviewViewport_PreviewMouseDown"
+                        PreviewMouseMove="PreviewViewport_PreviewMouseMove"
+                        PreviewMouseUp="PreviewViewport_PreviewMouseUp"
                         SizeChanged="PreviewViewport_SizeChanged">
                         <ScrollViewer
                             x:Name="ActualSizeScrollViewer"
+                            Focusable="False"
+                            FocusVisualStyle="{x:Null}"
                             HorizontalScrollBarVisibility="Hidden"
-                            MouseLeave="ActualSizeScrollViewer_MouseLeave"
-                            PreviewMouseDown="ActualSizeScrollViewer_PreviewMouseDown"
-                            PreviewMouseMove="ActualSizeScrollViewer_PreviewMouseMove"
-                            PreviewMouseUp="ActualSizeScrollViewer_PreviewMouseUp"
+                            IsTabStop="False"
+                            KeyboardNavigation.IsTabStop="False"
                             VerticalScrollBarVisibility="Hidden">
                             <!--  Padding 在图片四周创建可滑动的空白区，实现拖动到边缘后还能继续拖动  -->
-                            <Border Padding="200">
-                                <Grid>
+                            <Border Padding="200" Focusable="False">
+                                <Grid HorizontalAlignment="Center" VerticalAlignment="Center">
                                     <Grid.LayoutTransform>
                                         <ScaleTransform ScaleX="{Binding ZoomFactor}" ScaleY="{Binding ZoomFactor}" />
                                     </Grid.LayoutTransform>
                                     <Image
                                         x:Name="ActualSizeImage"
-                                        HorizontalAlignment="Center"
-                                        VerticalAlignment="Center"
+                                        HorizontalAlignment="Left"
+                                        VerticalAlignment="Top"
                                         RenderOptions.BitmapScalingMode="LowQuality"
                                         Source="{Binding ScreenshotImage}"
                                         Stretch="None" />
                                     <!--  标注绘制覆盖层  -->
                                     <controls:AnnotationOverlayControl
+                                        x:Name="AnnotationOverlay"
+                                        HorizontalAlignment="Left"
+                                        VerticalAlignment="Top"
                                         ImageSource="{Binding ScreenshotImage}"
                                         IsActive="{Binding IsAnnotateMode}"
                                         ViewModel="{Binding AnnotationPanel}" />
 
                                     <!--  OCR 文字原位覆盖层  -->
                                     <controls:OcrOverlayControl
+                                        x:Name="OcrOverlay"
+                                        HorizontalAlignment="Left"
+                                        VerticalAlignment="Top"
                                         ImageSource="{Binding ScreenshotImage}"
                                         IsActive="{Binding IsOcrOverlayVisible}"
                                         Regions="{Binding OcrRegions}" />
@@ -130,6 +150,8 @@
                                     <!--  AI 擦除涂抹覆盖层：与图片同大同缩放，Cursor=None 配合代码后置圆形光标指示器  -->
                                     <Canvas
                                         x:Name="EraserCanvas"
+                                        HorizontalAlignment="Left"
+                                        VerticalAlignment="Top"
                                         Background="Transparent"
                                         Cursor="None"
                                         IsHitTestVisible="False"
@@ -138,14 +160,20 @@
                                         MouseLeftButtonDown="EraserCanvas_MouseLeftButtonDown"
                                         MouseLeftButtonUp="EraserCanvas_MouseLeftButtonUp"
                                         MouseMove="EraserCanvas_MouseMove">
-                                        <!--  跟随鼠标的画刷轮廓（由代码后置动态定位和缩放）  -->
+                                        <!--  跟随鼠标的画刷轮廓：白/黑双环，任意背景色下可见  -->
+                                        <Ellipse
+                                            x:Name="EraserCursorIndicatorOuter"
+                                            Fill="#26FFFFFF"
+                                            IsHitTestVisible="False"
+                                            Stroke="White"
+                                            StrokeThickness="2.5"
+                                            Visibility="Collapsed" />
                                         <Ellipse
                                             x:Name="EraserCursorIndicator"
-                                            Fill="{DynamicResource SystemControlForegroundAccentBrush}"
+                                            Fill="#22000000"
                                             IsHitTestVisible="False"
-                                            Opacity="0.13"
-                                            Stroke="{DynamicResource SystemControlForegroundAccentBrush}"
-                                            StrokeThickness="2"
+                                            Stroke="#CC000000"
+                                            StrokeThickness="1.5"
                                             Visibility="Collapsed" />
                                     </Canvas>
                                 </Grid>
@@ -163,7 +191,8 @@
                             Margin="0,0,0,20"
                             HorizontalAlignment="Center"
                             VerticalAlignment="Bottom"
-                            Panel.ZIndex="20">
+                            Panel.ZIndex="20"
+                            Style="{StaticResource PreviewWindowChromeElementStyle}">
                             <controls:AnnotationDockBar
                                 DataContext="{Binding}"
                                 Visibility="{Binding IsAnnotateMode, Converter={StaticResource BooleanToVisibilityConverter}}" />
@@ -191,9 +220,12 @@
 
             </Grid>
             <!--  控制区域  -->
-            <Border Grid.Row="1" Padding="10">
+            <Border
+                Grid.Row="1"
+                Padding="10"
+                Style="{StaticResource PreviewWindowChromeElementStyle}">
                 <!--  CornerRadius="0,0,10,10">  -->
-                <Grid>
+                <Grid Style="{StaticResource PreviewWindowChromeElementStyle}">
                     <StackPanel
                         Margin="4,0,0,0"
                         Orientation="Horizontal"
@@ -318,7 +350,11 @@
                             Width="150"
                             Margin="2,0"
                             VerticalAlignment="Center"
+                            Focusable="False"
+                            FocusVisualStyle="{x:Null}"
                             IsSnapToTickEnabled="False"
+                            IsTabStop="False"
+                            KeyboardNavigation.IsTabStop="False"
                             LargeChange="25"
                             Maximum="800"
                             Minimum="10"
@@ -342,7 +378,7 @@
         <!--  全窗口处理遮罩：处理期间阻断所有操作，完成或异常后自动隐藏  -->
         <Grid Panel.ZIndex="998">
             <Grid.Style>
-                <Style TargetType="Grid">
+                <Style BasedOn="{StaticResource PreviewWindowChromeElementStyle}" TargetType="Grid">
                     <Setter Property="Visibility" Value="Collapsed" />
                     <Setter Property="IsHitTestVisible" Value="False" />
                     <Style.Triggers>
@@ -358,22 +394,13 @@
 
             <Border
                 Margin="0,0,0,100"
-                Padding="16,12"
                 HorizontalAlignment="Center"
                 VerticalAlignment="Bottom"
-                Background="{DynamicResource SolidBackgroundFillColorBaseBrush}"
-                BorderBrush="{DynamicResource ControlStrokeColorDefaultBrush}"
-                BorderThickness="1"
-                CornerRadius="12">
-                <StackPanel MinWidth="280" Orientation="Vertical">
-                    <TextBlock
-                        Margin="0,0,0,8"
-                        HorizontalAlignment="Center"
-                        FontSize="15"
-                        Foreground="{DynamicResource TextFillColorPrimaryBrush}"
-                        Text="{Binding ActiveAiProgressText}" />
+                Style="{StaticResource ProcessingStatusCardStyle}">
+                <StackPanel Orientation="Vertical">
+                    <TextBlock Style="{StaticResource ProcessingStatusTextStyle}" Text="{Binding ActiveAiProgressText}" />
                     <ProgressBar
-                        Height="6"
+                        Style="{StaticResource ProcessingStatusProgressBarStyle}"
                         IsIndeterminate="{Binding IsAnyIndeterminateProcessing, Mode=OneWay}"
                         Maximum="1"
                         Minimum="0"

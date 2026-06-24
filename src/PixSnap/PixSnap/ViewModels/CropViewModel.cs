@@ -1,5 +1,6 @@
 using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
+using PixSnap.Services;
 using Serilog;
 using SkiaSharp;
 using System.Runtime.InteropServices;
@@ -23,10 +24,7 @@ public partial class CropViewModel : ObservableObject
     private double _lockedAspectRatio;
 
     [ObservableProperty]
-    [NotifyPropertyChangedFor(nameof(AspectRatioDisplayText))]
     private string _aspectRatioText = "自由";
-
-    public string AspectRatioDisplayText => string.Format("当前比例: {0}", AspectRatioText);
 
     /// <summary>设置固定比例并立即应用到当前裁剪框（以中心为基准）。</summary>
     public void SetAspectRatio(double ratioW, double ratioH, string label)
@@ -208,6 +206,27 @@ public partial class CropViewModel : ObservableObject
     private void Cancel()
     {
         CropCancelled?.Invoke();
+    }
+
+    [RelayCommand]
+    private void SmartCrop(BitmapSource? source)
+    {
+        if (source is null)
+            return;
+
+        if (!ImageContentBoundsDetector.TryDetectFullContentBounds(source, out var x, out var y, out var w, out var h))
+        {
+            Log.Debug("智能裁剪: 未检测到有效前景区域");
+            return;
+        }
+
+        Log.Information("智能裁剪: ({X},{Y}) {W}×{H}", x, y, w, h);
+        LockedAspectRatio = 0;
+        AspectRatioText = "自由";
+        CropX = x;
+        CropY = y;
+        CropWidth = w;
+        CropHeight = h;
     }
 
     // ── SkiaSharp 裁剪（后台线程执行）────────────────────────────────────────

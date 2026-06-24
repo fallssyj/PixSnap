@@ -4,76 +4,46 @@
     xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
     Focusable="False">
     <Border Style="{StaticResource EditDockHostStyle}">
-        <StackPanel>
-            <StackPanel VerticalAlignment="Center" Orientation="Horizontal">
-                <TextBlock
+        <StackPanel VerticalAlignment="Center" Orientation="Horizontal">
+            <ItemsControl ItemsSource="{Binding CropAspectRatioPresets}">
+                <ItemsControl.ItemsPanel>
+                    <ItemsPanelTemplate>
+                        <StackPanel Orientation="Horizontal" />
+                    </ItemsPanelTemplate>
+                </ItemsControl.ItemsPanel>
+                <ItemsControl.ItemTemplate>
+                    <DataTemplate>
+                        <Button
+                            Margin="0,0,6,0"
+                            Command="{Binding DataContext.CropPanel.SetAspectRatioFromParamCommand, RelativeSource={RelativeSource AncestorType=UserControl}}"
+                            CommandParameter="{Binding Parameter}"
+                            Content="{Binding Content}"
+                            Style="{StaticResource EditDockChipButtonStyle}"
+                            ToolTip="{Binding ToolTip}" />
+                    </DataTemplate>
+                </ItemsControl.ItemTemplate>
+            </ItemsControl>
+
+            <Border Margin="8,6,16,6" Style="{StaticResource EditDockSeparatorStyle}" />
+
+            <StackPanel Style="{StaticResource EditDockActionsStyle}">
+                <Button
                     Margin="0,0,8,0"
-                    VerticalAlignment="Center"
-                    Style="{StaticResource PanelCompactFieldLabelStyle}"
-                    Text="比例" />
-                <ItemsControl ItemsSource="{Binding CropAspectRatioPresets}">
-                    <ItemsControl.ItemsPanel>
-                        <ItemsPanelTemplate>
-                            <StackPanel Orientation="Horizontal" />
-                        </ItemsPanelTemplate>
-                    </ItemsControl.ItemsPanel>
-                    <ItemsControl.ItemTemplate>
-                        <DataTemplate>
-                            <Button
-                                Command="{Binding DataContext.CropPanel.SetAspectRatioFromParamCommand, RelativeSource={RelativeSource AncestorType=UserControl}}"
-                                CommandParameter="{Binding Parameter}"
-                                Content="{Binding Content}"
-                                Style="{StaticResource EditDockChipButtonStyle}"
-                                ToolTip="{Binding ToolTip}" />
-                        </DataTemplate>
-                    </ItemsControl.ItemTemplate>
-                </ItemsControl>
-
-                <Border Style="{StaticResource EditDockSeparatorStyle}" />
-
-                <TextBlock
-                    Margin="0,0,10,0"
-                    VerticalAlignment="Center"
-                    FontSize="12"
-                    Foreground="{DynamicResource TextFillColorSecondaryBrush}"
-                    Text="{Binding CropPanel.AspectRatioDisplayText}" />
-
-                <Border Style="{StaticResource EditDockSeparatorStyle}" />
-
-                <StackPanel VerticalAlignment="Center" Orientation="Horizontal">
-                    <TextBlock Style="{StaticResource PanelCompactFieldLabelStyle}" Text="X" />
-                    <TextBox Style="{StaticResource EditDockCompactFieldStyle}" Text="{Binding CropPanel.CropX, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}" />
-                    <TextBlock
-                        Margin="8,0,0,0"
-                        Style="{StaticResource PanelCompactFieldLabelStyle}"
-                        Text="Y" />
-                    <TextBox Style="{StaticResource EditDockCompactFieldStyle}" Text="{Binding CropPanel.CropY, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}" />
-                    <TextBlock
-                        Margin="8,0,0,0"
-                        Style="{StaticResource PanelCompactFieldLabelStyle}"
-                        Text="宽" />
-                    <TextBox Style="{StaticResource EditDockCompactFieldStyle}" Text="{Binding CropPanel.CropWidth, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}" />
-                    <TextBlock
-                        Margin="8,0,0,0"
-                        Style="{StaticResource PanelCompactFieldLabelStyle}"
-                        Text="高" />
-                    <TextBox Style="{StaticResource EditDockCompactFieldStyle}" Text="{Binding CropPanel.CropHeight, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}" />
-                </StackPanel>
-
-                <Border Style="{StaticResource EditDockSeparatorStyle}" />
-
-                <StackPanel Style="{StaticResource EditDockActionsStyle}">
-                    <Button
-                        Margin="0,0,6,0"
-                        Command="{Binding CropPanel.CancelCommand}"
-                        Content="取消"
-                        Style="{StaticResource PanelCancelButtonStyle}" />
-                    <Button
-                        Command="{Binding CropPanel.ApplyCommand}"
-                        CommandParameter="{Binding ScreenshotImage}"
-                        Content="应用"
-                        Style="{StaticResource PanelApplyButtonStyle}" />
-                </StackPanel>
+                    Command="{Binding CropPanel.SmartCropCommand}"
+                    CommandParameter="{Binding ScreenshotImage}"
+                    Content="智能裁剪"
+                    Style="{StaticResource PanelCancelButtonStyle}"
+                    ToolTip="自动检测透明底或纯色底的有效画面区域" />
+                <Button
+                    Margin="0,0,8,0"
+                    Command="{Binding CropPanel.CancelCommand}"
+                    Content="取消"
+                    Style="{StaticResource PanelCancelButtonStyle}" />
+                <Button
+                    Command="{Binding CropPanel.ApplyCommand}"
+                    CommandParameter="{Binding ScreenshotImage}"
+                    Content="应用"
+                    Style="{StaticResource PanelApplyButtonStyle}" />
             </StackPanel>
         </StackPanel>
     </Border>

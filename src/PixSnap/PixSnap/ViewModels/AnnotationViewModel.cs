@@ -21,7 +21,7 @@ public sealed class AnnotationItem
     public Point Start { get; set; }
     public Point End { get; set; }
     public Color StrokeColor { get; set; } = Colors.Red;
-    public double StrokeWidth { get; set; } = 3;
+    public double StrokeWidth { get; set; } = 10;
     public string Text { get; set; } = string.Empty;
     public double FontSize { get; set; } = 20;
     public string FontFamily { get; set; } = "Microsoft YaHei";
@@ -245,7 +245,7 @@ public partial class AnnotationViewModel : ObservableObject
     private double _strokeOpacity = 100;
 
     [ObservableProperty]
-    private double _strokeWidth = 3;
+    private double _strokeWidth = 10;
 
     [ObservableProperty]
     private double _cornerRadius;
@@ -1652,41 +1652,45 @@ public partial class AnnotationViewModel : ObservableObject
         canvas.Restore();
     }
 
-    /// <summary>计算箭头七边形顶点（WPF 预览与 SkiaSharp 渲染共用）。</summary>
+    /// <summary>直线实心楔形箭头：尾端尖点，箭身线性渐宽，末端三角箭头（WPF 预览与 Skia 渲染共用）。</summary>
     internal static Point[] CalculateArrowPoints(Point start, Point end, double strokeWidth)
     {
         double dx = end.X - start.X;
         double dy = end.Y - start.Y;
         double lineLen = Math.Sqrt(dx * dx + dy * dy);
-        if (lineLen < 1) return [];
+        if (lineLen < 1)
+            return [];
 
         double angle = Math.Atan2(dy, dx);
-        double headHalfW = strokeWidth * 1.5;
-        double headLen = headHalfW * 1.6;
-        headLen = Math.Min(headLen, lineLen * 0.45);
-        headHalfW = headLen / 1.6;
-        double shaftHalfW = strokeWidth / 2.0;
+        double nx = -Math.Sin(angle);
+        double ny = Math.Cos(angle);
+        double ax = Math.Cos(angle);
+        double ay = Math.Sin(angle);
 
-        double nx = -Math.Sin(angle), ny = Math.Cos(angle);
-        double ax = Math.Cos(angle), ay = Math.Sin(angle);
-        double jx = end.X - ax * headLen, jy = end.Y - ay * headLen;
+        double headHalfW = Math.Max(strokeWidth * 0.85, 5);
+        double headLen = Math.Max(strokeWidth * 1.45, headHalfW * 1.55);
+        headLen = Math.Min(headLen, lineLen * 0.5);
+
+        double neckHalfW = Math.Max(strokeWidth * 0.42, 2.5);
+        double jx = end.X - ax * headLen;
+        double jy = end.Y - ay * headLen;
 
         return
         [
-            new(start.X + nx * shaftHalfW, start.Y + ny * shaftHalfW),
-            new(jx + nx * shaftHalfW, jy + ny * shaftHalfW),
+            new(start.X, start.Y),
+            new(jx + nx * neckHalfW, jy + ny * neckHalfW),
             new(jx + nx * headHalfW, jy + ny * headHalfW),
             new(end.X, end.Y),
             new(jx - nx * headHalfW, jy - ny * headHalfW),
-            new(jx - nx * shaftHalfW, jy - ny * shaftHalfW),
-            new(start.X - nx * shaftHalfW, start.Y - ny * shaftHalfW),
+            new(jx - nx * neckHalfW, jy - ny * neckHalfW),
         ];
     }
 
     private static void DrawArrow(SKCanvas canvas, SKPaint paint, Point start, Point end)
     {
         var pts = CalculateArrowPoints(start, end, paint.StrokeWidth);
-        if (pts.Length == 0) return;
+        if (pts.Length == 0)
+            return;
 
         using var fillPaint = new SKPaint { Color = paint.Color, Style = SKPaintStyle.Fill, IsAntialias = true };
         using var path = new SKPath();

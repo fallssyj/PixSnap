@@ -1,9 +1,8 @@
-﻿using System.Windows;
+using System.Windows;
 using System.Windows.Controls;
 using System.Windows.Input;
 using System.Windows.Media;
-using System.Windows.Shapes;
-using Point = System.Windows.Point;
+using System.Windows.Shapes;using Point = System.Windows.Point;
 
 namespace PixSnap.Controls;
 
@@ -69,6 +68,7 @@ public class CropOverlayControl : Canvas
     public CropOverlayControl()
     {
         Focusable = true;
+        FocusVisualStyle = null;
         IsHitTestVisible = true;
 
         var maskBrush = new SolidColorBrush(Color.FromArgb(0x66, 0, 0, 0));
@@ -172,6 +172,26 @@ public class CropOverlayControl : Canvas
             pw * scaleX,
             ph * scaleY);
         RefreshVisuals();
+    }
+
+    /// <summary>按图片像素坐标设置裁剪框。</summary>
+    public void ApplyPixelBounds(int cropX, int cropY, int cropW, int cropH)
+    {
+        if (_imageDisplayRect.Width <= 0 || _imageDisplayRect.Height <= 0)
+            return;
+
+        var scaleX = _imageDisplayRect.Width / _imgPixelW;
+        var scaleY = _imageDisplayRect.Height / _imgPixelH;
+
+        _externalUpdating = true;
+        _bounds = new Rect(
+            _imageDisplayRect.Left + cropX * scaleX,
+            _imageDisplayRect.Top + cropY * scaleY,
+            cropW * scaleX,
+            cropH * scaleY);
+        RefreshVisuals();
+        _externalUpdating = false;
+        FireCropRectChanged();
     }
 
     // ── 内部方法 ──────────────────────────────────────────────────────────

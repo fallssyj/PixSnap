@@ -13,7 +13,6 @@
                 Minimum="0"
                 SmallChange="1"
                 TickFrequency="1"
-                Unit="px"
                 Value="{Binding RoundCornerPanel.CornerRadius, Mode=TwoWay}" />
 
             <Border Margin="8,6,18,6" Style="{StaticResource EditDockSeparatorStyle}" />

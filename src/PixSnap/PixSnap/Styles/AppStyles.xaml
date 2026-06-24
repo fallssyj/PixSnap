@@ -83,7 +83,7 @@
 
     <Style
         x:Key="FieldInputStyle"
-        BasedOn="{StaticResource {x:Type TextBox}}"
+        BasedOn="{StaticResource {x:Static ui:ThemeKeys.DefaultTextBoxStyleKey}}"
         TargetType="TextBox">
         <Setter Property="ui:TextBoxHelper.IsEnabled" Value="False" />
         <Setter Property="converters:NumericInputBehavior.IsEnabled" Value="True" />

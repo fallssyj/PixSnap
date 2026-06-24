@@ -58,7 +58,7 @@ public sealed class CropAspectRatioPresetItem
     public required string ToolTip { get; init; }
 }
 
-public partial class ScreenshotPreviewViewModel : ObservableRecipient, IRecipient<ScreenshotCapturedMessage>
+public partial class ScreenshotPreviewViewModel : ObservableObject
 {
     public const double MinZoomFactor = 0.1;
     public const double MaxZoomFactor = 8.0;
@@ -186,18 +186,6 @@ public partial class ScreenshotPreviewViewModel : ObservableRecipient, IRecipien
     /// <summary>标题栏撤销/重做：标注模式下隐藏，改用 dock 内历史操作。</summary>
     public bool IsTitleBarHistoryVisible => !IsAnnotateMode;
 
-    public string ActiveAnnotationToolDisplayText => AnnotationPanel.SelectedTool switch
-    {
-        AnnotationTool.Pointer => "选择",
-        AnnotationTool.Arrow => "箭头",
-        AnnotationTool.Rectangle => "矩形",
-        AnnotationTool.Ellipse => "椭圆",
-        AnnotationTool.Text => "文本",
-        AnnotationTool.Pen => "画笔",
-        AnnotationTool.Blur => "模糊",
-        _ => "标注"
-    };
-
     /// <summary>退出当前编辑模式，回到浏览状态。</summary>
     public void ExitEditMode() => ActiveEditMode = EditMode.None;
 
@@ -299,8 +287,7 @@ public partial class ScreenshotPreviewViewModel : ObservableRecipient, IRecipien
             new() { Content = "3:2", Parameter = "3:2:3:2", ToolTip = "相机" }
         ];
 
-        // 不向全局 Messenger 注册：每个预览窗口只对应一次截图，
-        // 由 App 直接调用 Receive() 初始化，无需监听后续广播。
+        // 截图仅由 ScreenshotPreviewWindowService 显式加载，不订阅全局 Messenger。
         EraserPanel.InpaintApplied += OnEraserApplied;
         EraserPanel.PropertyChanged += OnEraserPanelPropertyChanged;
         CropPanel.PropertyChanged += OnCropPanelPropertyChanged;
@@ -319,7 +306,6 @@ public partial class ScreenshotPreviewViewModel : ObservableRecipient, IRecipien
         if (e.PropertyName == nameof(AnnotationViewModel.SelectedTool))
         {
             UpdateAnnotationToolSelection();
-            OnPropertyChanged(nameof(ActiveAnnotationToolDisplayText));
         }
         else if (e.PropertyName == nameof(AnnotationViewModel.StrokeColor))
         {
@@ -781,7 +767,6 @@ public partial class ScreenshotPreviewViewModel : ObservableRecipient, IRecipien
         }
 
         if (!await TryLeaveAnnotationModeAsync()) return;
-        SwitchToFitMode();
         ActiveEditMode = EditMode.Eraser;
     }
 
@@ -1121,6 +1106,9 @@ public partial class ScreenshotPreviewViewModel : ObservableRecipient, IRecipien
     private void OpenSettings() => _navigation.ShowSettings();
 
     [RelayCommand]
+    private void OpenAbout() => _navigation.ShowAbout();
+
+    [RelayCommand]
     private void OpenLogFolder() => _navigation.ShowLogViewer();
 
     /// <summary>从文件路径加载图片（拖拽打开时使用）。</summary>
@@ -1164,7 +1152,7 @@ public partial class ScreenshotPreviewViewModel : ObservableRecipient, IRecipien
 
     /// <summary>
     /// 预览窗口关闭时调用：解除大图引用、取消进行中的 AI，并整理内存。
-    /// 注意：本 ViewModel 为单例，不可 Dispose 长期持有的同步原语。
+    /// 注意：每个预览窗口持有独立 ViewModel 实例；关闭时 Cleanup，勿 Dispose 同步原语。
     /// </summary>
     public void Cleanup()
     {
@@ -1192,7 +1180,6 @@ public partial class ScreenshotPreviewViewModel : ObservableRecipient, IRecipien
             Log.Warning(ex, "等待图片应用任务时出错");
         }
 
-        IsActive = false;
         ClearOcrOverlay();
         ScreenshotImage = null;
         _history.Reset();
@@ -1201,17 +1188,8 @@ public partial class ScreenshotPreviewViewModel : ObservableRecipient, IRecipien
         MemoryManagementService.TrimAfterUiRelease();
     }
 
-    protected override void OnActivated()
-    {
-        Messenger.RegisterAll(this);
-    }
-
-    protected override void OnDeactivated()
-    {
-        Messenger.UnregisterAll(this);
-    }
-
-    public void Receive(ScreenshotCapturedMessage message)
+    /// <summary>由预览窗口服务显式加载新截图（不经过全局 Messenger）。</summary>
+    public void LoadCapturedScreenshot(ScreenshotCapturedMessage message)
     {
         BeginPreviewSession();
         ResetEditSessionState();
@@ -1259,7 +1237,6 @@ public partial class ScreenshotPreviewViewModel : ObservableRecipient, IRecipien
     public void BeginPreviewSession()
     {
         _isClosing = false;
-        IsActive = true;
     }
 
     public async Task ApplyEditedImageAsync(BitmapSource newImage, bool switchToFit = true)

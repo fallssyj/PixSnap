@@ -15,7 +15,6 @@
                     SmallChange="1"
                     Style="{StaticResource EditDockPropertyFieldSpacingStyle}"
                     TickFrequency="5"
-                    Unit="px"
                     Value="{Binding EraserPanel.BrushSize, Mode=TwoWay}" />
                 <controls:DockSliderField
                     Label="羽化"
@@ -24,7 +23,6 @@
                     Minimum="0"
                     SmallChange="1"
                     TickFrequency="5"
-                    Unit="%"
                     Value="{Binding EraserPanel.EdgeFeatherStrength, Mode=TwoWay}" />
             </StackPanel>
 

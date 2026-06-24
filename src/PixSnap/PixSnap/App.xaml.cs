@@ -155,7 +155,7 @@ public partial class App : System.Windows.Application, IRecipient<ScreenshotCapt
 
         // ViewModels
         services.AddTransient<MainViewModel>();
-        services.AddSingleton<ScreenshotPreviewViewModel>();
+        services.AddTransient<ScreenshotPreviewViewModel>();
         services.AddTransient<SettingsViewModel>();
         services.AddSingleton<TrayViewModel>();
 

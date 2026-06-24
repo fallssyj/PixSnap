@@ -36,6 +36,7 @@ public partial class ScreenshotPreviewWindow
         {
             // 退出时隐藏光标指示器、清除视觉笔画
             EraserCursorIndicator.Visibility = Visibility.Collapsed;
+            EraserCursorIndicatorOuter.Visibility = Visibility.Collapsed;
             ClearEraserVisualStrokes();
         }
     }
@@ -52,15 +53,17 @@ public partial class ScreenshotPreviewWindow
     private void UpdateEraserCursorIndicator(Point canvasPos)
     {
         if (DataContext is not ScreenshotPreviewViewModel vm) return;
-        // BrushSize 直接作为屏幕显示半径使用
         double displayR = vm.EraserPanel.BrushSize;
         double diameter = displayR * 2;
 
-        EraserCursorIndicator.Width = diameter;
-        EraserCursorIndicator.Height = diameter;
-        Canvas.SetLeft(EraserCursorIndicator, canvasPos.X - displayR);
-        Canvas.SetTop(EraserCursorIndicator, canvasPos.Y - displayR);
-        EraserCursorIndicator.Visibility = Visibility.Visible;
+        foreach (var ring in new[] { EraserCursorIndicatorOuter, EraserCursorIndicator })
+        {
+            ring.Width = diameter;
+            ring.Height = diameter;
+            Canvas.SetLeft(ring, canvasPos.X - displayR);
+            Canvas.SetTop(ring, canvasPos.Y - displayR);
+            ring.Visibility = Visibility.Visible;
+        }
     }
 
     private void PaintEraserStroke(Point canvasPos)
@@ -123,7 +126,8 @@ public partial class ScreenshotPreviewWindow
         // 移除所有视觉笔画，保留光标指示器
         for (int i = EraserCanvas.Children.Count - 1; i >= 0; i--)
         {
-            if (EraserCanvas.Children[i] != EraserCursorIndicator)
+            var child = EraserCanvas.Children[i];
+            if (child != EraserCursorIndicator && child != EraserCursorIndicatorOuter)
                 EraserCanvas.Children.RemoveAt(i);
         }
 
@@ -154,6 +158,7 @@ public partial class ScreenshotPreviewWindow
     private void EraserCanvas_MouseLeave(object sender, MouseEventArgs e)
     {
         EraserCursorIndicator.Visibility = Visibility.Collapsed;
+        EraserCursorIndicatorOuter.Visibility = Visibility.Collapsed;
         if (_isEraserDrawing)
         {
             _isEraserDrawing = false;

@@ -1,4 +1,4 @@
-﻿<Window
+<Window
     x:Class="PixSnap.Views.LogViewerWindow"
     xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
     xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
@@ -109,8 +109,8 @@
                     AcceptsReturn="True"
                     Background="Transparent"
                     BorderThickness="0"
-                    FontFamily="Consolas, Cascadia Code, 等距更纱黑体"
-                    FontSize="12"
+                    FontFamily="{StaticResource AppFontFamilyMono}"
+                    FontSize="{StaticResource AppFontSizeCaption}"
                     HorizontalScrollBarVisibility="Auto"
                     IsReadOnly="True"
                     Text="{Binding LogContent, Mode=OneWay}"

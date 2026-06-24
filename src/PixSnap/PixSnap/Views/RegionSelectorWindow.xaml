@@ -35,40 +35,6 @@
             StrokeThickness="2"
             Visibility="Collapsed" />
 
-        <Border
-            x:Name="InfoBubble"
-            Padding="12,10"
-            Background="{DynamicResource OverlayInfoBubbleBackgroundBrush}"
-            CornerRadius="14"
-            IsHitTestVisible="False">
-            <StackPanel>
-                <TextBlock
-                    FontSize="13"
-                    Foreground="{DynamicResource TextFillColorPrimaryBrush}"
-                    Text="{Binding SelectionText}" />
-                <TextBlock
-                    MaxWidth="420"
-                    Margin="0,6,0,0"
-                    FontSize="12"
-                    Foreground="{DynamicResource TextFillColorSecondaryBrush}"
-                    Text="{Binding InstructionText}"
-                    TextWrapping="Wrap" />
-            </StackPanel>
-        </Border>
-
-        <Border
-            x:Name="FooterHint"
-            Padding="14,10"
-            Background="{DynamicResource OverlayFooterBackgroundBrush}"
-            CornerRadius="16"
-            IsHitTestVisible="False">
-            <TextBlock
-                MaxWidth="520"
-                Foreground="{DynamicResource TextFillColorPrimaryBrush}"
-                Text="{Binding FooterHintText}"
-                TextWrapping="Wrap" />
-        </Border>
-
         <!--  自定义十字准星：全屏辅助线 + 中心十字（带间隙）  -->
         <Line
             x:Name="GuideV"

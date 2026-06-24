@@ -89,7 +89,15 @@ public partial class AnnotationOverlayControl : UserControl
         {
             control.CommitActiveTextBox();
             control.AnnotationCanvas.Children.Clear();
+            control.HidePenBrushIndicator();
         }
+    }
+
+    /// <summary>抓手模式结束后恢复标注层光标与画笔预览。</summary>
+    public void RestoreInteractionCursor()
+    {
+        UpdateAnnotationCursor();
+        HidePenBrushIndicator();
     }
 
     private static void OnImageSourceChanged(DependencyObject d, DependencyPropertyChangedEventArgs e)
@@ -126,6 +134,7 @@ public partial class AnnotationOverlayControl : UserControl
         if (e.PropertyName == nameof(AnnotationViewModel.SelectedTool))
         {
             UpdateAnnotationCursor();
+            HidePenBrushIndicator();
             // 切换工具时清除选中
             if (ViewModel is not null &&
                 ViewModel.SelectedTool != AnnotationTool.Pointer)
@@ -157,9 +166,66 @@ public partial class AnnotationOverlayControl : UserControl
             return;
         }
 
-        AnnotationCanvas.Cursor = ViewModel.SelectedTool == AnnotationTool.Pointer
-            ? Cursors.Arrow
-            : Cursors.Cross;
+        AnnotationCanvas.Cursor = ViewModel.SelectedTool switch
+        {
+            AnnotationTool.Pointer => Cursors.Arrow,
+            AnnotationTool.Pen => Cursors.None,
+            _ => Cursors.Cross
+        };
+    }
+
+    private bool CanShowPenBrushIndicator()
+        => ViewModel is not null
+           && IsActive
+           && ViewModel.SelectedTool == AnnotationTool.Pen
+           && ViewModel.CurrentAnnotation is null
+           && _dragAnnotation is null
+           && _resizeAnnotation is null;
+
+    private void UpdatePenBrushIndicator(Point canvasPos)
+    {
+        if (!CanShowPenBrushIndicator())
+        {
+            HidePenBrushIndicator();
+            return;
+        }
+
+        double d = 1.0 / GetAnnotationDpiScale();
+        double diameter = Math.Max(4, ViewModel!.StrokeWidth * d);
+        double radius = diameter / 2;
+
+        foreach (var ring in new[] { PenBrushOuterRing, PenBrushInnerRing })
+        {
+            ring.Width = diameter;
+            ring.Height = diameter;
+            Canvas.SetLeft(ring, canvasPos.X - radius);
+            Canvas.SetTop(ring, canvasPos.Y - radius);
+            ring.Visibility = Visibility.Visible;
+        }
+    }
+
+    private void HidePenBrushIndicator()
+    {
+        PenBrushOuterRing.Visibility = Visibility.Collapsed;
+        PenBrushInnerRing.Visibility = Visibility.Collapsed;
+    }
+
+    private void AnnotationCanvas_MouseEnter(object sender, MouseEventArgs e)
+    {
+        if (CanShowPenBrushIndicator())
+            UpdatePenBrushIndicator(e.GetPosition(AnnotationCanvas));
+    }
+
+    private void AnnotationCanvas_MouseLeave(object sender, MouseEventArgs e)
+    {
+        HidePenBrushIndicator();
+    }
+
+    /// <summary>缩放或窗口尺寸变化后刷新画布尺寸并重绘标注。</summary>
+    public void RefreshLayout()
+    {
+        UpdateAnnotationCanvasSize();
+        RedrawAnnotationOverlay();
     }
 
     private void UpdateAnnotationCanvasSize()
@@ -169,6 +235,8 @@ public partial class AnnotationOverlayControl : UserControl
 
         AnnotationCanvas.Width = ImageSource.Width;
         AnnotationCanvas.Height = ImageSource.Height;
+        PenBrushOverlay.Width = ImageSource.Width;
+        PenBrushOverlay.Height = ImageSource.Height;
     }
 
     private bool TryGetImagePixelPoint(Point canvasPos, out Point imgPixelPoint)
@@ -285,18 +353,32 @@ public partial class AnnotationOverlayControl : UserControl
 
         var pos = e.GetPosition(AnnotationCanvas);
 
-        // 非拖拽时更新鼠标指针（悬停在手柄上变为缩放光标）
-        if (e.LeftButton != MouseButtonState.Pressed && ViewModel.SelectedTool == AnnotationTool.Pointer)
+        if (ViewModel.SelectedTool == AnnotationTool.Pen)
         {
-            if (ViewModel.SelectedAnnotation is { } sel)
-            {
-                int h = HitTestResizeHandle(sel, pos);
-                AnnotationCanvas.Cursor = h >= 0 ? ResizeHandleCursors[h] : Cursors.Arrow;
-            }
-            return;
+            if (e.LeftButton == MouseButtonState.Pressed)
+                HidePenBrushIndicator();
+            else
+                UpdatePenBrushIndicator(pos);
         }
 
-        if (e.LeftButton != MouseButtonState.Pressed) return;
+        // 非拖拽时更新鼠标指针（悬停在手柄上变为缩放光标）
+        if (e.LeftButton != MouseButtonState.Pressed)
+        {
+            if (ViewModel.SelectedTool == AnnotationTool.Pointer)
+            {
+                if (ViewModel.SelectedAnnotation is { } sel)
+                {
+                    int h = HitTestResizeHandle(sel, pos);
+                    AnnotationCanvas.Cursor = h >= 0 ? ResizeHandleCursors[h] : Cursors.Arrow;
+                }
+                else
+                {
+                    AnnotationCanvas.Cursor = Cursors.Arrow;
+                }
+            }
+
+            return;
+        }
 
         if (!TryGetImagePixelPoint(pos, out var imgPoint)) return;
 
@@ -631,9 +713,12 @@ public partial class AnnotationOverlayControl : UserControl
         double sx, double sy, double ex, double ey)
     {
         var pts = AnnotationViewModel.CalculateArrowPoints(new Point(sx, sy), new Point(ex, ey), thickness);
-        if (pts.Length == 0) return;
-        var poly = new System.Windows.Shapes.Polygon { Fill = brush, Tag = item };
-        foreach (var p in pts) poly.Points.Add(p);
+        if (pts.Length == 0)
+            return;
+
+        var poly = new Polygon { Fill = brush, Tag = item };
+        foreach (var p in pts)
+            poly.Points.Add(p);
         AnnotationCanvas.Children.Add(poly);
     }
 

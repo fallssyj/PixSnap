@@ -9,6 +9,9 @@
         BasedOn="{StaticResource {x:Static ui:ThemeKeys.DefaultButtonStyleKey}}"
         TargetType="Button">
         <Setter Property="Cursor" Value="Hand" />
+        <Setter Property="Focusable" Value="False" />
+        <Setter Property="IsTabStop" Value="False" />
+        <Setter Property="KeyboardNavigation.IsTabStop" Value="False" />
     </Style>
 
     <Style
@@ -16,6 +19,9 @@
         BasedOn="{StaticResource {x:Static ui:ThemeKeys.AccentButtonStyleKey}}"
         TargetType="Button">
         <Setter Property="Cursor" Value="Hand" />
+        <Setter Property="Focusable" Value="False" />
+        <Setter Property="IsTabStop" Value="False" />
+        <Setter Property="KeyboardNavigation.IsTabStop" Value="False" />
     </Style>
 
     <Style
@@ -23,6 +29,9 @@
         BasedOn="{StaticResource {x:Static ui:ThemeKeys.DefaultToggleButtonStyleKey}}"
         TargetType="ToggleButton">
         <Setter Property="Cursor" Value="Hand" />
+        <Setter Property="Focusable" Value="False" />
+        <Setter Property="IsTabStop" Value="False" />
+        <Setter Property="KeyboardNavigation.IsTabStop" Value="False" />
     </Style>
 
     <!--  Win11 标题栏/工具栏：默认无边框，悬停时才显示底色  -->
@@ -67,10 +76,11 @@
         </ControlTemplate.Triggers>
     </ControlTemplate>
 
-    <Style
-        x:Key="BorderlessToolbarButtonStyle"
-        TargetType="Button">
+    <Style x:Key="BorderlessToolbarButtonStyle" TargetType="Button">
         <Setter Property="Cursor" Value="Hand" />
+        <Setter Property="Focusable" Value="False" />
+        <Setter Property="IsTabStop" Value="False" />
+        <Setter Property="KeyboardNavigation.IsTabStop" Value="False" />
         <Setter Property="Width" Value="40" />
         <Setter Property="Height" Value="32" />
         <Setter Property="Margin" Value="1,0" />
@@ -121,9 +131,7 @@
         </ControlTemplate.Triggers>
     </ControlTemplate>
 
-    <Style
-        x:Key="BorderlessToolbarToggleButtonStyle"
-        TargetType="ToggleButton">
+    <Style x:Key="BorderlessToolbarToggleButtonStyle" TargetType="ToggleButton">
         <Setter Property="Cursor" Value="Hand" />
         <Setter Property="Width" Value="40" />
         <Setter Property="Height" Value="32" />
@@ -224,17 +232,22 @@
         </Style.Triggers>
     </Style>
 
-    <Style
-        x:Key="OverlayChipButtonStyle"
-        BasedOn="{StaticResource BorderlessToolbarButtonStyle}"
-        TargetType="Button">
-        <Setter Property="Width" Value="Auto" />
-        <Setter Property="Height" Value="Auto" />
-        <Setter Property="Padding" Value="10,7" />
-        <Setter Property="MinWidth" Value="0" />
-        <Setter Property="MinHeight" Value="0" />
+    <Style x:Key="OverlayChipButtonStyle" TargetType="Button">
+        <Setter Property="Focusable" Value="False" />
+        <Setter Property="IsTabStop" Value="False" />
+        <Setter Property="KeyboardNavigation.IsTabStop" Value="False" />
+        <Setter Property="Cursor" Value="Hand" />
+        <Setter Property="MinWidth" Value="52" />
+        <Setter Property="Height" Value="32" />
+        <Setter Property="Margin" Value="2,0" />
+        <Setter Property="Padding" Value="12,6" />
         <Setter Property="Background" Value="Transparent" />
+        <Setter Property="BorderBrush" Value="Transparent" />
+        <Setter Property="BorderThickness" Value="0" />
         <Setter Property="Foreground" Value="{DynamicResource TextFillColorPrimaryBrush}" />
+        <Setter Property="HorizontalContentAlignment" Value="Center" />
+        <Setter Property="VerticalContentAlignment" Value="Center" />
+        <Setter Property="Template" Value="{StaticResource BorderlessToolbarButtonTemplate}" />
     </Style>
 
     <!--  Flyout 弹出菜单：托盘 / AI 右键等共用  -->

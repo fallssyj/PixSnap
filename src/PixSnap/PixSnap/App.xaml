@@ -10,6 +10,7 @@
             <ResourceDictionary.MergedDictionaries>
                 <ui:ThemeResources />
                 <ui:XamlControlsResources />
+                <ResourceDictionary Source="Styles/Typography.xaml" />
                 <ResourceDictionary Source="Styles/Overlay.xaml" />
                 <ResourceDictionary Source="Styles/PreviewResources.xaml" />
                 <ResourceDictionary Source="Styles/AboutWindow.xaml" />
@@ -21,11 +22,13 @@
             </ResourceDictionary.MergedDictionaries>
 
             <Style TargetType="Window">
+                <Setter Property="FontFamily" Value="{StaticResource AppFontFamily}" />
+                <Setter Property="FontSize" Value="{StaticResource AppFontSizeBody}" />
                 <Setter Property="Foreground" Value="{DynamicResource TextFillColorPrimaryBrush}" />
+                <Setter Property="TextOptions.TextFormattingMode" Value="Display" />
+                <Setter Property="TextOptions.TextRenderingMode" Value="ClearType" />
             </Style>
-            <Style TargetType="TextBlock">
-                <Setter Property="Foreground" Value="{DynamicResource TextFillColorPrimaryBrush}" />
-            </Style>
+            <Style BasedOn="{StaticResource AppTextBlockBaseStyle}" TargetType="TextBlock" />
             <Style TargetType="{x:Type ui:FontIcon}">
                 <Setter Property="Foreground" Value="{DynamicResource TextFillColorPrimaryBrush}" />
             </Style>
@@ -33,15 +36,33 @@
                 <Setter Property="Foreground" Value="{DynamicResource TextFillColorPrimaryBrush}" />
             </Style>
 
-            <!--  全局可点击控件：手型光标  -->
-            <Style TargetType="Button">
+            <!--  在 iNKORE Modern 主题之上叠加统一字体与手型光标  -->
+            <Style TargetType="Button" BasedOn="{StaticResource {x:Static ui:ThemeKeys.DefaultButtonStyleKey}}">
                 <Setter Property="Cursor" Value="Hand" />
+                <Setter Property="FontFamily" Value="{StaticResource AppFontFamily}" />
+                <Setter Property="FontSize" Value="{StaticResource AppFontSizeBody}" />
             </Style>
-            <Style TargetType="ToggleButton">
+            <Style TargetType="ToggleButton" BasedOn="{StaticResource {x:Static ui:ThemeKeys.DefaultToggleButtonStyleKey}}">
                 <Setter Property="Cursor" Value="Hand" />
+                <Setter Property="FontFamily" Value="{StaticResource AppFontFamily}" />
+                <Setter Property="FontSize" Value="{StaticResource AppFontSizeBody}" />
             </Style>
-            <Style TargetType="RepeatButton">
+            <Style TargetType="RepeatButton" BasedOn="{StaticResource {x:Static ui:ThemeKeys.DefaultRepeatButtonStyleKey}}">
                 <Setter Property="Cursor" Value="Hand" />
+                <Setter Property="FontFamily" Value="{StaticResource AppFontFamily}" />
+                <Setter Property="FontSize" Value="{StaticResource AppFontSizeBody}" />
+            </Style>
+            <Style TargetType="TextBox" BasedOn="{StaticResource {x:Static ui:ThemeKeys.DefaultTextBoxStyleKey}}">
+                <Setter Property="FontFamily" Value="{StaticResource AppFontFamily}" />
+                <Setter Property="FontSize" Value="{StaticResource AppFontSizeBody}" />
+            </Style>
+            <Style TargetType="ComboBox" BasedOn="{StaticResource {x:Static ui:ThemeKeys.DefaultComboBoxStyleKey}}">
+                <Setter Property="FontFamily" Value="{StaticResource AppFontFamily}" />
+                <Setter Property="FontSize" Value="{StaticResource AppFontSizeBody}" />
+            </Style>
+            <Style TargetType="Label">
+                <Setter Property="FontFamily" Value="{StaticResource AppFontFamily}" />
+                <Setter Property="FontSize" Value="{StaticResource AppFontSizeBody}" />
             </Style>
 
             <tb:TaskbarIcon x:Key="TrayIcon" ToolTipText="PixSnap" />

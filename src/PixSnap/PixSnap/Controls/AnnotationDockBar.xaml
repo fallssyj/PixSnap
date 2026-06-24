@@ -5,12 +5,14 @@
     xmlns:controls="clr-namespace:PixSnap.Controls"
     xmlns:ui="http://schemas.inkore.net/lib/ui/wpf/modern"
     xmlns:vm="clr-namespace:PixSnap.ViewModels"
-    Focusable="False">
+    Focusable="False"
+    IsTabStop="False"
+    KeyboardNavigation.IsTabStop="False">
     <UserControl.Resources>
         <BooleanToVisibilityConverter x:Key="BoolVis" />
     </UserControl.Resources>
 
-    <Grid>
+    <Grid Focusable="False" KeyboardNavigation.IsTabStop="False">
         <Border Style="{StaticResource EditDockHostStyle}">
             <StackPanel HorizontalAlignment="Center" MinWidth="840">
                 <!--  第一行：历史 · 工具 · 操作  -->
@@ -34,17 +36,11 @@
                             <ui:FontIcon FontSize="14" Icon="{x:Static ui:SegoeFluentIcons.Undo}" />
                         </Button>
                         <Button
-                            Margin="0,0,8,0"
                             Command="{Binding AnnotationPanel.RedoAnnotationCommand}"
                             Style="{StaticResource PanelIconButtonStyle}"
                             ToolTip="重做 (Ctrl+Y)">
                             <ui:FontIcon FontSize="14" Icon="{x:Static ui:SegoeFluentIcons.Redo}" />
                         </Button>
-                        <Border Style="{StaticResource EditDockToolPillStyle}">
-                            <TextBlock
-                                Style="{StaticResource EditDockToolPillTextStyle}"
-                                Text="{Binding ActiveAnnotationToolDisplayText}" />
-                        </Border>
                     </StackPanel>
 
                     <ItemsControl
@@ -230,7 +226,6 @@
                             Minimum="0"
                             SmallChange="1"
                             TickFrequency="1"
-                            Unit="px"
                             Value="{Binding AnnotationPanel.CornerRadius, Mode=TwoWay}"
                             Visibility="{Binding AnnotationPanel.IsRectangleSettingsVisible, Converter={StaticResource BoolVis}}" />
                         <controls:DockSliderField

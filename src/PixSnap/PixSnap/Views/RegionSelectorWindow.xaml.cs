@@ -17,7 +17,7 @@ namespace PixSnap.Views;
 // 与截图结果相关的语义状态仍通过 RegionSelectorViewModel 暴露给 XAML 绑定。
 public partial class RegionSelectorWindow : Window
 {
-    private const double InfoBubbleMargin = 24;
+    private const double OverlayPanelMargin = 24;
     private const double SnapThreshold = 8;
     private const double CrosshairSize = 15;
     private const double CrosshairGap = 4;
@@ -35,7 +35,6 @@ public partial class RegionSelectorWindow : Window
     private ScreenInfo? _hoveredScreen;
     private Point _mouseDownPoint;
     private Point _currentPoint;
-    private bool _hintsAtBottom;
     private List<double>? _snapXEdges;
     private List<double>? _snapYEdges;
 
@@ -117,10 +116,9 @@ public partial class RegionSelectorWindow : Window
             }
         }
 
-        // Mask 和提示气泡属于纯视图层元素，初始化时直接按当前覆盖窗口尺寸定位。
+        // Mask 属于纯视图层元素，初始化时直接按当前覆盖窗口尺寸定位。
         Mask.Width = Width;
         Mask.Height = Height;
-        UpdateHintPanelPositions(null);
         PositionModeTogglePanel();
 
         // Activate() 在 WPF 内部调用 SetForegroundWindow，确保窗口获得 Win32 键盘焦点。
@@ -140,7 +138,6 @@ public partial class RegionSelectorWindow : Window
         _mouseDownPoint = e.GetPosition(this);
         _currentPoint = _mouseDownPoint;
         Selection = null;
-        _viewModel.ClearSelection();
         SelectionRect.Visibility = Visibility.Collapsed;
         BuildSnapEdges();
         CaptureMouse();
@@ -276,17 +273,11 @@ public partial class RegionSelectorWindow : Window
         double bottom = SnapValue(raw.Bottom, _snapYEdges);
         var rect = new Rect(left, top, Math.Max(0, right - left), Math.Max(0, bottom - top));
 
-        _viewModel.UpdateSelection(LocalRectToScreenRect(rect));
-
-        // 矩形框是即时视觉反馈，直接操作命名元素比为每个像素属性建立绑定更清晰。
         SelectionRect.Visibility = rect.Width > 0 && rect.Height > 0 ? Visibility.Visible : Visibility.Collapsed;
         Canvas.SetLeft(SelectionRect, rect.X);
         Canvas.SetTop(SelectionRect, rect.Y);
         SelectionRect.Width = rect.Width;
         SelectionRect.Height = rect.Height;
-
-        // 拖拽中自动避让选区边缘，避免遮挡精确对齐。
-        UpdateHintPanelPositions(rect);
     }
 
     private void BuildSnapEdges()
@@ -358,39 +349,17 @@ public partial class RegionSelectorWindow : Window
             var localRect = ScreenRectToLocalRect(_hoveredWindowRect);
             _viewModel.UpdateWindowHighlight(new Rect(_hoveredWindowRect.Left, _hoveredWindowRect.Top, _hoveredWindowRect.Width, _hoveredWindowRect.Height));
 
-            // 高亮框的位置依赖 DPI 与窗口坐标换算，保留在 View 层处理更合适。
             WindowHighlightRect.Visibility = Visibility.Visible;
             Canvas.SetLeft(WindowHighlightRect, localRect.X);
             Canvas.SetTop(WindowHighlightRect, localRect.Y);
             WindowHighlightRect.Width = localRect.Width;
             WindowHighlightRect.Height = localRect.Height;
-            Canvas.SetLeft(InfoBubble, Math.Max(InfoBubbleMargin, localRect.X));
-            Canvas.SetTop(InfoBubble, Math.Max(InfoBubbleMargin, localRect.Y - 58));
         }
         else
         {
             _viewModel.ClearHighlight();
             WindowHighlightRect.Visibility = Visibility.Collapsed;
-            var localPoint = ScreenPointToLocalPoint(screenPoint);
-            Canvas.SetLeft(InfoBubble, Math.Max(InfoBubbleMargin, localPoint.X + 18));
-            Canvas.SetTop(InfoBubble, Math.Max(InfoBubbleMargin, localPoint.Y + 18));
         }
-
-        // 底部提示始终固定在右下角（两个分支共享同一定位逻辑）
-        PositionFooterHint();
-
-        _viewModel.UpdateHover(_hoveredWindow, _hoveredScreen);
-    }
-
-    /// <summary>将底部操作提示固定在画布右下角。</summary>
-    private void PositionFooterHint()
-    {
-        if (FooterHint is null) return;
-        var canvasWidth = RootCanvas.ActualWidth > 0 ? RootCanvas.ActualWidth : Width;
-        var canvasHeight = RootCanvas.ActualHeight > 0 ? RootCanvas.ActualHeight : Height;
-        var footerSize = MeasureElement(FooterHint);
-        Canvas.SetLeft(FooterHint, Math.Max(InfoBubbleMargin, canvasWidth - footerSize.Width - InfoBubbleMargin));
-        Canvas.SetTop(FooterHint, Math.Max(InfoBubbleMargin, canvasHeight - footerSize.Height - InfoBubbleMargin));
     }
 
     private ScreenInfo? FindScreen(Point screenPoint)
@@ -522,51 +491,6 @@ public partial class RegionSelectorWindow : Window
             Math.Abs(end.Y - start.Y));
     }
 
-    private void UpdateHintPanelPositions(Rect? occupiedRect)
-    {
-        if (InfoBubble is null || FooterHint is null)
-            return;
-
-        var canvasWidth = RootCanvas.ActualWidth > 0 ? RootCanvas.ActualWidth : Width;
-        var canvasHeight = RootCanvas.ActualHeight > 0 ? RootCanvas.ActualHeight : Height;
-
-        var infoSize = MeasureElement(InfoBubble);
-        var footerSize = MeasureElement(FooterHint);
-
-        double infoX = InfoBubbleMargin;
-        double footerX = Math.Max(InfoBubbleMargin, canvasWidth - footerSize.Width - InfoBubbleMargin);
-
-        double infoTopY = InfoBubbleMargin;
-        double infoBottomY = Math.Max(InfoBubbleMargin, canvasHeight - infoSize.Height - InfoBubbleMargin);
-        double footerTopY = InfoBubbleMargin;
-        double footerBottomY = Math.Max(InfoBubbleMargin, canvasHeight - footerSize.Height - InfoBubbleMargin);
-
-        if (occupiedRect is { } rect && rect.Width > 0 && rect.Height > 0)
-        {
-            // 用“当前拖拽位置”做触发判定，而不是选区 Top，避免起点在上方时永远不翻转。
-            double triggerY = Math.Clamp(_currentPoint.Y, 0, canvasHeight);
-            double upperThreshold = canvasHeight * 0.45;
-            double lowerThreshold = canvasHeight * 0.55;
-
-            if (triggerY <= upperThreshold)
-                _hintsAtBottom = true;
-            else if (triggerY >= lowerThreshold)
-                _hintsAtBottom = false;
-        }
-        else
-        {
-            _hintsAtBottom = false;
-        }
-
-        bool moveToBottom = _hintsAtBottom;
-
-        Canvas.SetLeft(InfoBubble, infoX);
-        Canvas.SetTop(InfoBubble, moveToBottom ? infoBottomY : infoTopY);
-
-        Canvas.SetLeft(FooterHint, footerX);
-        Canvas.SetTop(FooterHint, moveToBottom ? footerBottomY : footerTopY);
-    }
-
     private static Size MeasureElement(FrameworkElement element)
     {
         element.Measure(new Size(double.PositiveInfinity, double.PositiveInfinity));
@@ -595,6 +519,6 @@ public partial class RegionSelectorWindow : Window
         var canvasWidth = RootCanvas.ActualWidth > 0 ? RootCanvas.ActualWidth : Width;
         var toggleSize = MeasureElement(ModeTogglePanel);
         Canvas.SetLeft(ModeTogglePanel, (canvasWidth - toggleSize.Width) / 2);
-        Canvas.SetTop(ModeTogglePanel, InfoBubbleMargin);
+        Canvas.SetTop(ModeTogglePanel, OverlayPanelMargin);
     }
 }

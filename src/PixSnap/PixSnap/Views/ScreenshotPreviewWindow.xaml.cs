@@ -35,12 +35,8 @@ public partial class ScreenshotPreviewWindow : Window
 
     #region 字段
 
-    // ── 缩放 / 平移 ──────────────────────────────────────────────────
+    // ── 缩放 ─────────────────────────────────────────────────────────
     private bool _zoomTriggeredModeSwitch;
-    private bool _isPanningPreview;
-    private Point _panStartPoint;
-    private double _panStartHorizontalOffset;
-    private double _panStartVerticalOffset;
 
     // ── 裁剪 ─────────────────────────────────────────────────────────
     private bool _syncingCropRect;
@@ -54,6 +50,7 @@ public partial class ScreenshotPreviewWindow : Window
         DataContextChanged += OnDataContextChanged;
         Closed += OnClosed;
         PreviewKeyDown += OnPreviewKeyDown;
+        InitializeHandTool();
         AllowDrop = true;
         Drop += OnDrop;
         DragOver += OnDragOver;
@@ -62,6 +59,9 @@ public partial class ScreenshotPreviewWindow : Window
     private void OnPreviewKeyDown(object sender, KeyEventArgs e)
     {
         if (DataContext is not ScreenshotPreviewViewModel vm)
+            return;
+
+        if (e.Key == Key.Space)
             return;
 
         if (vm.IsOcrOverlayVisible && Keyboard.Modifiers == ModifierKeys.None && e.Key == Key.Escape)
@@ -112,11 +112,6 @@ public partial class ScreenshotPreviewWindow : Window
             e.Handled = true;
     }
 
-    private static bool IsAnnotationTextInputFocused()
-    {
-        return Keyboard.FocusedElement is TextBox or ComboBox or PasswordBox;
-    }
-
     private void OnDragOver(object sender, DragEventArgs e)
     {
         if (e.Data.GetDataPresent(DataFormats.FileDrop))
@@ -156,6 +151,8 @@ public partial class ScreenshotPreviewWindow : Window
 
     private void OnClosed(object? sender, EventArgs e)
     {
+        CleanupHandTool();
+
         // 1. 断开所有事件订阅，释放 ViewModel 内部引用
         var viewModel = DataContext as ScreenshotPreviewViewModel;
         DetachViewModelHandlers(viewModel);
@@ -177,6 +174,7 @@ public partial class ScreenshotPreviewWindow : Window
 
     private void OnLoaded(object sender, RoutedEventArgs e)
     {
+        EnsureHandToolHwndHook();
         EnsurePreviewImageBinding();
         AttachViewModelHandlers(DataContext as ScreenshotPreviewViewModel);
         UpdatePreviewModeVisibility();
@@ -212,12 +210,17 @@ public partial class ScreenshotPreviewWindow : Window
             case nameof(ScreenshotPreviewViewModel.IsActualSize):
                 UpdatePreviewModeVisibility();
                 RefreshRoundCornerOverlayIfActive();
+                if (_isHandToolActive)
+                    Dispatcher.InvokeAsync(UpdateHandToolOverlayState, DispatcherPriority.Loaded);
                 break;
 
             case nameof(ScreenshotPreviewViewModel.ScreenshotImage):
                 UpdateFitZoomFactor();
                 if (DataContext is ScreenshotPreviewViewModel vmImg)
+                {
                     UpdateEraserCanvasSize(vmImg);
+                    RefreshAnnotationOverlayIfActive();
+                }
                 RefreshRoundCornerOverlayIfActive();
                 break;
 
@@ -230,12 +233,24 @@ public partial class ScreenshotPreviewWindow : Window
                 break;
 
             case nameof(ScreenshotPreviewViewModel.IsEraserMode):
-                UpdateEraserCanvasState();
+                if (_isHandToolActive)
+                    UpdateHandToolOverlayState();
+                else
+                    UpdateEraserCanvasState();
+                break;
+
+            case nameof(ScreenshotPreviewViewModel.IsAnnotateMode):
+            case nameof(ScreenshotPreviewViewModel.IsOcrOverlayVisible):
+                if (_isHandToolActive)
+                    Dispatcher.InvokeAsync(UpdateHandToolOverlayState, DispatcherPriority.Loaded);
                 break;
 
             case nameof(ScreenshotPreviewViewModel.ZoomFactor):
             case nameof(ScreenshotPreviewViewModel.FitZoomFactor):
                 RefreshRoundCornerOverlayIfActive();
+                RefreshAnnotationOverlayIfActive();
+                if (_isHandToolActive)
+                    UpdateHandToolOverlayState();
                 break;
 
             case nameof(ScreenshotPreviewViewModel.IsPinned):
@@ -299,6 +314,15 @@ public partial class ScreenshotPreviewWindow : Window
         }
 
         RefreshRoundCornerOverlayIfActive();
+        RefreshAnnotationOverlayIfActive();
+    }
+
+    private void RefreshAnnotationOverlayIfActive()
+    {
+        if (DataContext is not ScreenshotPreviewViewModel vm || !vm.IsAnnotateMode || vm.ScreenshotImage is null)
+            return;
+
+        Dispatcher.InvokeAsync(() => AnnotationOverlay.RefreshLayout(), DispatcherPriority.Loaded);
     }
 
     private void UpdatePreviewModeVisibility()
@@ -383,6 +407,8 @@ public partial class ScreenshotPreviewWindow : Window
 
     private void PreviewHost_PreviewMouseWheel(object sender, MouseWheelEventArgs e)
     {
+        SyncHandToolFromKeyboard();
+
         if (DataContext is not ScreenshotPreviewViewModel viewModel || viewModel.ScreenshotImage is null)
         {
             return;
@@ -416,6 +442,7 @@ public partial class ScreenshotPreviewWindow : Window
         bool switching = !viewModel.IsActualSize;
 
         ApplyZoomAroundCursor(viewModel, newZoom, contentX, contentY, pointerPosition, isModeSwitch: switching);
+        SyncHandToolFromKeyboard();
     }
 
     /// <summary>以鼠标为中心应用缩放并定位滚动偏移，保持鼠标下方图片像素不动。</summary>
@@ -430,80 +457,6 @@ public partial class ScreenshotPreviewWindow : Window
         ActualSizeScrollViewer.UpdateLayout();
         ActualSizeScrollViewer.ScrollToHorizontalOffset(Math.Max(0, OverscrollPadding + contentX * newZoom - pointer.X));
         ActualSizeScrollViewer.ScrollToVerticalOffset(Math.Max(0, OverscrollPadding + contentY * newZoom - pointer.Y));
-    }
-
-    private void ActualSizeScrollViewer_PreviewMouseDown(object sender, MouseButtonEventArgs e)
-    {
-        if (e.ChangedButton != MouseButton.Middle) return;
-
-        if (IsScrollBarInteraction(e.OriginalSource as DependencyObject)) return;
-
-        _isPanningPreview = true;
-        _panStartPoint = e.GetPosition(ActualSizeScrollViewer);
-        _panStartHorizontalOffset = ActualSizeScrollViewer.HorizontalOffset;
-        _panStartVerticalOffset = ActualSizeScrollViewer.VerticalOffset;
-        ActualSizeScrollViewer.Cursor = Cursors.SizeAll;
-        ActualSizeScrollViewer.CaptureMouse();
-        e.Handled = true;
-    }
-
-    private void ActualSizeScrollViewer_PreviewMouseMove(object sender, MouseEventArgs e)
-    {
-        if (!_isPanningPreview)
-        {
-            return;
-        }
-
-        var currentPoint = e.GetPosition(ActualSizeScrollViewer);
-        var delta = currentPoint - _panStartPoint;
-
-        ActualSizeScrollViewer.ScrollToHorizontalOffset(Math.Max(0, _panStartHorizontalOffset - delta.X));
-        ActualSizeScrollViewer.ScrollToVerticalOffset(Math.Max(0, _panStartVerticalOffset - delta.Y));
-        e.Handled = true;
-    }
-
-    private void ActualSizeScrollViewer_PreviewMouseUp(object sender, MouseButtonEventArgs e)
-    {
-        if (e.ChangedButton != MouseButton.Middle) return;
-        EndPreviewPan();
-    }
-
-    private void ActualSizeScrollViewer_MouseLeave(object sender, MouseEventArgs e)
-    {
-        if (e.MiddleButton != MouseButtonState.Pressed)
-        {
-            EndPreviewPan();
-        }
-    }
-
-    private void EndPreviewPan()
-    {
-        if (!_isPanningPreview)
-        {
-            return;
-        }
-
-        _isPanningPreview = false;
-        ActualSizeScrollViewer.ReleaseMouseCapture();
-        ActualSizeScrollViewer.ClearValue(CursorProperty);
-    }
-
-
-
-    private static bool IsScrollBarInteraction(DependencyObject? source)
-    {
-        var current = source;
-        while (current is not null)
-        {
-            if (current is ScrollBar || current is Thumb)
-            {
-                return true;
-            }
-
-            current = VisualTreeHelper.GetParent(current);
-        }
-
-        return false;
     }
 
     // ══════════════════════════════════════════════════════════════════════════

@@ -11,17 +11,17 @@
     Height="760"
     MinWidth="540"
     MinHeight="600"
-    ResizeMode="CanResize"
-    SizeToContent="Manual"
-    TextOptions.TextFormattingMode="Display"
-    UseLayoutRounding="True"
-    WindowStartupLocation="CenterScreen"
     ui:TitleBar.Height="36"
     ui:TitleBar.MaximizeButtonAvailability="Collapsed"
     ui:TitleBar.MinimizeButtonAvailability="Collapsed"
     ui:WindowHelper.FixMaximizedWindow="True"
     ui:WindowHelper.SystemBackdropType="Mica"
-    ui:WindowHelper.UseModernWindowStyle="True">
+    ui:WindowHelper.UseModernWindowStyle="True"
+    ResizeMode="CanResize"
+    SizeToContent="Manual"
+    TextOptions.TextFormattingMode="Display"
+    UseLayoutRounding="True"
+    WindowStartupLocation="CenterScreen">
 
     <Grid>
         <Grid.RowDefinitions>
@@ -32,7 +32,7 @@
         </Grid.RowDefinitions>
 
         <Border Grid.Row="0" Padding="32,24,32,8">
-            <controls:PageHeader Subtitle="自定义截图、录屏与 AI 相关选项" Title="设置">
+            <controls:PageHeader Title="设置" Subtitle="自定义截图、录屏与 AI 相关选项">
                 <controls:PageHeader.IconContent>
                     <ui:FontIcon
                         FontSize="18"
@@ -235,10 +235,10 @@
                                         <ColumnDefinition Width="Auto" />
                                     </Grid.ColumnDefinitions>
                                     <TextBox
-                                        Style="{StaticResource SettingsPathTextBoxStyle}"
                                         behaviors:HotkeyRecordBehavior.IsEnabled="True"
                                         Cursor="Hand"
                                         IsReadOnly="True"
+                                        Style="{StaticResource SettingsPathTextBoxStyle}"
                                         Text="{Binding HotkeyDisplayText, Mode=OneWay}" />
                                     <Button
                                         Grid.Column="1"
@@ -254,7 +254,7 @@
                     <TextBlock Style="{StaticResource SettingsSectionHeaderStyle}" Text="存储" />
 
                     <Border Style="{StaticResource SettingsSectionCardStyle}">
-                        <ikw:SimpleStackPanel Spacing="0">
+                        <ikw:SimpleStackPanel Grid.IsSharedSizeScope="True" Spacing="0">
                             <Border Style="{StaticResource SettingsFieldRowStyle}">
                                 <Grid>
                                     <Grid.ColumnDefinitions>
@@ -279,12 +279,12 @@
                                     <Grid Margin="0,8,0,0">
                                         <Grid.ColumnDefinitions>
                                             <ColumnDefinition Width="*" />
-                                            <ColumnDefinition Width="Auto" />
-                                            <ColumnDefinition Width="Auto" />
+                                            <ColumnDefinition Width="Auto" SharedSizeGroup="SettingsTrailingAction" />
+                                            <ColumnDefinition Width="Auto" SharedSizeGroup="SettingsTrailingIcon" />
                                         </Grid.ColumnDefinitions>
                                         <TextBox
-                                            Style="{StaticResource SettingsPathTextBoxStyle}"
                                             IsReadOnly="True"
+                                            Style="{StaticResource SettingsPathTextBoxStyle}"
                                             Text="{Binding SaveDirectory, Mode=OneWay}" />
                                         <Button
                                             Grid.Column="1"
@@ -311,12 +311,12 @@
                                     <Grid Margin="0,8,0,0">
                                         <Grid.ColumnDefinitions>
                                             <ColumnDefinition Width="*" />
-                                            <ColumnDefinition Width="Auto" />
-                                            <ColumnDefinition Width="Auto" />
+                                            <ColumnDefinition Width="Auto" SharedSizeGroup="SettingsTrailingAction" />
+                                            <ColumnDefinition Width="Auto" SharedSizeGroup="SettingsTrailingIcon" />
                                         </Grid.ColumnDefinitions>
                                         <TextBox
-                                            Style="{StaticResource SettingsPathTextBoxStyle}"
                                             IsReadOnly="True"
+                                            Style="{StaticResource SettingsPathTextBoxStyle}"
                                             Text="{Binding RecordingTempDirectory, Mode=OneWay}" />
                                         <Button
                                             Grid.Column="1"
@@ -341,27 +341,33 @@
                                 <Grid>
                                     <Grid.ColumnDefinitions>
                                         <ColumnDefinition Width="*" />
-                                        <ColumnDefinition Width="Auto" />
+                                        <ColumnDefinition Width="Auto" SharedSizeGroup="SettingsTrailingAction" />
+                                        <ColumnDefinition Width="Auto" SharedSizeGroup="SettingsTrailingIcon" />
                                     </Grid.ColumnDefinitions>
                                     <StackPanel VerticalAlignment="Center">
                                         <TextBlock Style="{StaticResource SettingsRowTitleStyle}" Text="日志保留天数" />
                                         <TextBlock Style="{StaticResource SettingsRowDescStyle}" Text="超过保留期的日志文件将在启动时自动删除" />
                                     </StackPanel>
-                                    <StackPanel
+                                    <TextBox
                                         Grid.Column="1"
+                                        Margin="8,0,0,0"
                                         VerticalAlignment="Center"
-                                        Orientation="Horizontal">
-                                        <TextBox
-                                            Width="72"
-                                            HorizontalContentAlignment="Center"
-                                            Style="{StaticResource SettingsPathTextBoxStyle}"
-                                            Text="{Binding LogRetentionDays, UpdateSourceTrigger=PropertyChanged}" />
+                                        HorizontalAlignment="Stretch"
+                                        HorizontalContentAlignment="Center"
+                                        Style="{StaticResource SettingsPathTextBoxStyle}"
+                                        Text="{Binding LogRetentionDays, UpdateSourceTrigger=PropertyChanged}" />
+                                    <Grid
+                                        Grid.Column="2"
+                                        Width="32"
+                                        Height="32"
+                                        Margin="4,0,0,0"
+                                        VerticalAlignment="Center">
                                         <TextBlock
-                                            Margin="8,0,0,0"
+                                            HorizontalAlignment="Center"
                                             VerticalAlignment="Center"
                                             Foreground="{DynamicResource TextFillColorSecondaryBrush}"
                                             Text="天" />
-                                    </StackPanel>
+                                    </Grid>
                                 </Grid>
                             </Border>
                         </ikw:SimpleStackPanel>
@@ -378,14 +384,14 @@
             BorderThickness="0,1,0,0">
             <StackPanel HorizontalAlignment="Right" Orientation="Horizontal">
                 <Button
-                    MinWidth="88"
                     Height="36"
+                    MinWidth="88"
                     Command="{Binding CancelCommand}"
                     Content="取消"
                     Style="{StaticResource PixSnapButtonStyle}" />
                 <Button
-                    MinWidth="88"
                     Height="36"
+                    MinWidth="88"
                     Margin="8,0,0,0"
                     Command="{Binding SaveCommand}"
                     Content="保存"
