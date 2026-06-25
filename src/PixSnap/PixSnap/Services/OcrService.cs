@@ -65,7 +65,15 @@ public static class OcrService
     /// <summary>UI 行最大高度（像素，原图坐标）。</summary>
     private const double IconPlusTextMaxRowHeight = 96.0;
 
-    private static readonly string ModelDir = Path.Combine(AppContext.BaseDirectory, "onnx", "ocr");
+    private static string DetPath => AiModelCatalog.GetAbsolutePath(
+        AiModelCatalog.FindById(CurrentTier == OcrModelTier.Server ? "ocr-server-det" : "ocr-mobile-det")!);
+
+    private static string RecPath => AiModelCatalog.GetAbsolutePath(
+        AiModelCatalog.FindById(CurrentTier == OcrModelTier.Server ? "ocr-server-rec" : "ocr-mobile-rec")!);
+
+    private static string ClsPath => AiModelCatalog.GetAbsolutePath(AiModelCatalog.FindById("ocr-cls")!);
+    private static string DictPath => AiModelCatalog.GetAbsolutePath(AiModelCatalog.FindById("ocr-dict")!);
+
     private static readonly SemaphoreSlim InitLock = new(1, 1);
     private static readonly SemaphoreSlim InferenceLock = new(1, 1);
     private static OcrLite? _engine;
@@ -83,21 +91,6 @@ public static class OcrService
     private static bool IsAvailable => AiModelCatalog.IsOcrTierReady(OcrSettings.Tier);
 
     private static OcrModelTier CurrentTier => OcrSettings.Tier;
-
-    private static string DetPath => CurrentTier switch
-    {
-        OcrModelTier.Server => Path.Combine(ModelDir, "ch_PP-OCRv5_server_det.onnx"),
-        _ => Path.Combine(ModelDir, "ch_PP-OCRv5_mobile_det.onnx")
-    };
-
-    private static string RecPath => CurrentTier switch
-    {
-        OcrModelTier.Server => Path.Combine(ModelDir, "ch_PP-OCRv5_server_rec_infer.onnx"),
-        _ => Path.Combine(ModelDir, "ch_PP-OCRv5_mobile_rec_infer.onnx")
-    };
-
-    private static string ClsPath => Path.Combine(ModelDir, "ch_ppocr_mobile_v2.0_cls_infer.onnx");
-    private static string DictPath => Path.Combine(ModelDir, "ppocrv5_dict.txt");
 
     public static async Task<OcrResult> RecognizeAsync(
         BitmapSource image,

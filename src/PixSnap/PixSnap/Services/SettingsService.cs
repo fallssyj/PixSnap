@@ -11,15 +11,13 @@ namespace PixSnap.Services;
 
 /// <summary>
 /// 读写应用持久化设置。
-/// 开机启动写入系统注册表 Run 键；热键配置存储至程序目录下的 settings.json。
+/// 开机启动写入系统注册表 Run 键；其余配置存储至 %LocalAppData%\PixSnap\settings.json。
 /// </summary>
 public static class SettingsService
 {
     private const string StartupRegPath = @"SOFTWARE\Microsoft\Windows\CurrentVersion\Run";
 
-    // 配置文件路径：与可执行文件同目录
-    private static readonly string ConfigFilePath =
-        Path.Combine(AppContext.BaseDirectory, "settings.json");
+    private static readonly string ConfigFilePath = AppPaths.SettingsFilePath;
 
     // ── JSON 配置键名 ──────────────────────────────────────────────────────────────
     private const string KeyHotkeyModifiers = "HotkeyModifiers";
@@ -456,6 +454,7 @@ public static class SettingsService
 
     private static void WriteConfigDict(Dictionary<string, object> dict)
     {
+        Directory.CreateDirectory(AppPaths.DataDirectory);
         var json = JsonSerializer.Serialize(dict, new JsonSerializerOptions { WriteIndented = true });
         // 原子写入：先写临时文件，再 rename，避免写入中断导致配置损坏
         var tempPath = ConfigFilePath + ".tmp";

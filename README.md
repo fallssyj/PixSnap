@@ -101,6 +101,31 @@ msbuild src/PixSnap/PixSnap.sln /p:Configuration=Release /p:Platform=x64 /m
 
 输出目录：`src/PixSnap/PixSnap/bin/x64/Release/net10.0-windows/`
 
+### 制作安装包
+
+需要额外安装 [Inno Setup 6](https://jrsoftware.org/isdl.php)（提供 `ISCC.exe`）。
+
+```powershell
+# 一键发布 + 打包（自包含运行时，目标机无需单独安装 .NET）
+powershell -ExecutionPolicy Bypass -File scripts/build-installer.ps1
+```
+
+输出：`installer/output/PixSnap-Setup-1.0.0-x64.exe`
+
+安装包特性：
+- 默认安装到 `%LocalAppData%\Programs\PixSnap`（无需管理员权限）
+- 日志、设置、下载的 AI 模型写入 `%LocalAppData%\PixSnap\`
+- 卸载时会删除 `%LocalAppData%\PixSnap\`（含日志、设置与模型）；若程序正在运行会提示先退出
+- 开始菜单快捷方式，可选桌面图标
+- 自带 .NET 10 运行时，含 `NativeScreenCapturer.dll` 等原生依赖
+- 支持卸载
+
+若已安装 Inno Setup 但脚本找不到，可设置环境变量：
+
+```powershell
+$env:PIXSNAP_ISCC = "C:\Program Files (x86)\Inno Setup 6\ISCC.exe"
+```
+
 ### AI 模型
 
 首次使用 AI 功能时，应用会提示下载对应 ONNX 模型。也可在「设置 → AI → 模型管理」中手动下载。

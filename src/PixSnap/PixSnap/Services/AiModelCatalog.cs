@@ -268,34 +268,41 @@ public static class AiModelCatalog
 
 
 
-    public static string GetAbsolutePath(AiModelDescriptor model) =>
+    public static string GetDownloadPath(AiModelDescriptor model) =>
+        AppPaths.GetDataPath(model.RelativePath);
 
-        Path.Combine(AppContext.BaseDirectory, model.RelativePath);
+    public static string GetAbsolutePath(AiModelDescriptor model)
+    {
+        var dataPath = GetDownloadPath(model);
+        if (File.Exists(dataPath) && new FileInfo(dataPath).Length > 1024)
+            return dataPath;
 
-    public static string ModelsRootDirectory => Path.Combine(AppContext.BaseDirectory, "onnx");
+        var installPath = AppPaths.GetInstallPath(model.RelativePath);
+        if (File.Exists(installPath) && new FileInfo(installPath).Length > 1024)
+            return installPath;
+
+        return dataPath;
+    }
+
+    public static string ModelsRootDirectory => AppPaths.ModelsRootDirectory;
 
 
 
     public static bool IsDownloaded(AiModelDescriptor model)
-
     {
+        foreach (var path in new[] { GetDownloadPath(model), AppPaths.GetInstallPath(model.RelativePath) })
+        {
+            if (!File.Exists(path))
+                continue;
 
-        var path = GetAbsolutePath(model);
+            if (model.IsBundled)
+                return true;
 
-        if (!File.Exists(path))
+            if (new FileInfo(path).Length > 1024)
+                return true;
+        }
 
-            return false;
-
-
-
-        if (model.IsBundled)
-
-            return true;
-
-
-
-        return new FileInfo(path).Length > 1024;
-
+        return false;
     }
 
 

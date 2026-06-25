@@ -8,8 +8,8 @@ namespace PixSnap.Services;
 /// <summary>枚举可用于 DirectML 的 GPU 设备（供设置页下拉框）。</summary>
 public static class DirectMlDeviceEnumerator
 {
-    private static readonly string ProbeModelPath = Path.Combine(
-        AppContext.BaseDirectory, "onnx", "ocr", "ch_ppocr_mobile_v2.0_cls_infer.onnx");
+    private static readonly string ProbeModelPath =
+        AiModelCatalog.GetAbsolutePath(AiModelCatalog.FindById("ocr-cls")!);
 
     private static readonly object CacheLock = new();
     private static IReadOnlyList<GpuDeviceOption>? _cachedOptions;

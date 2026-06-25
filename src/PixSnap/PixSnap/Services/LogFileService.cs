@@ -6,7 +6,7 @@ namespace PixSnap.Services;
 /// <summary>应用日志目录维护：Serilog 初始化、过期清理、手动清空。</summary>
 internal static class LogFileService
 {
-    public static string LogsDirectory => Path.Combine(AppContext.BaseDirectory, "logs");
+    public static string LogsDirectory => AppPaths.LogsDirectory;
 
     public static void ConfigureLogger()
     {

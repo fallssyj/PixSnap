@@ -55,7 +55,9 @@ public partial class App : System.Windows.Application, IRecipient<ScreenshotCapt
     {
         base.OnStartup(e);
 
-        // 初始化 Serilog 文件日志：按天建立子目录 logs/yyyy-MM-dd/pixsnap.log
+        AppPaths.Initialize();
+
+        // 初始化 Serilog 文件日志：%LocalAppData%\PixSnap\logs\yyyy-MM-dd\pixsnap.log
         LogFileService.ConfigureLogger();
 
         Log.Information("PixSnap 启动");
@@ -392,7 +394,7 @@ public partial class App : System.Windows.Application, IRecipient<ScreenshotCapt
     {
         try
         {
-            var iconPath = Path.Combine(AppContext.BaseDirectory, "Assets", "icons", "app.ico");
+            var iconPath = Path.Combine(AppPaths.InstallDirectory, "Assets", "icons", "app.ico");
             if (File.Exists(iconPath))
             {
                 return new Icon(iconPath);

@@ -3,3 +3,5 @@
 bin
 obj
 artifacts
+installer/staging
+installer/output

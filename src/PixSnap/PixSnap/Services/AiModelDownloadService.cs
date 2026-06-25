@@ -5,7 +5,7 @@ using System.Net.Http;
 
 namespace PixSnap.Services;
 
-/// <summary>从远程地址下载 AI ONNX 模型到程序目录。</summary>
+/// <summary>从远程地址下载 AI ONNX 模型到用户数据目录。</summary>
 public static class AiModelDownloadService
 {
     private static readonly HttpClient HttpClient = CreateHttpClient();
@@ -27,7 +27,7 @@ public static class AiModelDownloadService
         if (string.IsNullOrWhiteSpace(model.DownloadUrl))
             throw new InvalidOperationException($"{model.DisplayName} 不支持在线下载。");
 
-        var destPath = AiModelCatalog.GetAbsolutePath(model);
+        var destPath = AiModelCatalog.GetDownloadPath(model);
         var directory = Path.GetDirectoryName(destPath);
         if (!string.IsNullOrEmpty(directory))
             Directory.CreateDirectory(directory);

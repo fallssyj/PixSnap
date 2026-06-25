@@ -20,8 +20,8 @@ namespace PixSnap.Services;
 /// </summary>
 public static class InpaintService
 {
-    private static readonly string ModelPath =
-        Path.Combine(AppContext.BaseDirectory, "onnx", "lama_fp32.onnx");
+    private static string ModelPath =>
+        AiModelCatalog.GetAbsolutePath(AiModelCatalog.FindById("lama")!);
 
     // 模型固定输入尺寸（lama_fp32.onnx 要求 512×512）
     private const int ModelSize = 512;
