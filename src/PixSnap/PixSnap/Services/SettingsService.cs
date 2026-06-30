@@ -23,6 +23,7 @@ public static class SettingsService
     private const string KeyHotkeyModifiers = "HotkeyModifiers";
     private const string KeyHotkeyKey = "HotkeyKey";
     private const string KeyTheme = "Theme";
+    private const string KeyWindowBackdrop = "WindowBackdrop";
     private const string KeyVersion = "Version";
     private const string KeySaveDirectory = "SaveDirectory";
     private const string KeyAutoSave = "AutoSave";
@@ -42,7 +43,7 @@ public static class SettingsService
     public static readonly ModifierKeys DefaultHotkeyModifiers = ModifierKeys.Control | ModifierKeys.Shift;
     public static readonly Key DefaultHotkeyKey = Key.Q;
     // settings.json 的 schema 版本号；新增字段时递增，用于未来向后兼容迁移
-    private const int CurrentSettingsVersion = 5;
+    private const int CurrentSettingsVersion = 6;
     // ── 开机启动 ─────────────────────────────────────────────────────────────
 
     public static bool ReadStartupEnabled()
@@ -140,6 +141,40 @@ public static class SettingsService
         Log.Information("写入主题: {ThemeIndex}", themeIndex);
         var dict = ReadConfigDict();
         dict[KeyTheme] = themeIndex;
+        dict[KeyVersion] = CurrentSettingsVersion;
+        WriteConfigDict(dict);
+    }
+
+    /// <summary>读取窗口背景材质索引，与 <see cref="WindowBackdropHelper.DisplayNames"/> 对应。</summary>
+    public static int ReadWindowBackdrop()
+    {
+        try
+        {
+            if (!File.Exists(ConfigFilePath))
+                return 0;
+
+            var json = File.ReadAllText(ConfigFilePath);
+            var doc = JsonDocument.Parse(json);
+            return doc.RootElement.TryGetProperty(KeyWindowBackdrop, out var v)
+                && v.TryGetInt32(out var index)
+                && index >= 0
+                && index < WindowBackdropHelper.DisplayNames.Count
+                ? index
+                : 0;
+        }
+        catch (Exception ex)
+        {
+            Log.Warning(ex, "ReadWindowBackdrop 失败，使用默认值");
+            return 0;
+        }
+    }
+
+    public static void WriteWindowBackdrop(int backdropIndex)
+    {
+        backdropIndex = Math.Clamp(backdropIndex, 0, WindowBackdropHelper.DisplayNames.Count - 1);
+        Log.Information("写入窗口背景: {BackdropIndex}", backdropIndex);
+        var dict = ReadConfigDict();
+        dict[KeyWindowBackdrop] = backdropIndex;
         dict[KeyVersion] = CurrentSettingsVersion;
         WriteConfigDict(dict);
     }

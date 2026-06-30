@@ -18,6 +18,7 @@ public partial class SettingsViewModel : ObservableObject
     private int _pendingModifiers;
     private int _pendingKey;
     private int _confirmedThemeIndex;
+    private int _confirmedWindowBackdropIndex;
     private int _confirmedGpuDeviceId;
     private int _confirmedOcrModelIndex;
     private int _confirmedMattingModelIndex;
@@ -49,6 +50,10 @@ public partial class SettingsViewModel : ObservableObject
     /// <summary>主题索引：0 = 自动, 1 = 深色, 2 = 浅色。</summary>
     [ObservableProperty]
     private int _selectedThemeIndex;
+
+    /// <summary>窗口背景材质，索引见 <see cref="WindowBackdropHelper.DisplayNames"/>。</summary>
+    [ObservableProperty]
+    private int _selectedWindowBackdropIndex;
 
     /// <summary>托盘双击：0 = 截图, 1 = 打开预览窗口。</summary>
     [ObservableProperty]
@@ -88,6 +93,8 @@ public partial class SettingsViewModel : ObservableObject
         _isStartupEnabled = SettingsService.ReadStartupEnabled();
         _selectedThemeIndex = SettingsService.ReadTheme();
         _confirmedThemeIndex = _selectedThemeIndex;
+        _selectedWindowBackdropIndex = SettingsService.ReadWindowBackdrop();
+        _confirmedWindowBackdropIndex = _selectedWindowBackdropIndex;
         _selectedTrayDoubleClickActionIndex = (int)SettingsService.ReadTrayDoubleClickAction();
         _confirmedTrayDoubleClickActionIndex = _selectedTrayDoubleClickActionIndex;
         _saveDirectory = SettingsService.ReadSaveDirectory();
@@ -143,11 +150,17 @@ public partial class SettingsViewModel : ObservableObject
 
     partial void OnSelectedThemeIndexChanged(int value) => ThemeHelper.ApplyTheme(value);
 
+    partial void OnSelectedWindowBackdropIndexChanged(int value) =>
+        WindowBackdropHelper.ApplyBackdrop(value);
+
     /// <summary>撤销未保存的主题与 GPU 预览（Cancel / 关闭窗口时调用）。</summary>
     public void RevertUnsavedChanges()
     {
         if (SelectedThemeIndex != _confirmedThemeIndex)
             ThemeHelper.ApplyTheme(_confirmedThemeIndex);
+
+        if (SelectedWindowBackdropIndex != _confirmedWindowBackdropIndex)
+            WindowBackdropHelper.ApplyBackdrop(_confirmedWindowBackdropIndex);
 
         SelectedGpuDevice = GpuDevices.FirstOrDefault(g => g.DeviceId == _confirmedGpuDeviceId)
             ?? GpuDevices.FirstOrDefault();
@@ -183,6 +196,7 @@ public partial class SettingsViewModel : ObservableObject
         SettingsService.WriteStartupEnabled(IsStartupEnabled);
         SettingsService.WriteHotkey((ModifierKeys)_pendingModifiers, (Key)_pendingKey);
         SettingsService.WriteTheme(SelectedThemeIndex);
+        SettingsService.WriteWindowBackdrop(SelectedWindowBackdropIndex);
         SettingsService.WriteSaveDirectory(SaveDirectory);
         SettingsService.WriteAutoSave(IsAutoSaveEnabled);
         SettingsService.WriteRecordingTempDirectory(RecordingTempDirectory);
@@ -207,10 +221,11 @@ public partial class SettingsViewModel : ObservableObject
         SettingsService.WriteLogRetentionDays(retentionDays);
         _confirmedLogRetentionDays = retentionDays;
         _ = Task.Run(() => LogFileService.DeleteExpiredFiles(retentionDays));
-        Log.Information("设置已保存: 开机启动={Startup}, 快捷键={Modifiers}+{Key}, 主题={Theme}, 托盘双击={TrayDbl}, AI GPU={Gpu}, OCR={OcrTier}, 抠图={Matting}, 超分={Sr}, 保存目录={SaveDir}, 自动保存={AutoSave}, 录屏目录={RecDir}, 日志保留={LogDays}天",
-            IsStartupEnabled, (ModifierKeys)_pendingModifiers, (Key)_pendingKey, SelectedThemeIndex, (TrayDoubleClickAction)SelectedTrayDoubleClickActionIndex, gpuDeviceId, (OcrModelTier)SelectedOcrModelIndex, (MattingModel)SelectedMattingModelIndex, (SuperResolutionModel)SelectedSuperResolutionModelIndex, SaveDirectory, IsAutoSaveEnabled, RecordingTempDirectory, retentionDays);
+        Log.Information("设置已保存: 开机启动={Startup}, 快捷键={Modifiers}+{Key}, 主题={Theme}, 窗口背景={Backdrop}, 托盘双击={TrayDbl}, AI GPU={Gpu}, OCR={OcrTier}, 抠图={Matting}, 超分={Sr}, 保存目录={SaveDir}, 自动保存={AutoSave}, 录屏目录={RecDir}, 日志保留={LogDays}天",
+            IsStartupEnabled, (ModifierKeys)_pendingModifiers, (Key)_pendingKey, SelectedThemeIndex, SelectedWindowBackdropIndex, (TrayDoubleClickAction)SelectedTrayDoubleClickActionIndex, gpuDeviceId, (OcrModelTier)SelectedOcrModelIndex, (MattingModel)SelectedMattingModelIndex, (SuperResolutionModel)SelectedSuperResolutionModelIndex, SaveDirectory, IsAutoSaveEnabled, RecordingTempDirectory, retentionDays);
         WeakReferenceMessenger.Default.Send(new HotkeyChangedMessage((ModifierKeys)_pendingModifiers, (Key)_pendingKey));
         _confirmedThemeIndex = SelectedThemeIndex;
+        _confirmedWindowBackdropIndex = SelectedWindowBackdropIndex;
         RequestClose?.Invoke();
     }
 

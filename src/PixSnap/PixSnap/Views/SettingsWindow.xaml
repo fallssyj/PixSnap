@@ -104,6 +104,30 @@
                                         <ColumnDefinition Width="Auto" />
                                     </Grid.ColumnDefinitions>
                                     <StackPanel VerticalAlignment="Center">
+                                        <TextBlock Style="{StaticResource SettingsRowTitleStyle}" Text="窗口背景" />
+                                        <TextBlock Style="{StaticResource SettingsRowDescStyle}" Text="现代窗口的 Mica / Acrylic 等材质效果" />
+                                    </StackPanel>
+                                    <ComboBox
+                                        Grid.Column="1"
+                                        SelectedIndex="{Binding SelectedWindowBackdropIndex}"
+                                        Style="{StaticResource SettingsComboBoxStyle}">
+                                        <ComboBoxItem Content="Mica" />
+                                        <ComboBoxItem Content="Acrylic" />
+                                        <ComboBoxItem Content="Tabbed" />
+                                        <ComboBoxItem Content="Acrylic（Windows 10）" />
+                                        <ComboBoxItem Content="Acrylic（Windows 11）" />
+                                        <ComboBoxItem Content="无" />
+                                    </ComboBox>
+                                </Grid>
+                            </Border>
+                            <Border Style="{StaticResource SettingsFieldSeparatorStyle}" />
+                            <Border Style="{StaticResource SettingsFieldRowStyle}">
+                                <Grid>
+                                    <Grid.ColumnDefinitions>
+                                        <ColumnDefinition Width="*" />
+                                        <ColumnDefinition Width="Auto" />
+                                    </Grid.ColumnDefinitions>
+                                    <StackPanel VerticalAlignment="Center">
                                         <TextBlock Style="{StaticResource SettingsRowTitleStyle}" Text="双击托盘图标" />
                                         <TextBlock Style="{StaticResource SettingsRowDescStyle}" Text="双击任务栏右下角图标时的默认操作" />
                                     </StackPanel>

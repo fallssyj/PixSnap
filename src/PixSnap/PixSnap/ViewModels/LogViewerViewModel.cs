@@ -56,7 +56,7 @@ public partial class LogViewerViewModel : ObservableObject, IDisposable
     private void ClearLogs()
     {
         if (AppMessageBox.Show(
-                "确定清空 logs 目录下的所有日志文件？\n将尝试删除包括当前正在写入的日志；子目录会保留。",
+                "确定清空 logs 目录下的所有日志文件？\n将尝试删除包括当前正在写入的日志，并移除已清空的日期文件夹。",
                 "PixSnap",
                 MessageBoxButton.YesNo,
                 MessageBoxImage.Warning) != MessageBoxResult.Yes)

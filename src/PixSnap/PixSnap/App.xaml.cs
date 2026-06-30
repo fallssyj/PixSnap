@@ -119,7 +119,11 @@ public partial class App : System.Windows.Application, IRecipient<ScreenshotCapt
             await DirectMlDeviceEnumerator.EnsureEnumeratedAsync().ConfigureAwait(false);
         });
         Dispatcher.BeginInvoke(
-            () => ThemeHelper.ApplyTheme(SettingsService.ReadTheme()),
+            () =>
+            {
+                ThemeHelper.ApplyTheme(SettingsService.ReadTheme());
+                WindowBackdropHelper.ApplyBackdrop(SettingsService.ReadWindowBackdrop());
+            },
             DispatcherPriority.Loaded);
 
         //创建托盘图标

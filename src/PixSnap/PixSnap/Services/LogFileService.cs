@@ -29,7 +29,7 @@ internal static class LogFileService
         ConfigureLogger();
     }
 
-    /// <summary>删除 logs 下所有文件（不删目录）。会先关闭 Serilog 以释放占用中的当前日志。</summary>
+    /// <summary>删除 logs 下所有日志文件及已清空的日期子目录。会先关闭 Serilog 以释放占用中的当前日志。</summary>
     public static (int Deleted, int Failed) DeleteAllFiles()
     {
         Log.CloseAndFlush();
@@ -45,6 +45,8 @@ internal static class LogFileService
                 else
                     failed++;
             }
+
+            RemoveEmptyDateSubdirectories();
         }
 
         ConfigureLogger();
@@ -74,6 +76,8 @@ internal static class LogFileService
                 failed++;
         }
 
+        RemoveEmptyDateSubdirectories();
+
         if (deleted > 0 || failed > 0)
             Log.Information("自动清理过期日志：删除 {Deleted} 个，失败 {Failed} 个（保留 {Days} 天）", deleted, failed, retentionDays);
 
@@ -87,6 +91,31 @@ internal static class LogFileService
             return folderDate < DateOnly.FromDateTime(cutoffDate);
 
         return File.GetLastWriteTime(filePath).Date < cutoffDate;
+    }
+
+    private static void RemoveEmptyDateSubdirectories()
+    {
+        if (!Directory.Exists(LogsDirectory))
+            return;
+
+        foreach (var dir in Directory.GetDirectories(LogsDirectory))
+        {
+            var folderName = Path.GetFileName(dir);
+            if (folderName.Length != 10 || !DateOnly.TryParse(folderName, out _))
+                continue;
+
+            if (Directory.EnumerateFileSystemEntries(dir).Any())
+                continue;
+
+            try
+            {
+                Directory.Delete(dir);
+            }
+            catch (Exception ex)
+            {
+                Log.Warning(ex, "删除空日志目录失败: {Path}", dir);
+            }
+        }
     }
 
     private static bool TryDeleteFile(string filePath)
