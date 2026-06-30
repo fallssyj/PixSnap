@@ -145,6 +145,34 @@ public partial class App : System.Windows.Application, IRecipient<ScreenshotCapt
 
         //注册快捷键
         InitializeHotkey();
+
+        ScheduleStartupUpdateCheck();
+    }
+
+    private void ScheduleStartupUpdateCheck()
+    {
+        if (!SettingsService.ReadAutoCheckUpdateOnStartup())
+            return;
+
+        _ = Task.Run(async () =>
+        {
+            try
+            {
+                var result = await UpdateCheckService.CheckAsync(
+                    SettingsService.ReadUpdateSource()).ConfigureAwait(false);
+
+                if (!result.HasUpdate)
+                    return;
+
+                await Dispatcher.InvokeAsync(
+                    () => UpdateCheckService.PromptUpdate(result),
+                    DispatcherPriority.ApplicationIdle);
+            }
+            catch (Exception ex)
+            {
+                Log.Warning(ex, "启动时检查更新失败");
+            }
+        });
     }
 
     private static ServiceProvider ConfigureServices()

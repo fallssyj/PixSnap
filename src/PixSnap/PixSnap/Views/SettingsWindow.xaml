@@ -55,6 +55,84 @@
             VerticalScrollBarVisibility="Auto">
             <Grid>
                 <ikw:SimpleStackPanel MaxWidth="520" Spacing="0">
+                    <TextBlock Style="{StaticResource SettingsSectionHeaderStyle}" Text="软件更新" />
+
+                    <Border Style="{StaticResource SettingsSectionCardStyle}">
+                        <ikw:SimpleStackPanel Spacing="0">
+                            <Border Style="{StaticResource SettingsFieldRowStyle}">
+                                <Grid>
+                                    <Grid.ColumnDefinitions>
+                                        <ColumnDefinition Width="*" />
+                                        <ColumnDefinition Width="Auto" />
+                                    </Grid.ColumnDefinitions>
+                                    <StackPanel VerticalAlignment="Center">
+                                        <TextBlock Style="{StaticResource SettingsRowTitleStyle}" Text="检查更新" />
+                                        <TextBlock
+                                            Margin="0,2,0,0"
+                                            Style="{StaticResource SettingsRowDescStyle}"
+                                            Text="{Binding CurrentVersionText, StringFormat=当前版本 {0}}" />
+                                        <TextBlock
+                                            Margin="0,2,0,0"
+                                            Text="{Binding UpdateCheckStatusText}">
+                                            <TextBlock.Style>
+                                                <Style BasedOn="{StaticResource SettingsRowDescStyle}" TargetType="TextBlock">
+                                                    <Setter Property="Visibility" Value="Visible" />
+                                                    <Style.Triggers>
+                                                        <DataTrigger Binding="{Binding UpdateCheckStatusText}" Value="">
+                                                            <Setter Property="Visibility" Value="Collapsed" />
+                                                        </DataTrigger>
+                                                    </Style.Triggers>
+                                                </Style>
+                                            </TextBlock.Style>
+                                        </TextBlock>
+                                    </StackPanel>
+                                    <Button
+                                        Grid.Column="1"
+                                        Command="{Binding CheckForUpdatesCommand}"
+                                        Content="检查更新"
+                                        Style="{StaticResource SettingsActionButtonStyle}" />
+                                </Grid>
+                            </Border>
+                            <Border Style="{StaticResource SettingsFieldSeparatorStyle}" />
+                            <Border Style="{StaticResource SettingsFieldRowStyle}">
+                                <Grid>
+                                    <Grid.ColumnDefinitions>
+                                        <ColumnDefinition Width="*" />
+                                        <ColumnDefinition Width="Auto" />
+                                    </Grid.ColumnDefinitions>
+                                    <StackPanel VerticalAlignment="Center">
+                                        <TextBlock Style="{StaticResource SettingsRowTitleStyle}" Text="检查更新源" />
+                                        <TextBlock Style="{StaticResource SettingsRowDescStyle}" Text="从 Gitee 或 GitHub 获取发行版" />
+                                    </StackPanel>
+                                    <ComboBox
+                                        Grid.Column="1"
+                                        SelectedIndex="{Binding SelectedUpdateSourceIndex}"
+                                        Style="{StaticResource SettingsComboBoxStyle}">
+                                        <ComboBoxItem Content="GitHub" />
+                                        <ComboBoxItem Content="Gitee" />
+                                    </ComboBox>
+                                </Grid>
+                            </Border>
+                            <Border Style="{StaticResource SettingsFieldSeparatorStyle}" />
+                            <Border Style="{StaticResource SettingsFieldRowStyle}">
+                                <Grid>
+                                    <Grid.ColumnDefinitions>
+                                        <ColumnDefinition Width="*" />
+                                        <ColumnDefinition Width="Auto" />
+                                    </Grid.ColumnDefinitions>
+                                    <StackPanel VerticalAlignment="Center">
+                                        <TextBlock Style="{StaticResource SettingsRowTitleStyle}" Text="启动时检查更新" />
+                                        <TextBlock Style="{StaticResource SettingsRowDescStyle}" Text="后台静默检查，有新版本时提示" />
+                                    </StackPanel>
+                                    <ui:ToggleSwitch
+                                        Grid.Column="1"
+                                        IsOn="{Binding IsAutoCheckUpdateOnStartup}"
+                                        Style="{StaticResource SettingsToggleSwitchStyle}" />
+                                </Grid>
+                            </Border>
+                        </ikw:SimpleStackPanel>
+                    </Border>
+
                     <TextBlock Style="{StaticResource SettingsSectionHeaderStyle}" Text="常规" />
 
                     <Border Style="{StaticResource SettingsSectionCardStyle}">

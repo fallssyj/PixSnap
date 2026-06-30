@@ -24,6 +24,24 @@ public partial class SettingsViewModel : ObservableObject
     private int _confirmedMattingModelIndex;
     private int _confirmedSuperResolutionModelIndex;
     private int _confirmedTrayDoubleClickActionIndex;
+    private int _confirmedUpdateSourceIndex;
+    private bool _confirmedAutoCheckUpdateOnStartup;
+
+    [ObservableProperty]
+    private string _currentVersionText = UpdateCheckService.CurrentVersionDisplay;
+
+    /// <summary>0 = GitHub, 1 = Gitee。</summary>
+    [ObservableProperty]
+    private int _selectedUpdateSourceIndex;
+
+    [ObservableProperty]
+    private bool _isAutoCheckUpdateOnStartup;
+
+    [ObservableProperty]
+    private bool _isCheckingUpdate;
+
+    [ObservableProperty]
+    private string _updateCheckStatusText = string.Empty;
 
     [ObservableProperty]
     private ObservableCollection<GpuDeviceOption> _gpuDevices = [];
@@ -90,6 +108,10 @@ public partial class SettingsViewModel : ObservableObject
 
     public SettingsViewModel()
     {
+        _selectedUpdateSourceIndex = (int)SettingsService.ReadUpdateSource();
+        _confirmedUpdateSourceIndex = _selectedUpdateSourceIndex;
+        _isAutoCheckUpdateOnStartup = SettingsService.ReadAutoCheckUpdateOnStartup();
+        _confirmedAutoCheckUpdateOnStartup = _isAutoCheckUpdateOnStartup;
         _isStartupEnabled = SettingsService.ReadStartupEnabled();
         _selectedThemeIndex = SettingsService.ReadTheme();
         _confirmedThemeIndex = _selectedThemeIndex;
@@ -168,6 +190,9 @@ public partial class SettingsViewModel : ObservableObject
         SelectedMattingModelIndex = _confirmedMattingModelIndex;
         SelectedSuperResolutionModelIndex = _confirmedSuperResolutionModelIndex;
         SelectedTrayDoubleClickActionIndex = _confirmedTrayDoubleClickActionIndex;
+        SelectedUpdateSourceIndex = _confirmedUpdateSourceIndex;
+        IsAutoCheckUpdateOnStartup = _confirmedAutoCheckUpdateOnStartup;
+        UpdateCheckStatusText = string.Empty;
         LogRetentionDays = _confirmedLogRetentionDays;
     }
 
@@ -216,18 +241,49 @@ public partial class SettingsViewModel : ObservableObject
         _confirmedSuperResolutionModelIndex = SelectedSuperResolutionModelIndex;
         SettingsService.WriteTrayDoubleClickAction((TrayDoubleClickAction)SelectedTrayDoubleClickActionIndex);
         _confirmedTrayDoubleClickActionIndex = SelectedTrayDoubleClickActionIndex;
+        SettingsService.WriteUpdateSource((UpdateSource)SelectedUpdateSourceIndex);
+        _confirmedUpdateSourceIndex = SelectedUpdateSourceIndex;
+        SettingsService.WriteAutoCheckUpdateOnStartup(IsAutoCheckUpdateOnStartup);
+        _confirmedAutoCheckUpdateOnStartup = IsAutoCheckUpdateOnStartup;
         var retentionDays = Math.Clamp(LogRetentionDays, SettingsService.MinLogRetentionDays, SettingsService.MaxLogRetentionDays);
         LogRetentionDays = retentionDays;
         SettingsService.WriteLogRetentionDays(retentionDays);
         _confirmedLogRetentionDays = retentionDays;
         _ = Task.Run(() => LogFileService.DeleteExpiredFiles(retentionDays));
-        Log.Information("设置已保存: 开机启动={Startup}, 快捷键={Modifiers}+{Key}, 主题={Theme}, 窗口背景={Backdrop}, 托盘双击={TrayDbl}, AI GPU={Gpu}, OCR={OcrTier}, 抠图={Matting}, 超分={Sr}, 保存目录={SaveDir}, 自动保存={AutoSave}, 录屏目录={RecDir}, 日志保留={LogDays}天",
-            IsStartupEnabled, (ModifierKeys)_pendingModifiers, (Key)_pendingKey, SelectedThemeIndex, SelectedWindowBackdropIndex, (TrayDoubleClickAction)SelectedTrayDoubleClickActionIndex, gpuDeviceId, (OcrModelTier)SelectedOcrModelIndex, (MattingModel)SelectedMattingModelIndex, (SuperResolutionModel)SelectedSuperResolutionModelIndex, SaveDirectory, IsAutoSaveEnabled, RecordingTempDirectory, retentionDays);
+        Log.Information("设置已保存: 开机启动={Startup}, 更新源={UpdateSource}, 启动检查更新={AutoUpdate}, 快捷键={Modifiers}+{Key}, 主题={Theme}, 窗口背景={Backdrop}, 托盘双击={TrayDbl}, AI GPU={Gpu}, OCR={OcrTier}, 抠图={Matting}, 超分={Sr}, 保存目录={SaveDir}, 自动保存={AutoSave}, 录屏目录={RecDir}, 日志保留={LogDays}天",
+            IsStartupEnabled, (UpdateSource)SelectedUpdateSourceIndex, IsAutoCheckUpdateOnStartup, (ModifierKeys)_pendingModifiers, (Key)_pendingKey, SelectedThemeIndex, SelectedWindowBackdropIndex, (TrayDoubleClickAction)SelectedTrayDoubleClickActionIndex, gpuDeviceId, (OcrModelTier)SelectedOcrModelIndex, (MattingModel)SelectedMattingModelIndex, (SuperResolutionModel)SelectedSuperResolutionModelIndex, SaveDirectory, IsAutoSaveEnabled, RecordingTempDirectory, retentionDays);
         WeakReferenceMessenger.Default.Send(new HotkeyChangedMessage((ModifierKeys)_pendingModifiers, (Key)_pendingKey));
         _confirmedThemeIndex = SelectedThemeIndex;
         _confirmedWindowBackdropIndex = SelectedWindowBackdropIndex;
         RequestClose?.Invoke();
     }
+
+    [RelayCommand(CanExecute = nameof(CanCheckForUpdates))]
+    private async Task CheckForUpdatesAsync()
+    {
+        IsCheckingUpdate = true;
+        UpdateCheckStatusText = "正在检查...";
+        try
+        {
+            var result = await UpdateCheckService.CheckAsync((UpdateSource)SelectedUpdateSourceIndex)
+                .ConfigureAwait(true);
+            UpdateCheckStatusText = result.IsSuccess ? result.Message : result.Message;
+            var owner = Application.Current.Windows
+                .OfType<Window>()
+                .FirstOrDefault(w => w.IsVisible && w.IsActive)
+                ?? Application.Current.Windows.OfType<Window>().FirstOrDefault(w => w.IsVisible);
+            UpdateCheckService.ShowManualCheckResult(result, owner);
+        }
+        finally
+        {
+            IsCheckingUpdate = false;
+        }
+    }
+
+    private bool CanCheckForUpdates => !IsCheckingUpdate;
+
+    partial void OnIsCheckingUpdateChanged(bool value) =>
+        CheckForUpdatesCommand.NotifyCanExecuteChanged();
 
     [RelayCommand]
     private void OpenAiModels() => AiModelMissingPrompt.OpenModelManager();

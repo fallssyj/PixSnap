@@ -34,6 +34,8 @@ public static class SettingsService
     private const string KeySuperResolutionModel = "SuperResolutionModel";
     private const string KeyTrayDoubleClickAction = "TrayDoubleClickAction";
     private const string KeyLogRetentionDays = "LogRetentionDays";
+    private const string KeyUpdateSource = "UpdateSource";
+    private const string KeyAutoCheckUpdateOnStartup = "AutoCheckUpdateOnStartup";
 
     public const int DefaultLogRetentionDays = 7;
     public const int MinLogRetentionDays = 1;
@@ -43,7 +45,7 @@ public static class SettingsService
     public static readonly ModifierKeys DefaultHotkeyModifiers = ModifierKeys.Control | ModifierKeys.Shift;
     public static readonly Key DefaultHotkeyKey = Key.Q;
     // settings.json 的 schema 版本号；新增字段时递增，用于未来向后兼容迁移
-    private const int CurrentSettingsVersion = 6;
+    private const int CurrentSettingsVersion = 7;
     // ── 开机启动 ─────────────────────────────────────────────────────────────
 
     public static bool ReadStartupEnabled()
@@ -175,6 +177,26 @@ public static class SettingsService
         Log.Information("写入窗口背景: {BackdropIndex}", backdropIndex);
         var dict = ReadConfigDict();
         dict[KeyWindowBackdrop] = backdropIndex;
+        dict[KeyVersion] = CurrentSettingsVersion;
+        WriteConfigDict(dict);
+    }
+
+    // ── 检查更新 ────────────────────────────────────────────────────────────────
+
+    public static UpdateSource ReadUpdateSource() =>
+        ReadEnum(KeyUpdateSource, UpdateSource.Gitee);
+
+    public static void WriteUpdateSource(UpdateSource source) =>
+        WriteEnum(KeyUpdateSource, source, "检查更新源");
+
+    public static bool ReadAutoCheckUpdateOnStartup() =>
+        ReadBool(KeyAutoCheckUpdateOnStartup, fallback: false);
+
+    public static void WriteAutoCheckUpdateOnStartup(bool enabled)
+    {
+        Log.Information("写入启动时检查更新: {Enabled}", enabled);
+        var dict = ReadConfigDict();
+        dict[KeyAutoCheckUpdateOnStartup] = enabled ? 1 : 0;
         dict[KeyVersion] = CurrentSettingsVersion;
         WriteConfigDict(dict);
     }
@@ -395,6 +417,33 @@ public static class SettingsService
         dict[KeyLogRetentionDays] = days;
         dict[KeyVersion] = CurrentSettingsVersion;
         WriteConfigDict(dict);
+    }
+
+    private static bool ReadBool(string key, bool fallback)
+    {
+        try
+        {
+            if (!File.Exists(ConfigFilePath))
+                return fallback;
+
+            var json = File.ReadAllText(ConfigFilePath);
+            var doc = JsonDocument.Parse(json);
+            if (!doc.RootElement.TryGetProperty(key, out var v))
+                return fallback;
+
+            return v.ValueKind switch
+            {
+                JsonValueKind.True => true,
+                JsonValueKind.False => false,
+                JsonValueKind.Number when v.TryGetInt32(out var n) => n != 0,
+                _ => fallback
+            };
+        }
+        catch (Exception ex)
+        {
+            Log.Warning(ex, "ReadBool({Key}) 失败，使用默认值", key);
+            return fallback;
+        }
     }
 
     private static int ReadInt(string key, int fallback)
