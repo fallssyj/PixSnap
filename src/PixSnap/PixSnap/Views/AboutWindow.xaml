@@ -326,6 +326,19 @@
                     </Border>
                 </StackPanel>
 
+                <!--  免责声明  -->
+                <StackPanel>
+                    <TextBlock Style="{StaticResource SettingsSectionHeaderStyle}" Text="免责声明" />
+                    <Border Padding="16,14" Style="{StaticResource SettingsGroupCardStyle}">
+                        <TextBlock
+                            FontSize="12"
+                            Foreground="{DynamicResource TextFillColorSecondaryBrush}"
+                            LineHeight="20"
+                            Text="{Binding DisclaimerText}"
+                            TextWrapping="Wrap" />
+                    </Border>
+                </StackPanel>
+
                 <!--  链接  -->
                 <StackPanel>
                     <TextBlock Style="{StaticResource SettingsSectionHeaderStyle}" Text="开源与反馈" />

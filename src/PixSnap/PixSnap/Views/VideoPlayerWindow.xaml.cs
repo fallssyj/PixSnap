@@ -44,6 +44,8 @@ public partial class VideoPlayerWindow
     {
         _positionTimer.Stop();
 
+        var tempFilePath = ViewModel?.TempFilePath;
+
         // 取消订阅 ViewModel 事件
         if (ViewModel is { } vm)
         {
@@ -57,7 +59,7 @@ public partial class VideoPlayerWindow
         VideoPlayer.MediaOpened -= OnMediaOpened;
         VideoPlayer.MediaEnded -= OnMediaEnded;
 
-        // 释放 MediaElement 资源
+        // 释放 MediaElement 资源（先释放文件句柄，再删除临时录屏）
         VideoPlayer.Stop();
         VideoPlayer.Close();
         VideoPlayer.Source = null;
@@ -65,6 +67,9 @@ public partial class VideoPlayerWindow
         // 断开可视化树 + DataContext
         Content = null;
         DataContext = null;
+
+        if (tempFilePath is not null)
+            RecordingTempFileService.TryDelete(tempFilePath);
 
         // GC 回收 + 释放工作集
         MemoryManagementService.TrimAfterUiRelease();

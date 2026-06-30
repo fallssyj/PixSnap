@@ -173,7 +173,7 @@
                             </ui:FontIcon>
                         </Button>
                         <Slider
-                            Width="50"
+                            MinWidth="100"
                             Margin="8,0,0,0"
                             VerticalAlignment="Center"
                             IsMoveToPointEnabled="True"

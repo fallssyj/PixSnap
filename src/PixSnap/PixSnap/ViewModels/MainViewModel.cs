@@ -211,7 +211,7 @@ public partial class MainViewModel : ObservableObject
             return;
         }
 
-        var tempPath = GenerateTempRecordingPath();
+        var tempPath = RecordingTempFileService.CreateTempRecordingPath();
         var mic = selection.EnableMicrophone;
         var sys = selection.EnableSystemAudio;
         var bitrate = selection.VideoBitrate;
@@ -287,15 +287,6 @@ public partial class MainViewModel : ObservableObject
             catch (Exception delEx) { Log.Warning(delEx, "清理录制临时文件失败: {Path}", tempPath); }
             ShowError(ExceptionMessageFormatter.Format("启动录制失败", ex));
         }
-    }
-
-    private static string GenerateTempRecordingPath()
-    {
-        var dir = SettingsService.ReadRecordingTempDirectory();
-        if (!Directory.Exists(dir))
-            Directory.CreateDirectory(dir);
-
-        return Path.Combine(dir, $"recording_{Guid.NewGuid():N}.mp4");
     }
 
     partial void OnIsCapturingChanged(bool value)
