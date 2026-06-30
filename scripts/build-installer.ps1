@@ -94,6 +94,13 @@ if (-not (Test-Path $publishedNative)) {
     throw "Publish failed: NativeScreenCapturer.dll not found. Build Release|x64 in Visual Studio first."
 }
 
+Write-Host '==> Removing debug symbols (.pdb) from staging...' -ForegroundColor Cyan
+$pdbFiles = @(Get-ChildItem -LiteralPath $stagingDir -Filter '*.pdb' -Recurse -File -ErrorAction SilentlyContinue)
+foreach ($pdb in $pdbFiles) {
+    Remove-Item -LiteralPath $pdb.FullName -Force
+}
+Write-Host "    Removed $($pdbFiles.Count) .pdb file(s)" -ForegroundColor Cyan
+
 Write-Host '==> Finding Inno Setup...' -ForegroundColor Cyan
 $iscc = Find-ISCC
 Write-Host "    $iscc"
