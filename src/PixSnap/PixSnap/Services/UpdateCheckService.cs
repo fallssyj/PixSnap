@@ -55,25 +55,27 @@ public static class UpdateCheckService
             if (release is null || string.IsNullOrWhiteSpace(release.TagName))
             {
                 return new UpdateCheckResult(
-                    IsSuccess: false,
-                    HasUpdate: false,
-                    CurrentVersion: currentDisplay,
-                    LatestVersion: null,
-                    DownloadUrl: null,
-                    InstallerFileName: null,
-                    Message: "无法解析发行版信息。");
+                IsSuccess: false,
+                HasUpdate: false,
+                Source: source,
+                CurrentVersion: currentDisplay,
+                LatestVersion: null,
+                DownloadUrl: null,
+                InstallerFileName: null,
+                Message: "无法解析发行版信息。");
             }
 
             if (!TryParseVersion(release.TagName, out var latestVersion))
             {
                 return new UpdateCheckResult(
-                    IsSuccess: false,
-                    HasUpdate: false,
-                    CurrentVersion: currentDisplay,
-                    LatestVersion: release.TagName,
-                    DownloadUrl: null,
-                    InstallerFileName: null,
-                    Message: $"无法识别版本号：{release.TagName}");
+                IsSuccess: false,
+                HasUpdate: false,
+                Source: source,
+                CurrentVersion: currentDisplay,
+                LatestVersion: release.TagName,
+                DownloadUrl: null,
+                InstallerFileName: null,
+                Message: $"无法识别版本号：{release.TagName}");
             }
 
             var (downloadUrl, installerFileName) = FindInstallerAsset(release.Assets);
@@ -90,6 +92,7 @@ public static class UpdateCheckService
             return new UpdateCheckResult(
                 IsSuccess: true,
                 HasUpdate: hasUpdate,
+                Source: source,
                 CurrentVersion: currentDisplay,
                 LatestVersion: latestDisplay,
                 DownloadUrl: downloadUrl,
@@ -104,6 +107,7 @@ public static class UpdateCheckService
             return new UpdateCheckResult(
                 IsSuccess: false,
                 HasUpdate: false,
+                Source: source,
                 CurrentVersion: currentDisplay,
                 LatestVersion: null,
                 DownloadUrl: null,
@@ -135,7 +139,7 @@ public static class UpdateCheckService
                 DownloadAndInstall(result, owner);
                 break;
             case MessageBoxResult.No:
-                OpenDownloadUrl(result.DownloadUrl, result.LatestVersion);
+                OpenDownloadUrl(result.DownloadUrl, result.LatestVersion, result.Source);
                 break;
         }
     }
@@ -150,14 +154,14 @@ public static class UpdateCheckService
                 MessageBoxButton.OK,
                 MessageBoxImage.Warning,
                 owner);
-            OpenDownloadUrl(null, result.LatestVersion);
+            OpenDownloadUrl(null, result.LatestVersion, result.Source);
             return;
         }
 
         var fileName = result.InstallerFileName
             ?? ResolveInstallerFileName(result.DownloadUrl, result.LatestVersion);
 
-        var window = new UpdateDownloadWindow(owner, result.DownloadUrl, fileName, result.LatestVersion);
+        var window = new UpdateDownloadWindow(owner, result.Source, result.DownloadUrl, fileName, result.LatestVersion);
         window.ShowDialog();
     }
 
@@ -178,15 +182,11 @@ public static class UpdateCheckService
         AppMessageBox.Show(result.Message, "检查更新", MessageBoxButton.OK, MessageBoxImage.Information, owner);
     }
 
-    public static void OpenDownloadUrl(string? downloadUrl, string? latestVersion)
+    public static void OpenDownloadUrl(string? downloadUrl, string? latestVersion, UpdateSource? source = null)
     {
         var url = downloadUrl;
         if (string.IsNullOrWhiteSpace(url))
-        {
-            url = SettingsService.ReadUpdateSource() == UpdateSource.Gitee
-                ? "https://gitee.com/falls_syj/PixSnap/releases"
-                : "https://github.com/fallssyj/PixSnap/releases";
-        }
+            url = GetReleasesPageUrl(source ?? SettingsService.ReadUpdateSource());
 
         try
         {
@@ -198,6 +198,11 @@ public static class UpdateCheckService
             AppMessageBox.Show($"无法打开下载链接：\n{url}", "检查更新", MessageBoxButton.OK, MessageBoxImage.Warning);
         }
     }
+
+    private static string GetReleasesPageUrl(UpdateSource source) =>
+        source == UpdateSource.Gitee
+            ? "https://gitee.com/falls_syj/PixSnap/releases"
+            : "https://github.com/fallssyj/PixSnap/releases";
 
     private static Version GetCurrentVersion()
     {
@@ -279,6 +284,7 @@ public static class UpdateCheckService
 public sealed record UpdateCheckResult(
     bool IsSuccess,
     bool HasUpdate,
+    UpdateSource Source,
     string CurrentVersion,
     string? LatestVersion,
     string? DownloadUrl,

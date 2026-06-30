@@ -1,3 +1,4 @@
+using PixSnap.Models;
 using PixSnap.Services;
 using Serilog;
 using System.Diagnostics;
@@ -8,13 +9,15 @@ namespace PixSnap.Views;
 public partial class UpdateDownloadWindow : Window
 {
     private readonly CancellationTokenSource _cts = new();
+    private readonly UpdateSource _updateSource;
     private readonly string _downloadUrl;
     private readonly string _fileName;
     private bool _isClosing;
 
-    public UpdateDownloadWindow(Window? owner, string downloadUrl, string fileName, string? latestVersion)
+    public UpdateDownloadWindow(Window? owner, UpdateSource updateSource, string downloadUrl, string fileName, string? latestVersion)
     {
         Owner = WindowOwnerHelper.GetActiveOwner(owner);
+        _updateSource = updateSource;
         _downloadUrl = downloadUrl;
         _fileName = fileName;
 
@@ -68,7 +71,7 @@ public partial class UpdateDownloadWindow : Window
                 Owner);
 
             if (retry == MessageBoxResult.Yes)
-                UpdateCheckService.OpenDownloadUrl(_downloadUrl, null);
+                UpdateCheckService.OpenDownloadUrl(_downloadUrl, null, _updateSource);
 
             CloseSafely();
         }
