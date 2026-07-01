@@ -17,7 +17,7 @@
 #define MyAppSupportURL "https://github.com/fallssyj/PixSnap/issues"
 
 [Setup]
-AppId={{MyAppId}}
+AppId={{A7E3C4B2-9F1D-4E8A-B6C5-2D1F0E9A8B7C}}
 AppName={#MyAppName}
 AppVerName={#MyAppName}
 AppVersion={#MyAppVersion}
