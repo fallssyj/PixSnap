@@ -9,17 +9,16 @@
     Title="AI 模型"
     Width="760"
     Height="680"
-    MinWidth="640"
-    MinHeight="520"
-    TextOptions.TextFormattingMode="Display"
-    UseLayoutRounding="True"
-    WindowStartupLocation="CenterOwner"
     ui:TitleBar.Height="36"
     ui:TitleBar.MaximizeButtonAvailability="Collapsed"
     ui:TitleBar.MinimizeButtonAvailability="Collapsed"
     ui:WindowHelper.FixMaximizedWindow="True"
     ui:WindowHelper.SystemBackdropType="Mica"
-    ui:WindowHelper.UseModernWindowStyle="True">
+    ui:WindowHelper.UseModernWindowStyle="True"
+    ResizeMode="NoResize"
+    TextOptions.TextFormattingMode="Display"
+    UseLayoutRounding="True"
+    WindowStartupLocation="CenterOwner">
 
     <Window.Resources>
         <converters:BoolToVisibilityConverter x:Key="BoolToVisibilityConverter" />
@@ -45,7 +44,7 @@
         </Grid.RowDefinitions>
 
         <Border Grid.Row="0" Padding="28,22,28,10">
-            <controls:PageHeader Subtitle="按功能分组，查看每个模型的下载状态" Title="模型管理">
+            <controls:PageHeader Title="模型管理" Subtitle="按功能分组，查看每个模型的下载状态">
                 <controls:PageHeader.IconContent>
                     <ui:FontIcon
                         FontSize="18"

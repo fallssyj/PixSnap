@@ -9,15 +9,13 @@
     Title="设置"
     Width="600"
     Height="760"
-    MinWidth="540"
-    MinHeight="600"
     ui:TitleBar.Height="36"
     ui:TitleBar.MaximizeButtonAvailability="Collapsed"
     ui:TitleBar.MinimizeButtonAvailability="Collapsed"
     ui:WindowHelper.FixMaximizedWindow="True"
     ui:WindowHelper.SystemBackdropType="Mica"
     ui:WindowHelper.UseModernWindowStyle="True"
-    ResizeMode="CanResize"
+    ResizeMode="NoResize"
     SizeToContent="Manual"
     TextOptions.TextFormattingMode="Display"
     UseLayoutRounding="True"
@@ -71,9 +69,7 @@
                                             Margin="0,2,0,0"
                                             Style="{StaticResource SettingsRowDescStyle}"
                                             Text="{Binding CurrentVersionText, StringFormat=当前版本 {0}}" />
-                                        <TextBlock
-                                            Margin="0,2,0,0"
-                                            Text="{Binding UpdateCheckStatusText}">
+                                        <TextBlock Margin="0,2,0,0" Text="{Binding UpdateCheckStatusText}">
                                             <TextBlock.Style>
                                                 <Style BasedOn="{StaticResource SettingsRowDescStyle}" TargetType="TextBlock">
                                                     <Setter Property="Visibility" Value="Visible" />
@@ -453,8 +449,8 @@
                                     <TextBox
                                         Grid.Column="1"
                                         Margin="8,0,0,0"
-                                        VerticalAlignment="Center"
                                         HorizontalAlignment="Stretch"
+                                        VerticalAlignment="Center"
                                         HorizontalContentAlignment="Center"
                                         Style="{StaticResource SettingsPathTextBoxStyle}"
                                         Text="{Binding LogRetentionDays, UpdateSourceTrigger=PropertyChanged}" />

@@ -6,20 +6,18 @@
     xmlns:ikw="http://schemas.inkore.net/lib/ui/wpf"
     xmlns:ui="http://schemas.inkore.net/lib/ui/wpf/modern"
     Title="关于 PixSnap"
-    Width="560"
+    Width="600"
     Height="700"
-    MinWidth="480"
-    MinHeight="560"
-    ResizeMode="CanResize"
-    TextOptions.TextFormattingMode="Display"
-    UseLayoutRounding="True"
-    WindowStartupLocation="CenterScreen"
     ui:TitleBar.Height="36"
     ui:TitleBar.MaximizeButtonAvailability="Collapsed"
     ui:TitleBar.MinimizeButtonAvailability="Collapsed"
     ui:WindowHelper.FixMaximizedWindow="True"
     ui:WindowHelper.SystemBackdropType="Mica"
-    ui:WindowHelper.UseModernWindowStyle="True">
+    ui:WindowHelper.UseModernWindowStyle="True"
+    ResizeMode="NoResize"
+    TextOptions.TextFormattingMode="Display"
+    UseLayoutRounding="True"
+    WindowStartupLocation="CenterScreen">
 
     <Grid>
         <Grid.RowDefinitions>
@@ -30,7 +28,7 @@
         </Grid.RowDefinitions>
 
         <Border Grid.Row="0" Padding="28,22,28,10">
-            <controls:PageHeader Subtitle="截图、录屏与本地 AI 编辑工具" Title="关于">
+            <controls:PageHeader Title="关于" Subtitle="截图、录屏与本地 AI 编辑工具">
                 <controls:PageHeader.IconContent>
                     <ui:FontIcon
                         FontSize="18"
@@ -165,9 +163,7 @@
                                         <ColumnDefinition Width="Auto" />
                                         <ColumnDefinition Width="*" />
                                     </Grid.ColumnDefinitions>
-                                    <ui:FontIcon
-                                        Icon="{x:Static ui:SegoeFluentIcons.EraseTool}"
-                                        Style="{StaticResource AboutListIconStyle}" />
+                                    <ui:FontIcon Icon="{x:Static ui:SegoeFluentIcons.EraseTool}" Style="{StaticResource AboutListIconStyle}" />
                                     <StackPanel Grid.Column="1" Margin="12,0,0,0">
                                         <TextBlock Style="{StaticResource SettingsRowTitleStyle}" Text="AI 擦除" />
                                         <TextBlock Style="{StaticResource SettingsRowDescStyle}" Text="涂抹区域智能修复" />
@@ -184,9 +180,7 @@
                                         <ColumnDefinition Width="Auto" />
                                         <ColumnDefinition Width="*" />
                                     </Grid.ColumnDefinitions>
-                                    <ui:FontIcon
-                                        Icon="{x:Static ui:SegoeFluentIcons.Color}"
-                                        Style="{StaticResource AboutListIconStyle}" />
+                                    <ui:FontIcon Icon="{x:Static ui:SegoeFluentIcons.Color}" Style="{StaticResource AboutListIconStyle}" />
                                     <StackPanel Grid.Column="1" Margin="12,0,0,0">
                                         <TextBlock Style="{StaticResource SettingsRowTitleStyle}" Text="背景去除" />
                                         <TextBlock Style="{StaticResource SettingsRowDescStyle}" Text="一键抠图，数据不上传" />
@@ -203,9 +197,7 @@
                                         <ColumnDefinition Width="Auto" />
                                         <ColumnDefinition Width="*" />
                                     </Grid.ColumnDefinitions>
-                                    <ui:FontIcon
-                                        Icon="{x:Static ui:SegoeFluentIcons.ZoomIn}"
-                                        Style="{StaticResource AboutListIconStyle}" />
+                                    <ui:FontIcon Icon="{x:Static ui:SegoeFluentIcons.ZoomIn}" Style="{StaticResource AboutListIconStyle}" />
                                     <StackPanel Grid.Column="1" Margin="12,0,0,0">
                                         <TextBlock Style="{StaticResource SettingsRowTitleStyle}" Text="超分辨率" />
                                         <TextBlock Style="{StaticResource SettingsRowDescStyle}" Text="Real-ESRGAN 放大增强" />
@@ -233,9 +225,7 @@
                                         <ColumnDefinition Width="Auto" />
                                     </Grid.ColumnDefinitions>
                                     <StackPanel Orientation="Horizontal">
-                                        <ui:FontIcon
-                                            Icon="{x:Static ui:SegoeFluentIcons.WindowSnipping}"
-                                            Style="{StaticResource AboutListIconStyle}" />
+                                        <ui:FontIcon Icon="{x:Static ui:SegoeFluentIcons.WindowSnipping}" Style="{StaticResource AboutListIconStyle}" />
                                         <TextBlock
                                             Margin="12,0,0,0"
                                             VerticalAlignment="Center"
@@ -258,9 +248,7 @@
                                         <ColumnDefinition Width="Auto" />
                                     </Grid.ColumnDefinitions>
                                     <StackPanel Orientation="Horizontal">
-                                        <ui:FontIcon
-                                            Icon="{x:Static ui:SegoeFluentIcons.Crop}"
-                                            Style="{StaticResource AboutListIconStyle}" />
+                                        <ui:FontIcon Icon="{x:Static ui:SegoeFluentIcons.Crop}" Style="{StaticResource AboutListIconStyle}" />
                                         <TextBlock
                                             Margin="12,0,0,0"
                                             VerticalAlignment="Center"
@@ -283,9 +271,7 @@
                                         <ColumnDefinition Width="Auto" />
                                     </Grid.ColumnDefinitions>
                                     <StackPanel Orientation="Horizontal">
-                                        <ui:FontIcon
-                                            Icon="{x:Static ui:SegoeFluentIcons.FullScreen}"
-                                            Style="{StaticResource AboutListIconStyle}" />
+                                        <ui:FontIcon Icon="{x:Static ui:SegoeFluentIcons.FullScreen}" Style="{StaticResource AboutListIconStyle}" />
                                         <TextBlock
                                             Margin="12,0,0,0"
                                             VerticalAlignment="Center"
@@ -308,9 +294,7 @@
                                         <ColumnDefinition Width="Auto" />
                                     </Grid.ColumnDefinitions>
                                     <StackPanel Orientation="Horizontal">
-                                        <ui:FontIcon
-                                            Icon="{x:Static ui:SegoeFluentIcons.Cancel}"
-                                            Style="{StaticResource AboutListIconStyle}" />
+                                        <ui:FontIcon Icon="{x:Static ui:SegoeFluentIcons.Cancel}" Style="{StaticResource AboutListIconStyle}" />
                                         <TextBlock
                                             Margin="12,0,0,0"
                                             VerticalAlignment="Center"
@@ -358,9 +342,7 @@
                                 VerticalAlignment="Center"
                                 Icon="{x:Static ui:SegoeFluentIcons.Feedback}"
                                 Style="{StaticResource AboutListIconStyle}" />
-                            <ui:HyperlinkButton
-                                Content="反馈问题"
-                                NavigateUri="{Binding IssuesUrl}" />
+                            <ui:HyperlinkButton Content="反馈问题" NavigateUri="{Binding IssuesUrl}" />
                         </StackPanel>
                     </Border>
                 </StackPanel>
