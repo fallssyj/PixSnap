@@ -23,6 +23,7 @@
         <Grid.RowDefinitions>
             <RowDefinition Height="Auto" />
             <RowDefinition Height="Auto" />
+            <RowDefinition Height="Auto" />
             <RowDefinition Height="*" />
             <RowDefinition Height="Auto" />
         </Grid.RowDefinitions>
@@ -44,8 +45,59 @@
             Margin="28,0"
             Background="{DynamicResource DividerStrokeColorDefaultBrush}" />
 
-        <ScrollViewer
+        <!--  免责声明（固定于顶部，无需滚动即可见）  -->
+        <Border
             Grid.Row="2"
+            Margin="28,12,28,0"
+            Padding="16,14"
+            Background="{DynamicResource CardBackgroundFillColorDefaultBrush}"
+            BorderBrush="{DynamicResource SystemControlForegroundAccentBrush}"
+            BorderThickness="1"
+            CornerRadius="10">
+            <Grid>
+                <Grid.ColumnDefinitions>
+                    <ColumnDefinition Width="Auto" />
+                    <ColumnDefinition Width="*" />
+                    <ColumnDefinition Width="Auto" />
+                </Grid.ColumnDefinitions>
+                <Border
+                    Width="40"
+                    Height="40"
+                    VerticalAlignment="Center"
+                    Background="{DynamicResource SubtleFillColorSecondaryBrush}"
+                    CornerRadius="8">
+                    <ui:FontIcon
+                        HorizontalAlignment="Center"
+                        VerticalAlignment="Center"
+                        FontSize="18"
+                        Foreground="{DynamicResource SystemControlForegroundAccentBrush}"
+                        Icon="{x:Static ui:SegoeFluentIcons.Document}" />
+                </Border>
+                <StackPanel Grid.Column="1" Margin="12,0,12,0" VerticalAlignment="Center">
+                    <TextBlock
+                        FontSize="13"
+                        FontWeight="SemiBold"
+                        Text="免责声明" />
+                    <TextBlock
+                        Margin="0,4,0,0"
+                        FontSize="12"
+                        Foreground="{DynamicResource TextFillColorSecondaryBrush}"
+                        LineHeight="18"
+                        Text="{Binding DisclaimerSummary}"
+                        TextWrapping="Wrap" />
+                </StackPanel>
+                <Button
+                    Grid.Column="2"
+                    MinWidth="112"
+                    VerticalAlignment="Center"
+                    Command="{Binding OpenDisclaimerCommand}"
+                    Content="查看全文"
+                    Style="{StaticResource PixSnapAccentButtonStyle}" />
+            </Grid>
+        </Border>
+
+        <ScrollViewer
+            Grid.Row="3"
             Padding="28,14,28,8"
             HorizontalScrollBarVisibility="Disabled"
             VerticalScrollBarVisibility="Auto">
@@ -310,19 +362,6 @@
                     </Border>
                 </StackPanel>
 
-                <!--  免责声明  -->
-                <StackPanel>
-                    <TextBlock Style="{StaticResource SettingsSectionHeaderStyle}" Text="免责声明" />
-                    <Border Padding="16,14" Style="{StaticResource SettingsGroupCardStyle}">
-                        <TextBlock
-                            FontSize="12"
-                            Foreground="{DynamicResource TextFillColorSecondaryBrush}"
-                            LineHeight="20"
-                            Text="{Binding DisclaimerText}"
-                            TextWrapping="Wrap" />
-                    </Border>
-                </StackPanel>
-
                 <!--  链接  -->
                 <StackPanel>
                     <TextBlock Style="{StaticResource SettingsSectionHeaderStyle}" Text="开源与反馈" />
@@ -351,7 +390,7 @@
         </ScrollViewer>
 
         <Border
-            Grid.Row="3"
+            Grid.Row="4"
             Padding="28,12,28,18"
             BorderBrush="{DynamicResource DividerStrokeColorDefaultBrush}"
             BorderThickness="0,1,0,0">

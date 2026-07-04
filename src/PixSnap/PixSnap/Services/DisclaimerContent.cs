@@ -1,0 +1,95 @@
+namespace PixSnap.Services;
+
+/// <summary>软件免责声明与安装包许可文本（应用内与 Inno Setup 共用）。</summary>
+public static class DisclaimerContent
+{
+    public const string ThirdPartyNoticesUrl =
+        "https://github.com/fallssyj/PixSnap/blob/main/THIRD_PARTY_NOTICES.md";
+
+    public const string SourceCodeUrl =
+        "https://github.com/fallssyj/PixSnap";
+
+    public const string OfficialReleasesUrl =
+        "https://github.com/fallssyj/PixSnap/releases";
+
+    public sealed record Section(string Title, string Body);
+
+    public static IReadOnlyList<Section> Sections { get; } =
+    [
+        new(
+            "开源许可",
+            "本软件（PixSnap）以 GNU General Public License v3.0（GPLv3）发布，完整许可见仓库 LICENSE 文件。\r\n\r\n" +
+            "在遵守 GPLv3 的前提下，您可以自由使用、研究、修改和再分发本软件（包括收取分发费用），" +
+            "但再分发或发布衍生版本时须向接收方提供对应源代码，并保留版权声明与 GPLv3 全文。"),
+        new(
+            "AI 模型许可",
+            "本软件可通过「模型管理」按需下载第三方 AI 模型。各模型的版权与许可由原作者单独发布，" +
+            "与本软件的 GPLv3 许可相互独立。\r\n\r\n" +
+            "本软件不拥有上述模型的版权。下载或使用任一模型前，您须自行阅读并遵守该模型的许可条款。" +
+            "部分模型（例如 RMBG-1.4）存在非商用或其他使用限制；若您的用途不符合模型许可，请勿下载或使用该模型。\r\n\r\n" +
+            "各模型及主要第三方组件的许可摘要见仓库 THIRD_PARTY_NOTICES.md。"),
+        new(
+            "合法使用",
+            "您不得将本软件或其输出用于任何违反适用法律法规的用途，包括但不限于：" +
+            "侵犯他人知识产权、隐私权或肖像权；制作、传播违法信息；欺诈、骚扰；" +
+            "未经授权访问或干扰计算机系统；以及其他任何违法犯罪活动。\r\n\r\n" +
+            "因您违反法律法规或第三方权利而引起的任何法律责任、索赔或损失，由您自行承担。" +
+            "在适用法律允许的最大范围内，作者不对任何用户的违法或不当使用行为承担责任。"),
+        new(
+            "使用风险",
+            "本软件及 AI 功能按「原样」提供，不提供任何明示或暗示的保证（包括适销性、" +
+            "特定用途适用性、准确性等）。\r\n\r\n" +
+            "AI 处理结果（文字识别、背景去除、图像修复、超分辨率等）可能存在误差或不符合预期，仅供参考。\r\n\r\n" +
+            "在适用法律允许的最大范围内，作者不对因使用或无法使用本软件而产生的任何直接、" +
+            "间接、附带或后果性损失承担责任。"),
+        new(
+            "数据隐私",
+            "截图、录屏、图像编辑及 AI 推理等核心功能均在本地完成，默认不向任何服务器上传您的图片、视频或个人数据。\r\n\r\n" +
+            "本软件可能进行的网络访问（均可由您控制或主动触发）包括：\r\n" +
+            "· 检查软件更新（可在设置中关闭）\r\n" +
+            "· 下载 AI 模型文件（由您在「模型管理」中主动下载）\r\n" +
+            "· 从 GitHub / Gitee 获取发行版信息（检查更新时）\r\n\r\n" +
+            "除上述功能外，本软件不会主动收集、上传或传输您的个人数据。"),
+        new(
+            "官方分发与非官方渠道",
+            "作者官方免费发布渠道为本 GitHub 仓库及其 Releases 页面（以及作者同步发布的 Gitee 镜像）。\r\n\r\n" +
+            "若您通过非官方渠道（例如付费购买安装包、不明来源网盘、第三方代装等）获得本软件，" +
+            "该渠道与作者无关。作者不对其安全性、完整性、是否被篡改及后续支持承担任何责任。\r\n\r\n" +
+            "依据 GPLv3，他人在遵守许可（含提供源代码等义务）的前提下，可以收费分发本软件；" +
+            "但冒名官方、违反 GPLv3 条件、或未获 AI 模型许可而捆绑转售的行为，作者保留依法追究的权利。"),
+        new(
+            "第三方组件",
+            "本软件包含 RapidOCR、ONNX Runtime、SkiaSharp、Emgu.CV 等第三方库，" +
+            "以及可选下载的第三方 AI 模型；各自适用其原始许可，相关权利归各自权利人所有。\r\n\r\n" +
+            "详见仓库 LICENSE 与 THIRD_PARTY_NOTICES.md。"),
+    ];
+
+    public static string Summary { get; } =
+        "GPLv3 开源；AI 模型许可独立且须自行合规；禁止违法使用；核心功能本地运行。";
+
+    /// <summary>供 Inno Setup <c>LicenseFile</c> 使用的纯文本。</summary>
+    public static string ToPlainText()
+    {
+        var lines = new List<string>
+        {
+            "PixSnap 免责声明",
+            "",
+            "安装或使用本软件前，请仔细阅读以下条款。",
+            ""
+        };
+
+        foreach (var section in Sections)
+        {
+            lines.Add(section.Title);
+            lines.Add(new string('-', section.Title.Length));
+            lines.Add(section.Body);
+            lines.Add("");
+        }
+
+        lines.Add("第三方许可摘要");
+        lines.Add("--------------");
+        lines.Add($"详见：{ThirdPartyNoticesUrl}");
+
+        return string.Join(Environment.NewLine, lines);
+    }
+}
