@@ -29,3 +29,5 @@ jobs:
           dst_token: ${{ secrets.GITEE_TOKEN }}
           static_list: 'PixSnap'
           force_update: true
+          shallow: 'true'
+          depth: '1'
