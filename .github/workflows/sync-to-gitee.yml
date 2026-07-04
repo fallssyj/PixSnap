@@ -2,10 +2,13 @@ name: Sync to Gitee
 
 on:
   push:
-    branches: 
-      - '**'
+    branches:
+      - main
     tags:
-      - '**' 
+      - 'v*'
+
+permissions:
+  contents: read
 
 jobs:
   sync:
@@ -21,8 +24,8 @@ jobs:
         with:
           src: 'github/fallssyj'
           dst: 'gitee/falls_syj'
+          src_token: ${{ secrets.GITHUB_TOKEN }}
           dst_key: ${{ secrets.GITEE_RSA_PRIVATE_KEY }}
           dst_token: ${{ secrets.GITEE_TOKEN }}
-          static_list: "pix-snap"
+          static_list: 'PixSnap'
           force_update: true
-          debug: true
