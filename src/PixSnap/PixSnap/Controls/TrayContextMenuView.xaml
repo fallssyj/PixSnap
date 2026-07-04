@@ -44,6 +44,13 @@
 
             <Border Style="{StaticResource FlyoutMenuSeparatorStyle}" />
 
+            <Button Command="{Binding ClearLocalDataCommand}" Style="{StaticResource FlyoutMenuButtonStyle}">
+                <StackPanel Orientation="Horizontal">
+                    <ui:FontIcon Icon="{x:Static ui:SegoeFluentIcons.Delete}" Style="{StaticResource FlyoutMenuIconStyle}" />
+                    <TextBlock Margin="10,0,0,0" Style="{StaticResource FlyoutMenuTextStyle}" Text="清除本地数据…" />
+                </StackPanel>
+            </Button>
+
             <Button Command="{Binding ExitCommand}" Style="{StaticResource FlyoutMenuButtonStyle}">
                 <StackPanel Orientation="Horizontal">
                     <ui:FontIcon Icon="{x:Static ui:SegoeFluentIcons.PowerButton}" Style="{StaticResource FlyoutMenuIconStyle}" />

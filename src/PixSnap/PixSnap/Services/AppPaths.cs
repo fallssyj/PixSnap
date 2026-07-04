@@ -28,13 +28,20 @@ public static class AppPaths
     /// <summary>启动时创建数据目录，并将旧版安装目录下的 settings.json 迁移到用户目录。</summary>
     public static void Initialize()
     {
+        EnsureDataDirectories();
+        MigrateLegacySettings();
+    }
+
+    public static void EnsureDataDirectories()
+    {
         Directory.CreateDirectory(DataDirectory);
         Directory.CreateDirectory(LogsDirectory);
         Directory.CreateDirectory(ModelsRootDirectory);
         Directory.CreateDirectory(Path.Combine(ModelsRootDirectory, "ocr"));
-
-        MigrateLegacyFile(GetInstallPath("settings.json"), SettingsFilePath);
     }
+
+    public static void MigrateLegacySettings() =>
+        MigrateLegacyFile(GetInstallPath("settings.json"), SettingsFilePath);
 
     private static void MigrateLegacyFile(string legacyPath, string newPath)
     {

@@ -13,7 +13,7 @@
     ResizeMode="CanResize"
     TextOptions.TextFormattingMode="Display"
     UseLayoutRounding="True"
-    WindowStartupLocation="CenterOwner"
+    WindowStartupLocation="CenterScreen"
     ui:TitleBar.Height="36"
     ui:TitleBar.MaximizeButtonAvailability="Collapsed"
     ui:TitleBar.MinimizeButtonAvailability="Collapsed"
@@ -30,7 +30,7 @@
         </Grid.RowDefinitions>
 
         <Border Grid.Row="0" Padding="28,22,28,10">
-            <controls:PageHeader Subtitle="安装与使用本软件前请仔细阅读" Title="免责声明">
+            <controls:PageHeader Subtitle="{Binding Subtitle}" Title="{Binding Title}">
                 <controls:PageHeader.IconContent>
                     <ui:FontIcon
                         FontSize="18"
@@ -76,6 +76,7 @@
         </ScrollViewer>
 
         <Border
+            x:Name="ViewFooter"
             Grid.Row="3"
             Padding="28,12,28,18"
             BorderBrush="{DynamicResource DividerStrokeColorDefaultBrush}"
@@ -93,6 +94,36 @@
                     Content="关闭"
                     IsDefault="True"
                     Style="{StaticResource PixSnapAccentButtonStyle}" />
+            </Grid>
+        </Border>
+
+        <Border
+            x:Name="AcceptanceFooter"
+            Grid.Row="3"
+            Padding="28,12,28,18"
+            BorderBrush="{DynamicResource DividerStrokeColorDefaultBrush}"
+            BorderThickness="0,1,0,0"
+            Visibility="Collapsed">
+            <Grid>
+                <ui:HyperlinkButton
+                    VerticalAlignment="Center"
+                    Content="第三方许可摘要 (THIRD_PARTY_NOTICES)"
+                    NavigateUri="{Binding ThirdPartyNoticesUrl}"
+                    Style="{StaticResource AboutLinkButtonStyle}" />
+                <StackPanel HorizontalAlignment="Right" Orientation="Horizontal">
+                    <Button
+                        MinWidth="96"
+                        Margin="0,0,8,0"
+                        Click="RejectButton_Click"
+                        Content="拒绝"
+                        Style="{StaticResource SettingsActionButtonStyle}" />
+                    <Button
+                        MinWidth="96"
+                        Click="AcceptButton_Click"
+                        Content="我同意"
+                        IsDefault="True"
+                        Style="{StaticResource PixSnapAccentButtonStyle}" />
+                </StackPanel>
             </Grid>
         </Border>
     </Grid>

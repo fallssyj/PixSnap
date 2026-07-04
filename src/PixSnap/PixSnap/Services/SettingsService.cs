@@ -36,6 +36,8 @@ public static class SettingsService
     private const string KeyLogRetentionDays = "LogRetentionDays";
     private const string KeyUpdateSource = "UpdateSource";
     private const string KeyAutoCheckUpdateOnStartup = "AutoCheckUpdateOnStartup";
+    private const string KeyModelDownloadMirror = "ModelDownloadMirror";
+    private const string KeyDisclaimerAccepted = "DisclaimerAccepted";
 
     public const int DefaultLogRetentionDays = 7;
     public const int MinLogRetentionDays = 1;
@@ -45,7 +47,7 @@ public static class SettingsService
     public static readonly ModifierKeys DefaultHotkeyModifiers = ModifierKeys.Control | ModifierKeys.Shift;
     public static readonly Key DefaultHotkeyKey = Key.Q;
     // settings.json 的 schema 版本号；新增字段时递增，用于未来向后兼容迁移
-    private const int CurrentSettingsVersion = 7;
+    private const int CurrentSettingsVersion = 9;
     // ── 开机启动 ─────────────────────────────────────────────────────────────
 
     public static bool ReadStartupEnabled()
@@ -197,6 +199,82 @@ public static class SettingsService
         Log.Information("写入启动时检查更新: {Enabled}", enabled);
         var dict = ReadConfigDict();
         dict[KeyAutoCheckUpdateOnStartup] = enabled ? 1 : 0;
+        dict[KeyVersion] = CurrentSettingsVersion;
+        WriteConfigDict(dict);
+    }
+
+    public static ModelDownloadMirror ReadModelDownloadMirror() =>
+        ReadEnum(KeyModelDownloadMirror, ModelDownloadMirror.HfMirror);
+
+    public static void WriteModelDownloadMirror(ModelDownloadMirror mirror) =>
+        WriteEnum(KeyModelDownloadMirror, mirror, "模型下载镜像");
+
+    /// <summary>
+    /// 用户是否已同意许可与免责声明。
+    /// 无配置文件或未显式同意时返回 false；v9 以前的老配置文件视为已同意。
+    /// </summary>
+    public static bool ReadDisclaimerAccepted()
+    {
+        if (File.Exists(ConfigFilePath))
+        {
+            try
+            {
+                return ReadDisclaimerAcceptedFromJson(File.ReadAllText(ConfigFilePath));
+            }
+            catch (Exception ex)
+            {
+                Log.Warning(ex, "ReadDisclaimerAccepted 失败");
+                return false;
+            }
+        }
+
+        var legacyPath = AppPaths.GetInstallPath("settings.json");
+        if (File.Exists(legacyPath))
+        {
+            try
+            {
+                return ReadDisclaimerAcceptedFromJson(File.ReadAllText(legacyPath));
+            }
+            catch (Exception ex)
+            {
+                Log.Warning(ex, "ReadDisclaimerAccepted 读取旧版 settings 失败");
+            }
+        }
+
+        return false;
+    }
+
+    private static bool ReadDisclaimerAcceptedFromJson(string json)
+    {
+        var doc = JsonDocument.Parse(json);
+        var root = doc.RootElement;
+
+        if (root.TryGetProperty(KeyDisclaimerAccepted, out var accepted))
+        {
+            return accepted.ValueKind switch
+            {
+                JsonValueKind.True => true,
+                JsonValueKind.False => false,
+                JsonValueKind.Number when accepted.TryGetInt32(out var value) => value != 0,
+                _ => false
+            };
+        }
+
+        if (root.TryGetProperty(KeyVersion, out var versionProp)
+            && versionProp.TryGetInt32(out var version)
+            && version < CurrentSettingsVersion)
+        {
+            return true;
+        }
+
+        return false;
+    }
+
+    public static void WriteDisclaimerAccepted(bool accepted)
+    {
+        Log.Information("写入免责声明同意状态: {Accepted}", accepted);
+        var dict = ReadConfigDict();
+        dict[KeyDisclaimerAccepted] = accepted;
         dict[KeyVersion] = CurrentSettingsVersion;
         WriteConfigDict(dict);
     }

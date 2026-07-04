@@ -26,6 +26,7 @@ public partial class SettingsViewModel : ObservableObject
     private int _confirmedTrayDoubleClickActionIndex;
     private int _confirmedUpdateSourceIndex;
     private bool _confirmedAutoCheckUpdateOnStartup;
+    private int _confirmedModelDownloadMirrorIndex;
 
     [ObservableProperty]
     private string _currentVersionText = UpdateCheckService.CurrentVersionDisplay;
@@ -36,6 +37,10 @@ public partial class SettingsViewModel : ObservableObject
 
     [ObservableProperty]
     private bool _isAutoCheckUpdateOnStartup;
+
+    /// <summary>0 = hf-mirror.com, 1 = huggingface.co。</summary>
+    [ObservableProperty]
+    private int _selectedModelDownloadMirrorIndex;
 
     [ObservableProperty]
     private bool _isCheckingUpdate;
@@ -112,6 +117,8 @@ public partial class SettingsViewModel : ObservableObject
         _confirmedUpdateSourceIndex = _selectedUpdateSourceIndex;
         _isAutoCheckUpdateOnStartup = SettingsService.ReadAutoCheckUpdateOnStartup();
         _confirmedAutoCheckUpdateOnStartup = _isAutoCheckUpdateOnStartup;
+        _selectedModelDownloadMirrorIndex = (int)SettingsService.ReadModelDownloadMirror();
+        _confirmedModelDownloadMirrorIndex = _selectedModelDownloadMirrorIndex;
         _isStartupEnabled = SettingsService.ReadStartupEnabled();
         _selectedThemeIndex = SettingsService.ReadTheme();
         _confirmedThemeIndex = _selectedThemeIndex;
@@ -192,6 +199,7 @@ public partial class SettingsViewModel : ObservableObject
         SelectedTrayDoubleClickActionIndex = _confirmedTrayDoubleClickActionIndex;
         SelectedUpdateSourceIndex = _confirmedUpdateSourceIndex;
         IsAutoCheckUpdateOnStartup = _confirmedAutoCheckUpdateOnStartup;
+        SelectedModelDownloadMirrorIndex = _confirmedModelDownloadMirrorIndex;
         UpdateCheckStatusText = string.Empty;
         LogRetentionDays = _confirmedLogRetentionDays;
     }
@@ -245,13 +253,15 @@ public partial class SettingsViewModel : ObservableObject
         _confirmedUpdateSourceIndex = SelectedUpdateSourceIndex;
         SettingsService.WriteAutoCheckUpdateOnStartup(IsAutoCheckUpdateOnStartup);
         _confirmedAutoCheckUpdateOnStartup = IsAutoCheckUpdateOnStartup;
+        SettingsService.WriteModelDownloadMirror((ModelDownloadMirror)SelectedModelDownloadMirrorIndex);
+        _confirmedModelDownloadMirrorIndex = SelectedModelDownloadMirrorIndex;
         var retentionDays = Math.Clamp(LogRetentionDays, SettingsService.MinLogRetentionDays, SettingsService.MaxLogRetentionDays);
         LogRetentionDays = retentionDays;
         SettingsService.WriteLogRetentionDays(retentionDays);
         _confirmedLogRetentionDays = retentionDays;
         _ = Task.Run(() => LogFileService.DeleteExpiredFiles(retentionDays));
-        Log.Information("设置已保存: 开机启动={Startup}, 更新源={UpdateSource}, 启动检查更新={AutoUpdate}, 快捷键={Modifiers}+{Key}, 主题={Theme}, 窗口背景={Backdrop}, 托盘双击={TrayDbl}, AI GPU={Gpu}, OCR={OcrTier}, 抠图={Matting}, 超分={Sr}, 保存目录={SaveDir}, 自动保存={AutoSave}, 录屏目录={RecDir}, 日志保留={LogDays}天",
-            IsStartupEnabled, (UpdateSource)SelectedUpdateSourceIndex, IsAutoCheckUpdateOnStartup, (ModifierKeys)_pendingModifiers, (Key)_pendingKey, SelectedThemeIndex, SelectedWindowBackdropIndex, (TrayDoubleClickAction)SelectedTrayDoubleClickActionIndex, gpuDeviceId, (OcrModelTier)SelectedOcrModelIndex, (MattingModel)SelectedMattingModelIndex, (SuperResolutionModel)SelectedSuperResolutionModelIndex, SaveDirectory, IsAutoSaveEnabled, RecordingTempDirectory, retentionDays);
+        Log.Information("设置已保存: 开机启动={Startup}, 更新源={UpdateSource}, 启动检查更新={AutoUpdate}, 模型镜像={ModelMirror}, 快捷键={Modifiers}+{Key}, 主题={Theme}, 窗口背景={Backdrop}, 托盘双击={TrayDbl}, AI GPU={Gpu}, OCR={OcrTier}, 抠图={Matting}, 超分={Sr}, 保存目录={SaveDir}, 自动保存={AutoSave}, 录屏目录={RecDir}, 日志保留={LogDays}天",
+            IsStartupEnabled, (UpdateSource)SelectedUpdateSourceIndex, IsAutoCheckUpdateOnStartup, (ModelDownloadMirror)SelectedModelDownloadMirrorIndex, (ModifierKeys)_pendingModifiers, (Key)_pendingKey, SelectedThemeIndex, SelectedWindowBackdropIndex, (TrayDoubleClickAction)SelectedTrayDoubleClickActionIndex, gpuDeviceId, (OcrModelTier)SelectedOcrModelIndex, (MattingModel)SelectedMattingModelIndex, (SuperResolutionModel)SelectedSuperResolutionModelIndex, SaveDirectory, IsAutoSaveEnabled, RecordingTempDirectory, retentionDays);
         WeakReferenceMessenger.Default.Send(new HotkeyChangedMessage((ModifierKeys)_pendingModifiers, (Key)_pendingKey));
         _confirmedThemeIndex = SelectedThemeIndex;
         _confirmedWindowBackdropIndex = SelectedWindowBackdropIndex;
@@ -319,6 +329,17 @@ public partial class SettingsViewModel : ObservableObject
 
     [RelayCommand]
     private void OpenRecordingTempDirectory() => ShellHelper.OpenDirectory(RecordingTempDirectory, "录屏临时目录");
+
+    [RelayCommand]
+    private void ClearLocalData()
+    {
+        var owner = Application.Current.Windows
+            .OfType<Window>()
+            .FirstOrDefault(w => w.IsVisible && w.IsActive)
+            ?? Application.Current.Windows.OfType<Window>().FirstOrDefault(w => w.IsVisible);
+
+        UserDataResetService.TryPromptAndReset(owner);
+    }
 
     [RelayCommand]
     private void Cancel()

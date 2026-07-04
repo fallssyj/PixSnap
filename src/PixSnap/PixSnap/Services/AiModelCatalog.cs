@@ -142,7 +142,7 @@ public static class AiModelCatalog
 
             DisplayName = "字符字典",
 
-            UsageHint = "OCR 共用，随程序内置",
+            UsageHint = "OCR 共用，需在模型管理中下载",
 
             Category = "文字识别",
 
@@ -152,9 +152,7 @@ public static class AiModelCatalog
 
             DownloadUrl = "https://raw.githubusercontent.com/PaddlePaddle/PaddleOCR/release/3.0/ppocr/utils/dict/ppocrv5_dict.txt",
 
-            ApproximateSizeBytes = 74_000,
-
-            IsBundled = true
+            ApproximateSizeBytes = 74_000
 
         },
 

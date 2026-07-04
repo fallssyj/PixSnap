@@ -49,6 +49,55 @@ function Find-ISCC {
     throw 'Inno Setup 6 not found. Install from https://jrsoftware.org/isdl.php or set PIXSNAP_ISCC.'
 }
 
+function Find-7z {
+    if ($env:PIXSNAP_7Z -and (Test-Path $env:PIXSNAP_7Z)) {
+        return $env:PIXSNAP_7Z
+    }
+
+    $candidates = @(
+        "$env:ProgramFiles\7-Zip\7z.exe",
+        "${env:ProgramFiles(x86)}\7-Zip\7z.exe"
+    )
+
+    foreach ($path in $candidates) {
+        if (Test-Path $path) { return $path }
+    }
+
+    $fromPath = Get-Command 7z.exe -ErrorAction SilentlyContinue
+    if ($fromPath) { return $fromPath.Source }
+
+    throw '7-Zip not found. Install from https://www.7-zip.org/ or set PIXSNAP_7Z.'
+}
+
+function New-PortableArchive {
+    param(
+        [Parameter(Mandatory = $true)][string]$SevenZip,
+        [Parameter(Mandatory = $true)][string]$SourceDir,
+        [Parameter(Mandatory = $true)][string]$ArchivePath
+    )
+
+    if (Test-Path $ArchivePath) {
+        Remove-Item -LiteralPath $ArchivePath -Force
+    }
+
+    $archiveParent = Split-Path -Parent $ArchivePath
+    if (-not (Test-Path $archiveParent)) {
+        New-Item -ItemType Directory -Path $archiveParent -Force | Out-Null
+    }
+
+    # 归档 staging 目录内容；解压到任意文件夹即可直接运行（绿色版）
+    Push-Location $SourceDir
+    try {
+        & $SevenZip a -t7z -mx=9 -mmt=on -bd $ArchivePath * | Out-Host
+        if ($LASTEXITCODE -ne 0) {
+            throw "7z failed with exit code $LASTEXITCODE"
+        }
+    }
+    finally {
+        Pop-Location
+    }
+}
+
 function Get-ProjectVersion {
     [xml]$proj = Get-Content -LiteralPath $projectPath
     foreach ($group in @($proj.Project.PropertyGroup)) {
@@ -101,6 +150,19 @@ foreach ($pdb in $pdbFiles) {
 }
 Write-Host "    Removed $($pdbFiles.Count) .pdb file(s)" -ForegroundColor Cyan
 
+Write-Host '==> Finding 7-Zip...' -ForegroundColor Cyan
+$sevenZip = Find-7z
+Write-Host "    $sevenZip"
+
+$portableFile = Join-Path $outputDir "PixSnap-$version-x64-portable.7z"
+Write-Host '==> Creating portable archive...' -ForegroundColor Cyan
+New-PortableArchive -SevenZip $sevenZip -SourceDir $stagingDir -ArchivePath $portableFile
+if (-not (Test-Path $portableFile)) {
+    throw "Portable archive not created: $portableFile"
+}
+$portableSizeMb = [math]::Round((Get-Item $portableFile).Length / 1MB, 1)
+Write-Host "    $portableFile ($portableSizeMb MB)" -ForegroundColor Cyan
+
 Write-Host '==> Finding Inno Setup...' -ForegroundColor Cyan
 $iscc = Find-ISCC
 Write-Host "    $iscc"
@@ -115,4 +177,6 @@ if (-not (Test-Path $setupFile)) {
 
 $sizeMb = [math]::Round((Get-Item $setupFile).Length / 1MB, 1)
 Write-Host ''
-Write-Host "Done: $setupFile ($sizeMb MB)" -ForegroundColor Green
+Write-Host "Done:" -ForegroundColor Green
+Write-Host "  Installer: $setupFile ($sizeMb MB)" -ForegroundColor Green
+Write-Host "  Portable:  $portableFile ($portableSizeMb MB)" -ForegroundColor Green

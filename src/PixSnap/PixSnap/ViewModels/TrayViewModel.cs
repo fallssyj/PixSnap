@@ -33,6 +33,13 @@ public partial class TrayViewModel : ObservableObject
     private void ShowLogViewer() => RunNavigation(_navigation.ShowLogViewer);
 
     [RelayCommand]
+    private void ClearLocalData()
+    {
+        _trayMenu.Close();
+        UserDataResetService.TryPromptAndReset();
+    }
+
+    [RelayCommand]
     private void Exit()
     {
         _trayMenu.Close();

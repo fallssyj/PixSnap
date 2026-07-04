@@ -27,16 +27,17 @@ public static class AiModelDownloadService
         if (string.IsNullOrWhiteSpace(model.DownloadUrl))
             throw new InvalidOperationException($"{model.DisplayName} 不支持在线下载。");
 
+        var downloadUrl = ModelDownloadUrlHelper.Resolve(model.DownloadUrl);
         var destPath = AiModelCatalog.GetDownloadPath(model);
         var directory = Path.GetDirectoryName(destPath);
         if (!string.IsNullOrEmpty(directory))
             Directory.CreateDirectory(directory);
 
         var tempPath = destPath + ".download";
-        Log.Information("开始下载模型: {Name} -> {Path}", model.DisplayName, destPath);
+        Log.Information("开始下载模型: {Name} -> {Path} ({Url})", model.DisplayName, destPath, downloadUrl);
 
         using var response = await HttpClient
-            .GetAsync(model.DownloadUrl, HttpCompletionOption.ResponseHeadersRead, cancellationToken)
+            .GetAsync(downloadUrl, HttpCompletionOption.ResponseHeadersRead, cancellationToken)
             .ConfigureAwait(false);
         response.EnsureSuccessStatusCode();
 

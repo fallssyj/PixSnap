@@ -39,9 +39,3 @@ PixSnap 本体以 [GPLv3](LICENSE) 发布。下列组件与模型由第三方提
 
 - **NativeScreenCapturer**：本项目 C++/CLI 组件，随 PixSnap 以 GPLv3 发布
 - **Windows API**：Windows Graphics Capture、Media Foundation、DirectML 等由操作系统 / 运行时提供
-
----
-
-## 免责声明
-
-本文件仅为便利摘要，**不构成法律意见**。以各项目官方仓库及许可文件为准。如有疑问，请咨询专业律师。

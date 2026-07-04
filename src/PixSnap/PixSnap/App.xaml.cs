@@ -20,8 +20,10 @@ namespace PixSnap;
 
 public partial class App : System.Windows.Application, IRecipient<ScreenshotCapturedMessage>
 {
-    // 全局互斥体，防止同一用户会话下多次启动
-    private static readonly Mutex _instanceMutex = new(initiallyOwned: true, name: "Local\\PixSnap_SingleInstance");
+    private const string InstanceMutexName = "Local\\PixSnap_SingleInstance";
+
+    private static Mutex? _instanceMutex;
+    private static bool _ownsInstanceMutex;
 
     static App()
     {
@@ -55,23 +57,19 @@ public partial class App : System.Windows.Application, IRecipient<ScreenshotCapt
     {
         base.OnStartup(e);
 
-        AppPaths.Initialize();
+        AppPaths.EnsureDataDirectories();
 
         // 初始化 Serilog 文件日志：%LocalAppData%\PixSnap\logs\yyyy-MM-dd\pixsnap.log
         LogFileService.ConfigureLogger();
 
         Log.Information("PixSnap 启动");
 
-        // 清理过期的录屏临时文件（7天前），异步执行避免阻塞启动
-        _ = Task.Run(CleanupOldRecordingFiles);
-        _ = Task.Run(() => LogFileService.DeleteExpiredFiles(SettingsService.ReadLogRetentionDays()));
-
         DispatcherUnhandledException += OnDispatcherUnhandledException;
         AppDomain.CurrentDomain.UnhandledException += OnCurrentDomainUnhandledException;
         TaskScheduler.UnobservedTaskException += OnUnobservedTaskException;
 
         // 尝试获取互斥体所有权；获取失败说明已有实例在运行
-        if (!_instanceMutex.WaitOne(TimeSpan.Zero, exitContext: false))
+        if (!TryBecomeSingleInstance())
         {
             AppMessageBox.Show(
                 "PixSnap 已在运行中，请查看系统托盘。",
@@ -81,6 +79,15 @@ public partial class App : System.Windows.Application, IRecipient<ScreenshotCapt
             Shutdown(0);
             return;
         }
+
+        if (!EnsureDisclaimerAccepted())
+            return;
+
+        AppPaths.MigrateLegacySettings();
+
+        // 清理过期的录屏临时文件（7天前），异步执行避免阻塞启动
+        _ = Task.Run(CleanupOldRecordingFiles);
+        _ = Task.Run(() => LogFileService.DeleteExpiredFiles(SettingsService.ReadLogRetentionDays()));
 
         try
         {
@@ -149,6 +156,29 @@ public partial class App : System.Windows.Application, IRecipient<ScreenshotCapt
         ScheduleStartupUpdateCheck();
     }
 
+    private static bool EnsureDisclaimerAccepted()
+    {
+        if (SettingsService.ReadDisclaimerAccepted())
+            return true;
+
+        Log.Information("首次启动，显示许可与免责声明");
+
+        var dialog = new DisclaimerWindow(requireAcceptance: true);
+        dialog.ShowDialog();
+
+        if (dialog.AcceptanceResult == true)
+        {
+            SettingsService.WriteDisclaimerAccepted(true);
+            Log.Information("用户已同意许可与免责声明");
+            return true;
+        }
+
+        Log.Information("用户拒绝许可与免责声明，退出应用");
+        ReleaseInstanceMutex();
+        Current.Shutdown(0);
+        return false;
+    }
+
     private void ScheduleStartupUpdateCheck()
     {
         if (!SettingsService.ReadAutoCheckUpdateOnStartup())
@@ -203,25 +233,75 @@ public partial class App : System.Windows.Application, IRecipient<ScreenshotCapt
         TaskScheduler.UnobservedTaskException -= OnUnobservedTaskException;
 
         WeakReferenceMessenger.Default.UnregisterAll(this);
-        Services.GetRequiredService<NavigationMessageHandler>().Unregister();
+
+        if (Services is not null)
+        {
+            Services.GetRequiredService<NavigationMessageHandler>().Unregister();
+
+            // 释放 DI 容器（同时 Dispose 所有 Singleton）
+            if (Services is IDisposable disposable)
+                disposable.Dispose();
+        }
 
         _taskbarIcon?.Dispose();
         _taskbarIcon = null;
 
         OcrService.Shutdown();
 
-        // 释放 DI 容器（同时 Dispose 所有 Singleton）
-        if (Services is IDisposable disposable)
-            disposable.Dispose();
-
         Log.Information("PixSnap 退出");
         Log.CloseAndFlush();
 
-        // 释放互斥体，允许下一个实例启动
-        _instanceMutex.ReleaseMutex();
-        _instanceMutex.Dispose();
+        ReleaseInstanceMutex();
 
         base.OnExit(e);
+    }
+
+    private static bool TryBecomeSingleInstance()
+    {
+        _instanceMutex = new Mutex(initiallyOwned: true, InstanceMutexName, out var createdNew);
+        if (createdNew)
+        {
+            _ownsInstanceMutex = true;
+            return true;
+        }
+
+        try
+        {
+            if (_instanceMutex.WaitOne(TimeSpan.Zero, exitContext: false))
+            {
+                _ownsInstanceMutex = true;
+                return true;
+            }
+        }
+        catch (AbandonedMutexException)
+        {
+            // 上一实例异常退出未释放互斥体；当前线程已接管所有权。
+            _ownsInstanceMutex = true;
+            return true;
+        }
+
+        _instanceMutex.Dispose();
+        _instanceMutex = null;
+        return false;
+    }
+
+    private static void ReleaseInstanceMutex()
+    {
+        if (!_ownsInstanceMutex || _instanceMutex is null)
+            return;
+
+        try
+        {
+            _instanceMutex.ReleaseMutex();
+        }
+        catch (ApplicationException)
+        {
+            // 所有权计数异常时忽略，避免阻断退出。
+        }
+
+        _instanceMutex.Dispose();
+        _instanceMutex = null;
+        _ownsInstanceMutex = false;
     }
 
     public void Receive(ScreenshotCapturedMessage message)

@@ -307,6 +307,27 @@
                             </Border>
                             <Border Style="{StaticResource SettingsFieldSeparatorStyle}" />
 
+                            <Border Style="{StaticResource SettingsFieldRowStyle}">
+                                <Grid>
+                                    <Grid.ColumnDefinitions>
+                                        <ColumnDefinition Width="*" />
+                                        <ColumnDefinition Width="Auto" />
+                                    </Grid.ColumnDefinitions>
+                                    <StackPanel VerticalAlignment="Center">
+                                        <TextBlock Style="{StaticResource SettingsRowTitleStyle}" Text="模型下载镜像" />
+                                        <TextBlock Style="{StaticResource SettingsRowDescStyle}" Text="Hugging Face 模型文件的下载源" />
+                                    </StackPanel>
+                                    <ComboBox
+                                        Grid.Column="1"
+                                        SelectedIndex="{Binding SelectedModelDownloadMirrorIndex}"
+                                        Style="{StaticResource SettingsComboBoxStyle}">
+                                        <ComboBoxItem Content="国内镜像（hf-mirror.com）" />
+                                        <ComboBoxItem Content="官方（huggingface.co）" />
+                                    </ComboBox>
+                                </Grid>
+                            </Border>
+                            <Border Style="{StaticResource SettingsFieldSeparatorStyle}" />
+
                             <Border Padding="12,10">
                                 <Button
                                     HorizontalAlignment="Left"
@@ -469,6 +490,25 @@
                                 </Grid>
                             </Border>
                         </ikw:SimpleStackPanel>
+                    </Border>
+
+                    <TextBlock Style="{StaticResource SettingsSectionHeaderStyle}" Text="数据管理" />
+
+                    <Border Style="{StaticResource SettingsSectionCardStyle}">
+                        <Border Padding="12,10">
+                            <StackPanel>
+                                <TextBlock Style="{StaticResource SettingsRowTitleStyle}" Text="清除本地数据" />
+                                <TextBlock
+                                    Margin="0,2,0,10"
+                                    Style="{StaticResource SettingsRowDescStyle}"
+                                    Text="删除所有设置、日志与已下载的 AI 模型，效果类似卸载时的用户数据清理，但不会删除程序本身。清除后应用将退出，下次启动需重新同意许可。" />
+                                <Button
+                                    HorizontalAlignment="Left"
+                                    Command="{Binding ClearLocalDataCommand}"
+                                    Content="清除本地数据…"
+                                    Style="{StaticResource SettingsActionButtonStyle}" />
+                            </StackPanel>
+                        </Border>
                     </Border>
                 </ikw:SimpleStackPanel>
             </Grid>
